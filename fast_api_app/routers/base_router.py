@@ -1,0 +1,7 @@
+from fastapi import APIRouter
+
+
+v1_api_router = APIRouter(prefix="/api/v1")
+
+# On importe tous les routers de nos différentes ressources et on les inclut dans le router principal ici,
+# pour que le main.py puisse juste inclure ce router principal et avoir accès à tous les endpoints de l'api

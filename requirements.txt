@@ -1,0 +1,14 @@
+pydantic
+fastapi[standard]
+python-jose
+python-multipart
+SQLAlchemy
+uvicorn[standard]
+asyncpg
+python-dotenv
+argon2-cffi
+alembic
+uvloop
+websockets
+celery
+redis[hiredis]
