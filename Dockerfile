@@ -18,6 +18,8 @@ RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 
 # Stage 2: Runtime
 FROM python:3.11-slim
+# On doit redéfinir la variable dans le stage 2
+ENV WORKDIR=/fast_api_app
 
 WORKDIR $WORKDIR
 
@@ -25,6 +27,7 @@ WORKDIR $WORKDIR
 RUN apt-get update && apt-get install -y \
     ffmpeg \
     libpq-dev \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 
@@ -36,7 +39,7 @@ COPY . .
 # On crée un utilisateur non-root pour la sécurité
 # Création du dossier de logs avec les permissions appropriées
 RUN adduser --disabled-password --gecos "" appuser && \
-    mkdir -p logs && chown -R appuser:appuser /app
+    mkdir -p logs && chown -R appuser:appuser $WORKDIR
 
 
 # Changer pour l'utilisateur non-root
