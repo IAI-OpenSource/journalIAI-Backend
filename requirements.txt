@@ -11,4 +11,5 @@ alembic
 uvloop
 websockets
 celery
+celery-types
 redis[hiredis]

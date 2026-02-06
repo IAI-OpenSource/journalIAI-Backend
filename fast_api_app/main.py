@@ -38,7 +38,12 @@ async def lifespan(_ : FastAPI):
         print(f"Exception {e.__class__.__name__} lors du stop de l'application : {e}")
         traceback.print_exc()
 
-app = FastAPI(lifespan=lifespan, title="Journal IAI Backend", version="1.0.0")
+app = FastAPI(
+    lifespan=lifespan,
+    title="Journal IAI Backend",
+    version="1.0.0",
+    root_path="/api"        # Permet compatibilité avec Nginx
+)
 
 # Liste des origines autorisées
 origins = [

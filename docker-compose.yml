@@ -1,18 +1,4 @@
 services:
-  # Reverse Proxy Nginx
-  nginx:
-    image: nginx:alpine
-    container_name: journal_IAI_nginx
-    ports:
-      - "${NGINX_PORT}:80"
-    volumes:
-      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
-      - ./nginx/cache:/var/cache/nginx # Le dossier de cache persistant
-    depends_on:
-      api:
-        - condition: service_healthy
-      minio:
-        - condition: service_healthy
   # Base de données PostgreSQL
   db:
     image: postgres:15-alpine
@@ -74,13 +60,41 @@ services:
       - .:/fast_api_app
     ports:
       - "${API_PORT:-8000}:8000"      # Expose le port 8000 de l'API sur le port défini dans .env ou 8000 par défaut
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -f http://localhost:8000/api/health || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
     depends_on:
       db:
-        - condition: service_healthy
+        condition: service_healthy
       redis:
-        - condition: service_healthy
+        condition: service_healthy
       minio:
-        - condition: service_healthy
+        condition: service_healthy
+
+  # Reverse Proxy Nginx
+  nginx:
+    image: nginx:alpine
+    container_name: journal_IAI_nginx
+    restart: always
+    ports:
+      - "${NGINX_PORT}:80"
+    volumes:
+      - ./nginx/conf.d/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/cache:/var/cache/nginx # Le dossier de cache persistant
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -qO- http://nginx:80/api/health || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 3s
+    depends_on:
+      api:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
 
   # Worker Celery (Traitement images/vidéos, tâches de fond)
   worker:
@@ -91,11 +105,11 @@ services:
       - .:/fast_api_app
     depends_on:
       db:
-        - condition: service_healthy
+        condition: service_healthy
       redis:
-        - condition: service_healthy
+        condition: service_healthy
       minio:
-        - condition: service_healthy
+        condition: service_healthy
 
   # Flower (DashBoard de Monitoring pour Celery)
   flower:
@@ -103,10 +117,10 @@ services:
     container_name: journal_IAI_flower
     ports:
       - "${FLOWER_PORT}:5555"
-    command: flower --broker=redis://journal_IAI_redis:6379/0
+    command: celery --broker=redis://redis:6379/0 flower
     depends_on:
       redis:
-        - condition: service_healthy
+        condition: service_healthy
 
 volumes:
   db_data:

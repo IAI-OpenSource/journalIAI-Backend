@@ -35,14 +35,4 @@ RUN apt-get update && apt-get install -y \
 COPY --from=builder /install /usr/local
 COPY . .
 
-# Sécurité : On ne lance pas l'app en root
-# On crée un utilisateur non-root pour la sécurité
-# Création du dossier de logs avec les permissions appropriées
-RUN adduser --disabled-password --gecos "" appuser && \
-    mkdir -p logs && chown -R appuser:appuser $WORKDIR
-
-
-# Changer pour l'utilisateur non-root
-USER appuser
-
 # Les ports seront défini par le service dans docker-compose.yml
