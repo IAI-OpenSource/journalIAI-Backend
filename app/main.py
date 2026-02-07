@@ -5,9 +5,9 @@ try:
 except Exception as exc:    # Désolé pour ceux qui sont sur Windows, uvloop n'est pas compatible avec ce système d'exploitation, du coup on catch l'erreur et on continue avec la boucle standard d'asyncio
     print(f"Erreur lors de l'installation d'uvloop: {exc.__class__.__name__}\nFallBack à la boucle standard Asyncio.")
 
-from fast_api_app.middlewares.request_logging_middleware import log_requests
+from app.middlewares.request_logging_middleware import log_requests
 import traceback
-from fast_api_app.routers.base_router import v1_api_router
+from app.routers.base_router import v1_api_router
 from contextlib import asynccontextmanager
 
 import uvicorn

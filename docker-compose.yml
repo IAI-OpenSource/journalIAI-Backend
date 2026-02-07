@@ -55,9 +55,9 @@ services:
   api:
     build: .
     container_name: journal_IAI_api
-    command: uvicorn fast_api_app.main:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     volumes:
-      - .:/fast_api_app
+      - .:/app
     ports:
       - "${API_PORT:-8000}:8000"      # Expose le port 8000 de l'API sur le port défini dans .env ou 8000 par défaut
     healthcheck:
@@ -100,9 +100,9 @@ services:
   worker:
     build: .
     container_name: journal_IAI_worker
-    command: celery -A fast_api_app.worker.celery_app worker --loglevel=info
+    command: celery -A app.worker.celery_app worker --loglevel=info
     volumes:
-      - .:/fast_api_app
+      - .:/app
     depends_on:
       db:
         condition: service_healthy

@@ -1,7 +1,7 @@
 import logging
 from logging.handlers import RotatingFileHandler
 import os
-from fast_api_app.core.config import ENVIRONMENT
+from app.core.config import ENVIRONMENT
 
 LOG_DIR = "logs"
 os.makedirs(LOG_DIR, exist_ok=True)

@@ -1,7 +1,7 @@
 # --- Étape 1 : Base commune ---
 FROM python:3.11-slim AS builder
 
-ENV WORKDIR=/fast_api_app
+ENV WORKDIR=/app
 # Empêche Python de générer des fichiers .pyc et d'utiliser un buffer pour les logs
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
@@ -19,7 +19,7 @@ RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 # Stage 2: Runtime
 FROM python:3.11-slim
 # On doit redéfinir la variable dans le stage 2
-ENV WORKDIR=/fast_api_app
+ENV WORKDIR=/app
 
 WORKDIR $WORKDIR
 
