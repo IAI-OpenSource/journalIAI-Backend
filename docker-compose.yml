@@ -24,6 +24,9 @@ services:
       container_name: journal_IAI_redis
       ports:
         - "${REDIS_CACHE_PORT}:6379"
+      command: redis-server --appendonly yes # Active la persistance sur disque
+      volumes:
+        - redis_data:/data # Persistance réelle des données Redis
       healthcheck:
         test: [ "CMD", "redis-cli", "ping" ]
         interval: 20s
@@ -125,5 +128,6 @@ services:
 volumes:
   db_data:
   minio_data:
+  redis_data:
 
 

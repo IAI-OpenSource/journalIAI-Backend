@@ -1,0 +1,110 @@
+"""
+Modèle pour la table users.
+Tous les utilisateurs de la plateforme.
+"""
+from datetime import datetime
+from typing import Optional
+from uuid import UUID
+
+from sqlalchemy import DateTime, ForeignKey, Index, String, Boolean, func, CheckConstraint
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import Enum as SQLEnum
+
+from app.db.base import Base
+from app.db.models.mixins.integrity_error_mixin import IntegrityMapperMixin
+from app.db.models.enums import UserRole, ClasseType
+
+# Noms des contraintes
+UQ_USERS_EMAIL = "uq_users_email"
+UQ_USERS_USERNAME = "uq_users_username"
+FK_USERS_ACCESS_JETON = "fk_users_access_jeton"
+CHK_USERS_BIO_LENGTH = "chk_users_bio_length"
+IDX_USERS_CREATED_AT_ID = "idx_users_created_at_id"
+IDX_USERS_EMAIL = "idx_users_email"
+IDX_USERS_USERNAME = "idx_users_username"
+IDX_USERS_ROLE = "idx_users_role"
+IDX_USERS_CAN_POST = "idx_users_can_post"
+IDX_USERS_CLASSE = "idx_users_classe"
+IDX_USERS_ACCESS_JETON = "idx_users_access_jeton"
+IDX_USERS_DELETED_AT = "idx_users_deleted_at"
+
+
+class User(Base, IntegrityMapperMixin):
+    """Utilisateurs de la plateforme (étudiants, modérateurs, etc.)."""
+
+    __tablename__ = "users"
+
+    # Attributs
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+    username: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+
+    # Informations personnelles
+    first_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    last_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    bio: Mapped[Optional[str]] = mapped_column(nullable=True)
+    avatar_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    classe: Mapped[ClasseType] = mapped_column(SQLEnum(ClasseType), nullable=False)
+
+    # Rôle et permissions
+    role: Mapped[UserRole] = mapped_column(SQLEnum(UserRole), default=UserRole.STUDENT, nullable=False)
+    can_post: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
+    # MFA (Google Authenticator)
+    mfa_secret: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    mfa_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
+    # Métadonnées
+    access_jeton: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey("registration_jeton.id", ondelete="SET NULL", name=FK_USERS_ACCESS_JETON),
+        nullable=True,
+        comment="Référence au jeton d'inscription utilisé"
+    )
+    is_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+    # Soft delete
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=func.now(),
+        onupdate=func.now(),
+        nullable=False
+    )
+    last_login_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    # Index
+    __table_args__ = (
+        Index(IDX_USERS_CREATED_AT_ID, "created_at", "id", postgresql_where=(deleted_at == None)),
+        Index(IDX_USERS_EMAIL, "email", postgresql_where=(deleted_at == None)),
+        Index(IDX_USERS_USERNAME, "username", postgresql_where=(deleted_at == None)),
+        Index(IDX_USERS_ROLE, "role", postgresql_where=(deleted_at == None)),
+        Index(IDX_USERS_CAN_POST, "can_post", postgresql_where=(deleted_at == None) & (can_post == True)),
+        Index(IDX_USERS_CLASSE, "classe", postgresql_where=(deleted_at == None)),
+        Index(IDX_USERS_ACCESS_JETON, "access_jeton", postgresql_where=(access_jeton != None)),
+        Index(IDX_USERS_DELETED_AT, "deleted_at", postgresql_where=(deleted_at != None)),
+        CheckConstraint("bio IS NULL OR LENGTH(bio) <= 500", name=CHK_USERS_BIO_LENGTH),
+    )
+
+    # Relationships
+    posts: Mapped[list["Post"]] = relationship("Post", foreign_keys="Post.author_id", back_populates="author", cascade="all, delete-orphan", uselist=True)
+    comments: Mapped[list["Comment"]] = relationship("Comment", foreign_keys="Comment.author_id", back_populates="author", cascade="all, delete-orphan", uselist=True)
+    likes: Mapped[list["Like"]] = relationship("Like", back_populates="user", cascade="all, delete-orphan", uselist=True)
+    club_members: Mapped[list["ClubMember"]] = relationship("ClubMember", back_populates="user", cascade="all, delete-orphan", uselist=True)
+    notifications: Mapped[list["Notification"]] = relationship("Notification", back_populates="user", cascade="all, delete-orphan", uselist=True)
+    sessions: Mapped[list["Session"]] = relationship("Session", back_populates="user", cascade="all, delete-orphan", uselist=True)
+    moderation_logs: Mapped[list["ModerationLog"]] = relationship("ModerationLog", foreign_keys="ModerationLog.moderator_id", back_populates="moderator", cascade="all, delete-orphan", uselist=True)
+    audit_logs: Mapped[list["AuditLog"]] = relationship("AuditLog", back_populates="user", cascade="all, delete-orphan", uselist=True)
+    access_jeton_ref: Mapped[Optional["RegistrationJeton"]] = relationship("RegistrationJeton", back_populates="users", foreign_keys=[access_jeton], uselist=False)
+
+    # Messages d'erreur
+    ERROR_MESSAGES = {
+        UQ_USERS_EMAIL: "Cet email est déjà utilisé.",
+        UQ_USERS_USERNAME: "Ce nom d'utilisateur est déjà pris.",
+        FK_USERS_ACCESS_JETON: "Le jeton d'inscription spécifié n'existe pas.",
+        CHK_USERS_BIO_LENGTH: "La biographie ne peut pas dépasser 500 caractères.",
+    }
