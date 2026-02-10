@@ -64,7 +64,7 @@ services:
     ports:
       - "${API_PORT:-8000}:8000"      # Expose le port 8000 de l'API sur le port défini dans .env ou 8000 par défaut
     healthcheck:
-      test: [ "CMD-SHELL", "curl -f http://localhost:8000/api/health || exit 1" ]
+      test: [ "CMD-SHELL", "curl -f http://localhost:8000/health || exit 1" ]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -88,7 +88,8 @@ services:
       - ./nginx/conf.d/default.conf:/etc/nginx/conf.d/default.conf:ro
       - ./nginx/cache:/var/cache/nginx # Le dossier de cache persistant
     healthcheck:
-      test: [ "CMD-SHELL", "wget -qO- http://nginx:80/api/health || exit 1" ]
+      test: [ "CMD-SHELL",
+    "wget -qO- --header='Host: api.iai-journal.test' http://nginx/health || exit 1" ]
       interval: 10s
       timeout: 5s
       retries: 3

@@ -41,13 +41,12 @@ async def lifespan(_ : FastAPI):
 app = FastAPI(
     lifespan=lifespan,
     title="Journal IAI Backend",
-    version="1.0.0",
-    root_path="/api"        # Permet compatibilité avec Nginx
+    version="1.0.0"
 )
 
 # Liste des origines autorisées
 origins = [
-    "http://localhost:5173" ## url front par defaut de React, vu que c'est ce qu'ils vont surement utiliser pour le dev en local
+    "*" #Rien pour le moment
 ]
 app.add_middleware(
     CORSMiddleware,
