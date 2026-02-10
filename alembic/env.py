@@ -1,6 +1,7 @@
 import os
 import sys
 from logging.config import fileConfig
+import alembic_postgresql_enum
 
 from alembic import context
 from sqlalchemy import Connection

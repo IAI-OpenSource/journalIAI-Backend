@@ -13,3 +13,4 @@ websockets
 celery
 celery-types
 redis[hiredis]
+alembic-postgresql-enum

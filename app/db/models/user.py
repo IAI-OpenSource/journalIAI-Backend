@@ -12,13 +12,14 @@ from sqlalchemy import Enum as SQLEnum
 
 from app.db.base import Base
 from app.db.models.mixins.integrity_error_mixin import IntegrityMapperMixin
-from app.db.models.enums import UserRole, ClasseType
+from app.db.models.enums import UserRole, ClasseType, ExecutiveRoleType
 
 # Noms des contraintes
 UQ_USERS_EMAIL = "uq_users_email"
 UQ_USERS_USERNAME = "uq_users_username"
 FK_USERS_ACCESS_JETON = "fk_users_access_jeton"
 CHK_USERS_BIO_LENGTH = "chk_users_bio_length"
+CHK_USERS_EXEC_ROLE_VALID = "chk_users_exec_role_valid"
 IDX_USERS_CREATED_AT_ID = "idx_users_created_at_id"
 IDX_USERS_EMAIL = "idx_users_email"
 IDX_USERS_USERNAME = "idx_users_username"
@@ -49,6 +50,7 @@ class User(Base, IntegrityMapperMixin):
 
     # Rôle et permissions
     role: Mapped[UserRole] = mapped_column(SQLEnum(UserRole), default=UserRole.STUDENT, nullable=False)
+    executive_role: Mapped[Optional[ExecutiveRoleType]] = mapped_column(SQLEnum(ExecutiveRoleType), default=None, nullable=True)
     can_post: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     # MFA (Google Authenticator)
@@ -88,6 +90,11 @@ class User(Base, IntegrityMapperMixin):
         Index(IDX_USERS_ACCESS_JETON, "access_jeton", postgresql_where=(access_jeton != None)),
         Index(IDX_USERS_DELETED_AT, "deleted_at", postgresql_where=(deleted_at != None)),
         CheckConstraint("bio IS NULL OR LENGTH(bio) <= 500", name=CHK_USERS_BIO_LENGTH),
+        CheckConstraint(
+            "(role = 'EXECUTIVE_MEMBER' AND executive_role IS NOT NULL) OR "
+            "(role != 'EXECUTIVE_MEMBER' AND executive_role IS NULL)",
+            name=CHK_USERS_EXEC_ROLE_VALID
+        )
     )
 
     # Relationships
@@ -107,4 +114,5 @@ class User(Base, IntegrityMapperMixin):
         UQ_USERS_USERNAME: "Ce nom d'utilisateur est déjà pris.",
         FK_USERS_ACCESS_JETON: "Le jeton d'inscription spécifié n'existe pas.",
         CHK_USERS_BIO_LENGTH: "La biographie ne peut pas dépasser 500 caractères.",
+        CHK_USERS_EXEC_ROLE_VALID: "Erreur au niveau des roles"
     }
