@@ -2,6 +2,7 @@
 Modèle pour la table post_media.
 Médias associés aux posts (images, vidéos).
 """
+import uuid
 from datetime import datetime
 from typing import Optional
 from uuid import UUID
@@ -30,7 +31,7 @@ class PostMedia(Base, IntegrityMapperMixin):
     __tablename__ = "post_media"
 
     # Attributs
-    id: Mapped[UUID] = mapped_column(primary_key=True)
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     post_id: Mapped[UUID] = mapped_column(ForeignKey("posts.id", ondelete="CASCADE", name=FK_POST_MEDIA_POST), nullable=False)
 
     # Détails du média

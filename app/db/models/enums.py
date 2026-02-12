@@ -23,6 +23,11 @@ class ClasseType(str, Enum):
     ASR_3 = "ASR_3"
     MTWI_3 = "MTWI_3"
 
+class TypeActions(str, Enum):
+    CREATION = "CREATION"
+    ACCESSION = "ACCESSION"
+    MODIFICATION = "MODIFICATION"
+    SUPPRESSION = "SUPPRESSION"
 
 class ClubMembersType(str, Enum):
     """Rôles des membres dans les clubs."""
@@ -54,6 +59,12 @@ class ModerationActionType(str, Enum):
     SUSPEND_USER = "SUSPEND_USER"
     RESTORE_POST = "RESTORE_POST"
     RESTORE_COMMENT = "RESTORE_COMMENT"
+
+class ModerationTargetType(str, Enum):
+    """Types de cibles pour les actions de modération."""
+    POST = "POST"
+    COMMENT = "COMMENT"
+    USER = "USER"
 
 
 class EventStatus(str, Enum):

@@ -2,15 +2,16 @@
 Modèle pour la table audit_logs.
 Logs d'audit pour traçabilité.
 """
+import uuid
 from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
-from sqlalchemy import DateTime, Index, String, Text, ForeignKey, JSON, func
-from sqlalchemy.dialects.postgresql import INET
+from sqlalchemy import DateTime, Index, String, ForeignKey, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-
+from sqlalchemy import Enum as SQLEnum
 from app.db.base import Base
+from app.db.models.enums import TypeActions
 from app.db.models.mixins.integrity_error_mixin import IntegrityMapperMixin
 
 # Noms des contraintes
@@ -26,24 +27,16 @@ class AuditLog(Base, IntegrityMapperMixin):
     __tablename__ = "audit_logs"
 
     # Attributs
-    id: Mapped[UUID] = mapped_column(primary_key=True)
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     user_id: Mapped[Optional[UUID]] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL", name=FK_AUDIT_LOGS_USER),
         nullable=True
     )
 
     # Action
-    action: Mapped[str] = mapped_column(String(100), nullable=False)
+    action: Mapped[TypeActions] = mapped_column(SQLEnum(TypeActions), nullable=False)
     entity_type: Mapped[str] = mapped_column(String(50), nullable=False)
     entity_id: Mapped[Optional[UUID]] = mapped_column(nullable=True)
-
-    # Données
-    old_values: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
-    new_values: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
-
-    # Métadonnées
-    ip_address: Mapped[Optional[str]] = mapped_column(INET, nullable=True)
-    user_agent: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), nullable=False)

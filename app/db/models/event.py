@@ -2,6 +2,7 @@
 Modèle pour la table events.
 Événements universitaires.
 """
+import uuid
 from datetime import datetime
 from typing import Optional
 from uuid import UUID
@@ -33,7 +34,7 @@ class Event(Base, IntegrityMapperMixin):
     __tablename__ = "events"
 
     # Attributs
-    id: Mapped[UUID] = mapped_column(primary_key=True)
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     slug: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     description: Mapped[Optional[str]] = mapped_column(nullable=True)

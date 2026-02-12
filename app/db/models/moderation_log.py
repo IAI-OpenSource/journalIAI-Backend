@@ -2,17 +2,18 @@
 Modèle pour la table moderation_logs.
 Logs des actions de modération.
 """
+import uuid
 from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
-from sqlalchemy import DateTime, Index, String, Text, ForeignKey, JSON, func
+from sqlalchemy import DateTime, Index, Text, ForeignKey, JSON, func
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 from app.db.models.mixins.integrity_error_mixin import IntegrityMapperMixin
-from app.db.models.enums import ModerationActionType
+from app.db.models.enums import ModerationActionType, ModerationTargetType
 
 # Noms des contraintes
 FK_MODERATION_LOGS_MODERATOR = "fk_moderation_logs_moderator"
@@ -27,12 +28,12 @@ class ModerationLog(Base, IntegrityMapperMixin):
     __tablename__ = "moderation_logs"
 
     # Attributs
-    id: Mapped[UUID] = mapped_column(primary_key=True)
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     moderator_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE", name=FK_MODERATION_LOGS_MODERATOR), nullable=False)
 
     # Action et cible
     action: Mapped[ModerationActionType] = mapped_column(SQLEnum(ModerationActionType), nullable=False)
-    target_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    target_type: Mapped[ModerationTargetType] = mapped_column(SQLEnum(ModerationTargetType), nullable=False)
     target_id: Mapped[UUID] = mapped_column(nullable=False)
 
     # Détails

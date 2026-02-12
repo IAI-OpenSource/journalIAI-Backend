@@ -2,6 +2,7 @@
 Modèle pour la table clubs.
 Clubs et associations de l'université.
 """
+import uuid
 from datetime import datetime
 from typing import Optional
 from uuid import UUID
@@ -27,7 +28,7 @@ class Club(Base, IntegrityMapperMixin):
     __tablename__ = "clubs"
 
     # Attributs
-    id: Mapped[UUID] = mapped_column(primary_key=True)
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     slug: Mapped[str] = mapped_column(String(200), unique=True, nullable=False)
     description: Mapped[Optional[str]] = mapped_column(nullable=True)

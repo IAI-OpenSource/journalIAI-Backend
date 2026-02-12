@@ -3,6 +3,7 @@ Modèle pour la table comments.
 Commentaires et réponses (structure récursive).
 Optimisé pour cursor-based pagination.
 """
+import uuid
 from datetime import datetime
 from typing import Optional
 from uuid import UUID
@@ -33,7 +34,7 @@ class Comment(Base, IntegrityMapperMixin):
     __tablename__ = "comments"
 
     # Attributs
-    id: Mapped[UUID] = mapped_column(primary_key=True)
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     post_id: Mapped[UUID] = mapped_column(ForeignKey("posts.id", ondelete="CASCADE", name=FK_COMMENTS_POST), nullable=False)
     author_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE", name=FK_COMMENTS_AUTHOR), nullable=False)
 

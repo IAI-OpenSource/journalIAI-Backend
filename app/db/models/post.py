@@ -2,6 +2,7 @@
 Modèle pour la table posts.
 Publications sur la plateforme - optimisé pour cursor-based pagination.
 """
+import uuid
 from datetime import datetime
 from typing import Optional
 from uuid import UUID
@@ -36,7 +37,7 @@ class Post(Base, IntegrityMapperMixin):
     __tablename__ = "posts"
 
     # Attributs
-    id: Mapped[UUID] = mapped_column(primary_key=True)
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     author_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE", name=FK_POSTS_AUTHOR), nullable=False)
     event_id: Mapped[Optional[UUID]] = mapped_column(ForeignKey("events.id", ondelete="SET NULL", name=FK_POSTS_EVENT), nullable=True)
     club_id: Mapped[Optional[UUID]] = mapped_column(ForeignKey("clubs.id", ondelete="SET NULL", name=FK_POSTS_CLUB), nullable=True)

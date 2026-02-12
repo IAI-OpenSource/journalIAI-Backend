@@ -2,6 +2,7 @@
 Modèle pour la table notifications.
 Système de notifications.
 """
+import uuid
 from datetime import datetime
 from typing import Optional
 from uuid import UUID
@@ -28,7 +29,7 @@ class Notification(Base, IntegrityMapperMixin):
     __tablename__ = "notifications"
 
     # Attributs
-    id: Mapped[UUID] = mapped_column(primary_key=True)
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE", name=FK_NOTIFICATIONS_USER), nullable=False)
 
     # Type et contenu

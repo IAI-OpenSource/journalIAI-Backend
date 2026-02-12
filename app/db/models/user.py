@@ -2,6 +2,7 @@
 Modèle pour la table users.
 Tous les utilisateurs de la plateforme.
 """
+import uuid
 from datetime import datetime
 from typing import Optional
 from uuid import UUID
@@ -36,7 +37,7 @@ class User(Base, IntegrityMapperMixin):
     __tablename__ = "users"
 
     # Attributs
-    id: Mapped[UUID] = mapped_column(primary_key=True)
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     username: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)

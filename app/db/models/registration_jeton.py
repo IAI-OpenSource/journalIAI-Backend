@@ -2,6 +2,7 @@
 Modèle pour la table registration_jeton.
 Jetons d'inscription pré-générés pour les étudiants.
 """
+import uuid
 from datetime import datetime
 from typing import Optional
 from uuid import UUID
@@ -26,7 +27,7 @@ class RegistrationJeton(Base, IntegrityMapperMixin):
     __tablename__ = "registration_jeton"
 
     # Attributs
-    id: Mapped[UUID] = mapped_column(primary_key=True)
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     jeton: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
 
     # Informations de l'étudiant

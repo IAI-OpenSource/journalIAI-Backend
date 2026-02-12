@@ -2,6 +2,7 @@
 Modèle pour la table sessions.
 Sessions utilisateurs (pour gestion de l'authentification).
 """
+import uuid
 from datetime import datetime
 from typing import Optional
 from uuid import UUID
@@ -29,7 +30,7 @@ class Session(Base, IntegrityMapperMixin):
     __tablename__ = "sessions"
 
     # Attributs
-    id: Mapped[UUID] = mapped_column(primary_key=True)
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE", name=FK_SESSIONS_USER), nullable=False)
 
     # Détails de session

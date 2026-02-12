@@ -2,6 +2,7 @@
 Modèle pour la table likes.
 Système de likes polymorphique (posts et comments).
 """
+import uuid
 from datetime import datetime
 from typing import Optional
 from uuid import UUID
@@ -33,7 +34,7 @@ class Like(Base, IntegrityMapperMixin):
     __tablename__ = "likes"
 
     # Attributs
-    id: Mapped[UUID] = mapped_column(primary_key=True)
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE", name=FK_LIKES_USER), nullable=False)
     post_id: Mapped[Optional[UUID]] = mapped_column(
         ForeignKey("posts.id", ondelete="CASCADE", name=FK_LIKES_POST),

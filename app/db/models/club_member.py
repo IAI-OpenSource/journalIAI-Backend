@@ -2,6 +2,7 @@
 Modèle pour la table club_members.
 Relation entre utilisateurs et clubs.
 """
+import uuid
 from datetime import datetime
 from typing import Optional
 from uuid import UUID
@@ -30,7 +31,7 @@ class ClubMember(Base, IntegrityMapperMixin):
     __tablename__ = "club_members"
 
     # Attributs
-    id: Mapped[UUID] = mapped_column(primary_key=True)
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     club_id: Mapped[UUID] = mapped_column(ForeignKey("clubs.id", ondelete="CASCADE", name=FK_CLUB_MEMBERS_CLUB), nullable=False)
     user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE", name=FK_CLUB_MEMBERS_USER), nullable=False)
 
