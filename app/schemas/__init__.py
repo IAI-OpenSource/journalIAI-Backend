@@ -36,7 +36,7 @@ class ApiBaseResponse(BaseModel, Generic[T]):
 
     # Cette methode permettra de renvoyer les reponse de succèss directement depuis les classes filles
     @classmethod
-    def success_response(cls, data: T, response : Response, status_code: int = 200) -> "ApiBaseResponse[T]":
+    def success_response(cls, data: T, response : Response, status_code: int = 200):
         """
         Methode pour instancier une reponse de succes
         Args:
@@ -53,7 +53,7 @@ class ApiBaseResponse(BaseModel, Generic[T]):
 
     # Cette methode permettra de renvoyer les reponse d'erreur directement depuis les classes filles
     @classmethod
-    def error_response(cls, error_message: str,  response : Response, status_code: int = 400) -> "ApiBaseResponse[None]":
+    def error_response(cls, error_message: str,  response : Response, status_code: int = 400):
         """
         Methode pour instancier une réponse d'échec
         Args:

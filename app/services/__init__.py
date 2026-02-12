@@ -1,10 +1,7 @@
 from typing import TypeVar, Optional
 
-from fastapi.responses import Response
 
 from app.globals.app_result import GlobalAppResult
-from app.schemas import ApiBaseResponse
-
 T = TypeVar("T")
 
 class ServiceResult(GlobalAppResult[T]):
@@ -14,12 +11,12 @@ class ServiceResult(GlobalAppResult[T]):
     Elle encapsule soit une donnée de succès (data), soit un message d'erreur (error).
     """
 
-    data: Optional[ApiBaseResponse[T]]
+    data: Optional[T]
     error: Optional[str]
     service_name: str
     status_code: int
 
-    def __init__(self,status_code : int, data: Optional[ApiBaseResponse[T]] = None, error: Optional[str] = None, service_name: str = "Service Inconnu"):
+    def __init__(self,status_code : int, data: Optional[T] = None, error: Optional[str] = None, service_name: str = "Service Inconnu"):
         """N'utilisez pas directement le constructeur, utilisez les méthodes de classe service_success et service_error pour créer des instances de ServiceResult."""
         super().__init__(data, error)
         self.service_name = service_name
@@ -35,7 +32,7 @@ class ServiceResult(GlobalAppResult[T]):
     # --- Fonctions d'aide (Helpers) ---
 
     @classmethod
-    def service_success(cls, data: ApiBaseResponse[T], status_code: int = 200, service_name: str = "Service Inconnu") -> "ServiceResult[ApiBaseResponse[T]]":
+    def service_success(cls, data: T, status_code: int = 200, service_name: str = "Service Inconnu") -> "ServiceResult[T]":
         """
         Crée une réponse de succès avec les données fournies, le code de status HTTP à retourner et le nom du service.
         Args:
@@ -46,8 +43,6 @@ class ServiceResult(GlobalAppResult[T]):
         Returns:
             L'instance de ServiceResult contenant les données de succès.
         """
-        if not isinstance(data, ApiBaseResponse):
-            raise ValueError("Ohhhhh pour une ServiceResult de succès, data (de l'instance ServiceResult) doit être une instance ou une sous classe de ApiBaseResponse")
 
         return cls(data=data, service_name=service_name, status_code=status_code)
 
@@ -64,23 +59,3 @@ class ServiceResult(GlobalAppResult[T]):
             L'instance de ServiceResult contenant le message d'erreur.
         """
         return cls(error=message, service_name=service_name, status_code=status_code)
-
-
-    def to_HTTP_response(self, response : Response) -> ApiBaseResponse[T]:
-        """
-        Convertit ce ServiceResult en une réponse HTTP FastAPI appropriée.
-        Args:
-            response: L'objet Response de FastAPI pour pouvoir modifier des trucs.
-
-        Returns:
-            Une sous-classe de ApiBaseResponse contenant les données de succès ou le message d'erreur, avec le status code HTTP approprié.
-        """
-
-        if self.is_success():
-            if not isinstance(self.data, ApiBaseResponse):
-                raise ValueError("Ohhhhh pour une ServiceResult de succès, data (de l'instance ServiceResult) doit être une instance ou une sous classe de ApiBaseResponse")
-            # On peut personnaliser le status code pour les succès si besoin, mais par défaut on met 200
-            return self.data.success_response(data=self.data.result, response=response, status_code=self.status_code)
-        else:
-            # Pour les erreurs, on peut aussi personnaliser le status code selon le message d'erreur ou le service
-            return ApiBaseResponse.error_response(error_message=self.error, response=response, status_code=self.status_code)
