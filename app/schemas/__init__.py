@@ -22,7 +22,7 @@ class ApiBaseResponse(BaseModel, Generic[T]):
 
     error: Optional[str] = Field(
         default=None,
-        title="Champ des erreurs",
+        title="Champ des erreurs à afficher directement à l'utilisateur",
         description="Présent seulement si la requete à échouée ou si quelque chose s'est mal passé durant le traitement",
     )
 
