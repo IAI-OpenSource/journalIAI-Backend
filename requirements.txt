@@ -12,5 +12,5 @@ uvloop
 websockets
 celery
 celery-types
-redis[hiredis]
+redis[asyncio,hiredis]
 alembic-postgresql-enum

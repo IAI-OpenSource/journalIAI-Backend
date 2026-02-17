@@ -83,3 +83,10 @@ class Post(Base, IntegrityMapperMixin):
     media: Mapped[list["PostMedia"]] = relationship("PostMedia", back_populates="post", cascade="all, delete-orphan", uselist=True)
     likes: Mapped[list["Like"]] = relationship("Like", foreign_keys="Like.post_id", back_populates="post", cascade="all, delete-orphan", uselist=True)
 
+    # Messages d'erreur d'intégrité spécifiques au modèle Post
+    ERROR_MESSAGES = {
+        FK_POSTS_AUTHOR: "L'auteur spécifié n'existe pas.",
+        FK_POSTS_EVENT: "L'événement spécifié n'existe pas.",
+        FK_POSTS_CLUB: "Le club spécifié n'existe pas.",
+    }
+
