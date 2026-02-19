@@ -32,7 +32,7 @@ services:
         interval: 20s
         timeout: 10s
         retries: 10
-        start_period: 60s
+        start_period: ${START_PERIOD}s
 
   # Stockage d'objets MinIO
   minio:
@@ -68,7 +68,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 3
-      start_period: 60s
+      start_period: ${START_PERIOD}s
     depends_on:
       db:
         condition: service_healthy
