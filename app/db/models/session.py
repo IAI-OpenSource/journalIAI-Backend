@@ -16,10 +16,10 @@ from app.db.models.mixins.integrity_error_mixin import IntegrityMapperMixin
 
 # Noms des contraintes
 FK_SESSIONS_USER = "fk_sessions_user"
-UQ_SESSIONS_TOKEN_HASH = "uq_sessions_token_hash"
+UQ_SESSIONS_REF_TOKEN_HASH = "uq_sessions_ref_token_hash"
 CHK_SESSIONS_EXPIRES_AFTER_CREATION = "chk_sessions_expires_after_creation"
 IDX_SESSIONS_USER_ID = "idx_sessions_user_id"
-IDX_SESSIONS_TOKEN_HASH = "idx_sessions_token_hash"
+IDX_SESSIONS_REF_TOKEN_HASH = "idx_sessions_ref_token_hash"
 IDX_SESSIONS_EXPIRES_AT = "idx_sessions_expires_at"
 
 
@@ -34,8 +34,7 @@ class Session(Base, IntegrityMapperMixin):
     user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE", name=FK_SESSIONS_USER), nullable=False)
 
     # Détails de session
-    token_hash: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
-    refresh_token_hash: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    refresh_token_hash: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
 
     # Métadonnées
     ip_address: Mapped[Optional[str]] = mapped_column(INET, nullable=True)
@@ -56,7 +55,7 @@ class Session(Base, IntegrityMapperMixin):
     # Index
     __table_args__ = (
         Index(IDX_SESSIONS_USER_ID, "user_id", "last_activity_at"),
-        Index(IDX_SESSIONS_TOKEN_HASH, "token_hash"),
+        Index(IDX_SESSIONS_REF_TOKEN_HASH, "refresh_token_hash"),
         Index(IDX_SESSIONS_EXPIRES_AT, "expires_at"),
         CheckConstraint("expires_at > created_at", name=CHK_SESSIONS_EXPIRES_AFTER_CREATION),
     )
@@ -67,6 +66,6 @@ class Session(Base, IntegrityMapperMixin):
     # Messages d'erreur
     ERROR_MESSAGES = {
         FK_SESSIONS_USER: "L'utilisateur spécifié n'existe pas.",
-        UQ_SESSIONS_TOKEN_HASH: "Ce jeton est déjà utilisé par une autre session.",
+        UQ_SESSIONS_REF_TOKEN_HASH: "Ce jeton est déjà utilisé par une autre session.",
         CHK_SESSIONS_EXPIRES_AFTER_CREATION: "La date d'expiration doit être après la création.",
     }
