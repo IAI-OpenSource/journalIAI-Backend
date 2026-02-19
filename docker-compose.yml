@@ -16,7 +16,7 @@ services:
       interval: 20s
       timeout: 10s
       retries: 10
-      start_period: ${START_PERIOD}s
+      start_period: ${START_PERIOD:-5}s
 
   # Cache/Broker Redis
   redis:
@@ -32,7 +32,7 @@ services:
         interval: 20s
         timeout: 10s
         retries: 10
-        start_period: ${START_PERIOD}s
+        start_period: ${START_PERIOD:-5}s
 
   # Stockage d'objets MinIO
   minio:
@@ -68,7 +68,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 3
-      start_period: ${START_PERIOD}s
+      start_period: ${START_PERIOD:-5}s
     depends_on:
       db:
         condition: service_healthy

@@ -34,6 +34,7 @@ class AuditLog(Base, IntegrityMapperMixin):
     )
 
     # Action
+    readable_message: Mapped[str] = mapped_column(String(255), nullable=False)
     action: Mapped[TypeActions] = mapped_column(SQLEnum(TypeActions), nullable=False)
     entity_type: Mapped[str] = mapped_column(String(50), nullable=False)
     entity_id: Mapped[Optional[UUID]] = mapped_column(nullable=True)
