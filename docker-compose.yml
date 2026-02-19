@@ -88,8 +88,7 @@ services:
       - ./nginx/conf.d/default.conf:/etc/nginx/conf.d/default.conf:ro
       - ./nginx/cache:/var/cache/nginx # Le dossier de cache persistant
     healthcheck:
-      test: [ "CMD-SHELL",
-    "wget -qO- --header='Host: api.iai-journal.test' http://nginx/health || exit 1" ]
+      test: [ "CMD-SHELL","wget -qO- --header='Host: api.iai-journal.test' http://nginx/health || exit 1" ]
       interval: 10s
       timeout: 5s
       retries: 3
