@@ -7,7 +7,8 @@ import traceback
 from typing import Optional, Union
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import insert, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.session import Session
@@ -36,18 +37,20 @@ class SessionRepository:
     
     try:
       
-      db_session = Session(
-        **session_data.model_dump()
+      stmt = (
+        insert(Session)
+        .values(**session_data.model_dump())
+        .returning(Session)
       )
       
-      self.db.add(db_session)
+      result = await self.db.execute(stmt)
+      db_session = result.scalar_one()
       await self.db.commit()
-      await self.db.refresh(db_session)
 
       logger.info("Session ajoutée avec succès !")
       return CRUDResult.crud_success(db_session)
       
-    except Exception as e:
+    except IntegrityError as e:
       await self.db.rollback()
       logger.exception(f"Exception {e.__class__.__name__}: {e}")
       traceback.print_exc()
@@ -72,16 +75,16 @@ class SessionRepository:
       
       if session is None:
         logger.info("Session non Trouvé")
-        return CRUDResult.crud_error("Session non Trouvé")
+        return CRUDResult.crud_error(msg.NOT_FOUND, status_code=404)
       
       logger.info("Session récupérer avec succès !")
       return CRUDResult.crud_success(session)
       
-    except Exception as e:
+    except IntegrityError as e:
       await self.db.rollback()
       logger.exception(f"Exception {e.__class__.__name__}: {e}")
       traceback.print_exc()
-      return CRUDResult.crud_error(msg.INTERNAL_SERVER_ERROR)
+      return CRUDResult.crud_error(msg.INTERNAL_SERVER_ERROR, status_code=500)
     
     
   async def delete_session(self, sid: UUID) -> CRUDResult[str]:
@@ -98,7 +101,7 @@ class SessionRepository:
     session = await self.get_session_by_sid(sid)
     
     if session.is_error():
-      return CRUDResult.crud_error(session.error)
+      return CRUDResult.crud_error(session.error, status_code=session.status_code)
     
     await self.db.delete(session.data)
     await self.db.commit()

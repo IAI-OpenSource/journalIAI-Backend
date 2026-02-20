@@ -41,16 +41,16 @@ class SessionService:
         logger.error(f"Erreur: {session_repo.error}")
         return ServiceResult.service_error(
           message=session_repo.error, 
-          status_code=500, 
-          service_name="Service: Insertion Session"
+          status_code=session_repo.status_code, 
+          service_name=msg.INSERT_SESSSION
         )
       
-      return ServiceResult.service_success(session_repo.data)
+      return ServiceResult.service_success(session_repo.data, status_code=session_repo.status_code)
 
     except Exception as e:
       logger.exception(f"Exception {e.__class__.__name__}: {e}")
       traceback.print_exc()
-      return ServiceResult.service_error(msg.INTERNAL_SERVER_ERROR)
+      return ServiceResult.service_error(msg.INTERNAL_SERVER_ERROR, status_code=500)
     
     
   async def service_find_session_by_sid(self, sid: UUID) -> ServiceResult[ReadSession, str]:
@@ -62,7 +62,7 @@ class SessionService:
       
       if session.is_error():
         logger.error(f"Erreur: {session.error}")
-        return ServiceResult.service_error(session.error, 500, "Service: Insertion Session")
+        return ServiceResult.service_error(message=session.error, status_code=session.status_code, service_name=msg.INSERT_SESSSION)
       
       if not ReadSession.model_validate(session.data).is_valide_session(): ## je convertit Session en SesionRead 
         
@@ -73,13 +73,14 @@ class SessionService:
           logger.error(sess_deleted.error)
           return ServiceResult.service_error(
             message=sess_deleted.error, 
-            service_name="Service: Suppression Session"
+            status_code=sess_deleted.status_code,
+            service_name=msg.DELETE_SESSION
           )
           
         return ServiceResult.service_error(
           message=f"Erreur: {msg.INVALID_SESSION}", 
           status_code=403, 
-          service_name="Service: Lecture d'une Session"
+          service_name=msg.READ_SESSION
         )
         
       

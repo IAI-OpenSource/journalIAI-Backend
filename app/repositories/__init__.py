@@ -12,8 +12,9 @@ class CRUDResult(GlobalAppResult[T]):
     Elle encapsule soit une donnée de succès (data), soit un message d'erreur (error).
     """
 
-    def __init__(self, data: Optional[T] = None, error: Optional[str] = None):
+    def __init__(self, status_code: int, data: Optional[T] = None, error: Optional[str] = None):
         super().__init__(data, error)
+        self.status_code = status_code
 
     # --- Méthodes utilitaires (Optional) ---
 
@@ -25,11 +26,11 @@ class CRUDResult(GlobalAppResult[T]):
     # --- Fonctions d'aide (Helpers) ---
 
     @classmethod
-    def crud_success(cls, data: T):
+    def crud_success(cls, data: T, status_code: int = 200):
         """Crée une réponse de succès avec les données fournies."""
-        return cls(data=data)
+        return cls(data=data, status_code=status_code)
 
     @classmethod
-    def crud_error(cls, message: str):
+    def crud_error(cls, message: str, status_code: int = 500):
         """Crée une réponse d'erreur avec le message fourni."""
-        return cls(error=message)
+        return cls(error=message, status_code=status_code)
