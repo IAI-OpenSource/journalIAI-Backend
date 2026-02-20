@@ -26,11 +26,11 @@ class CRUDResult(GlobalAppResult[T]):
     # --- Fonctions d'aide (Helpers) ---
 
     @classmethod
-    def crud_success(cls, data: T, status_code: int):
+    def crud_success(cls, data: T, status_code: int = 200):
         """Crée une réponse de succès avec les données fournies."""
         return cls(data=data, status_code=status_code)
 
     @classmethod
-    def crud_error(cls, message: str, status_code: int):
+    def crud_error(cls, message: str, status_code: int = 500):
         """Crée une réponse d'erreur avec le message fourni."""
         return cls(error=message, status_code=status_code)
