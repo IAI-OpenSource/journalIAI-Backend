@@ -34,7 +34,7 @@ class Event(Base, IntegrityMapperMixin):
     __tablename__ = "events"
 
     # Attributs
-    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4, init=False)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     slug: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     description: Mapped[Optional[str]] = mapped_column(nullable=True)
@@ -58,18 +58,19 @@ class Event(Base, IntegrityMapperMixin):
         ForeignKey("clubs.id", ondelete="SET NULL", name=FK_EVENTS_ORGANIZER_CLUB),
         nullable=True
     )
-    status: Mapped[EventStatus] = mapped_column(SQLEnum(EventStatus), default=EventStatus.DRAFT, nullable=False)
+    status: Mapped[EventStatus] = mapped_column(SQLEnum(EventStatus), default=EventStatus.DRAFT, nullable=False, init=False)
 
     # Soft delete
     deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Timestamps
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), nullable=False, init=False)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=func.now(),
         onupdate=func.now(),
-        nullable=False
+        nullable=False,
+        init=False
     )
     published_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
@@ -85,10 +86,10 @@ class Event(Base, IntegrityMapperMixin):
     )
 
     # Relationships
-    organizer_club: Mapped[Optional["Club"]] = relationship("Club", foreign_keys=[organizer_club_id], back_populates="events", uselist=False)
-    parent_event: Mapped[Optional["Event"]] = relationship("Event", remote_side=[id], foreign_keys=[parent_event_id], back_populates="child_events", uselist=False)
-    child_events: Mapped[list["Event"]] = relationship("Event", remote_side=[parent_event_id], back_populates="parent_event", cascade="all, delete-orphan", uselist=True)
-    posts: Mapped[list["Post"]] = relationship("Post", foreign_keys="Post.event_id", back_populates="event", cascade="all, delete-orphan", uselist=True)
+    organizer_club: Mapped[Optional["Club"]] = relationship("Club", foreign_keys=[organizer_club_id], back_populates="events", uselist=False, init=False)
+    parent_event: Mapped[Optional["Event"]] = relationship("Event", remote_side=[id], foreign_keys=[parent_event_id], back_populates="child_events", uselist=False, init=False)
+    child_events: Mapped[list["Event"]] = relationship("Event", remote_side=[parent_event_id], back_populates="parent_event", cascade="all, delete-orphan", uselist=True, init=False)
+    posts: Mapped[list["Post"]] = relationship("Post", foreign_keys="Post.event_id", back_populates="event", cascade="all, delete-orphan", uselist=True, init=False)
 
     # Messages d'erreur
     ERROR_MESSAGES = {

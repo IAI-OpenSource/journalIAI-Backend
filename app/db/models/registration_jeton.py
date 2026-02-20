@@ -27,18 +27,18 @@ class RegistrationJeton(Base, IntegrityMapperMixin):
     __tablename__ = "registration_jeton"
 
     # Attributs
-    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4, init=False)
     jeton: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
 
     # Informations de l'étudiant
     first_name: Mapped[str] = mapped_column(String(100), nullable=False)
     last_name: Mapped[str] = mapped_column(String(100), nullable=False)
-    role: Mapped[UserRole] = mapped_column(SQLEnum(UserRole), default=UserRole.STUDENT, nullable=False)
+    role: Mapped[UserRole] = mapped_column(SQLEnum(UserRole), default=UserRole.STUDENT, nullable=False, init=False)
     classe: Mapped[ClasseType] = mapped_column(SQLEnum(ClasseType), nullable=False)
 
     # Suivi d'utilisation
     used_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
-    added_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), nullable=False)
+    added_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), nullable=False, init=False)
 
     # Index
     __table_args__ = (
@@ -48,7 +48,7 @@ class RegistrationJeton(Base, IntegrityMapperMixin):
     )
 
     # Relationships
-    users: Mapped[list["User"]] = relationship("User", foreign_keys="User.access_jeton", back_populates="access_jeton_ref", uselist=True)
+    users: Mapped[list["User"]] = relationship("User", foreign_keys="User.access_jeton", back_populates="access_jeton_ref", uselist=True, init=False)
 
     # Messages d'erreur
     ERROR_MESSAGES = {

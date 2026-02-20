@@ -27,7 +27,7 @@ class AuditLog(Base, IntegrityMapperMixin):
     __tablename__ = "audit_logs"
 
     # Attributs
-    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4, init=False)
     user_id: Mapped[Optional[UUID]] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL", name=FK_AUDIT_LOGS_USER),
         nullable=True
@@ -36,21 +36,21 @@ class AuditLog(Base, IntegrityMapperMixin):
     # Action
     readable_message: Mapped[str] = mapped_column(String(255), nullable=False)
     action: Mapped[TypeActions] = mapped_column(SQLEnum(TypeActions), nullable=False)
-    entity_type: Mapped[str] = mapped_column(String(50), nullable=False)
-    entity_id: Mapped[Optional[UUID]] = mapped_column(nullable=True)
+    destination_entity_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    destination_entity_id: Mapped[Optional[UUID]] = mapped_column(nullable=False)
 
     # Timestamps
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), nullable=False, init=False)
 
     # Index
     __table_args__ = (
         Index(IDX_AUDIT_LOGS_USER_ID, "user_id", "created_at", postgresql_where=(user_id != None)),
-        Index(IDX_AUDIT_LOGS_ENTITY, "entity_type", "entity_id", "created_at"),
+        Index(IDX_AUDIT_LOGS_ENTITY, "destination_entity_type", "destination_entity_id", "created_at"),
         Index(IDX_AUDIT_LOGS_CREATED_AT, "created_at"),
     )
 
     # Relationships
-    user: Mapped[Optional["User"]] = relationship("User", foreign_keys=[user_id], back_populates="audit_logs", uselist=False)
+    user: Mapped[Optional["User"]] = relationship("User", foreign_keys=[user_id], back_populates="audit_logs", uselist=False, init=False)
 
     # Messages d'erreur
     ERROR_MESSAGES = {

@@ -29,7 +29,7 @@ class Notification(Base, IntegrityMapperMixin):
     __tablename__ = "notifications"
 
     # Attributs
-    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4, init=False)
     user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE", name=FK_NOTIFICATIONS_USER), nullable=False)
 
     # Type et contenu
@@ -42,13 +42,13 @@ class Notification(Base, IntegrityMapperMixin):
     resource_id: Mapped[Optional[UUID]] = mapped_column(nullable=True)
 
     # État
-    is_read: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    is_read: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, init=False)
 
     # Soft delete
     deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Timestamps
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), nullable=False, init=False)
     read_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Index
@@ -62,7 +62,7 @@ class Notification(Base, IntegrityMapperMixin):
     )
 
     # Relationships
-    user: Mapped["User"] = relationship("User", foreign_keys=[user_id], back_populates="notifications", uselist=False)
+    user: Mapped["User"] = relationship("User", foreign_keys=[user_id], back_populates="notifications", uselist=False, init=False)
 
     # Messages d'erreur
     ERROR_MESSAGES = {
