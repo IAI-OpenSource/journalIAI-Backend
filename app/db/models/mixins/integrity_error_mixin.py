@@ -32,6 +32,6 @@ class IntegrityMapperMixin:
         constraint_name: str | None = getattr(cause, "constraint_name", None)
 
         return cls.ERROR_MESSAGES.get(
-                constraint_name,
-                f"Violation de contrainte : {constraint_name}"
-            ) if constraint_name else "Violation d'intégrité non identifiée"
+            constraint_name,
+            None
+        ) if constraint_name else None

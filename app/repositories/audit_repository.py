@@ -13,9 +13,9 @@ from app.db.models.enums import TypeActions
 from app.repositories import CRUDResult
 from logging import getLogger
 
-from app.repositories.repositoriesutils import RepositoriesUtils
+from app.repositories.repositories_utils import RepositoriesUtils
 from app.worker.celery_app import celery_app
-from app.worker.workers_task_names import WorkersTaskNames
+from app.worker.tasks.workers_task_names import WorkersTaskNames
 
 logger = getLogger(__name__)
 
@@ -55,11 +55,11 @@ class AuditRepository:
             return CRUDResult.crud_success(audit_log, 200)
 
         except IntegrityError as ie:
-            message = await RepositoriesUtils.traiter_integrity_error(ie, self.session, logger, AuditLog)
-            return CRUDResult.crud_error(message, 400)
+            return await RepositoriesUtils.traiter_integrity_error(ie, self.session, logger, AuditLog)
+
         except Exception as e:
             print(f"Exception non gérée : {e}")
-            await RepositoriesUtils.traiter_exception(e, self.session, logger)
+            await RepositoriesUtils.traiter_exception_inconnue(e, self.session, logger)
             return CRUDResult.crud_error(Messages.INTERNAL_SERVER_ERROR, 500)
 
     @classmethod
@@ -91,7 +91,7 @@ class AuditRepository:
             except IntegrityError as ie:
                 await RepositoriesUtils.traiter_integrity_error(ie, session, logger, AuditLog)
             except Exception as e:
-                await RepositoriesUtils.traiter_exception(e, session, logger)
+                await RepositoriesUtils.traiter_exception_inconnue(e, session, logger)
     @classmethod
     def save_creation_action_in_audit(cls, user_id: UUID, readable_message: str, destination_entity_type: str, destination_entity_id: UUID) -> None:
         """
