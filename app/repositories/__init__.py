@@ -26,7 +26,7 @@ class CRUDResult(GlobalAppResult[T]):
     # --- Fonctions d'aide (Helpers) ---
 
     @classmethod
-    def crud_success(cls, data: T, status_code: int = 200):
+    def crud_success(cls, data: T, status_code: int):
         """Crée une réponse de succès avec les données fournies."""
         return cls(data=data, status_code=status_code)
 
