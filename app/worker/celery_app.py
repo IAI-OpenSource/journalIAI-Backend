@@ -1,6 +1,7 @@
 from celery import Celery
 
 from app.core.config import REDIS_URL
+from app.worker.tasks import add_all_tasks
 
 
 celery_app : Celery = Celery(
@@ -16,4 +17,5 @@ celery_app.conf.update(
     task_reject_on_worker_lost=True,
 )
 
+add_all_tasks()
 celery_app.autodiscover_tasks(["app.worker.tasks"])
