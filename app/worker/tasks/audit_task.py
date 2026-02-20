@@ -4,7 +4,7 @@ from app.db.models.enums import TypeActions
 from celery import shared_task
 from app.repositories.audit_repository import AuditRepository
 from app.worker.tasks.async_loop_manager import task_async_loop_manager
-from app.worker.workers_task_names import WorkersTaskNames
+from app.worker.tasks.workers_task_names import WorkersTaskNames
 
 
 @shared_task(name=WorkersTaskNames.SAVE_AUDIT_LOG)
