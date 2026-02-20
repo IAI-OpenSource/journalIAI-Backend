@@ -19,3 +19,4 @@ class Messages:
     LOGIN_SUCCESSFUL = "Connexion réussie."
     LOGOUT_SUCCESSFUL = "Déconnexion réussie."
     PROFILE_UPDATED_SUCCESSFULLY = "Profil mis à jour avec succès."
+    INVALID_SESSION = "Session invalide"

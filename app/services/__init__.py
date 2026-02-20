@@ -16,7 +16,7 @@ class ServiceResult(GlobalAppResult[T]):
     service_name: str
     status_code: int
 
-    def __init__(self,status_code : int, data: Optional[T] = None, error: Optional[str] = None, service_name: str = "Service Inconnu"):
+    def __init__(self, status_code : int, data: Optional[T] = None, error: Optional[str] = None, service_name: str = "Service Inconnu"):
         """N'utilisez pas directement le constructeur, utilisez les méthodes de classe service_success et service_error pour créer des instances de ServiceResult."""
         super().__init__(data, error)
         self.service_name = service_name
