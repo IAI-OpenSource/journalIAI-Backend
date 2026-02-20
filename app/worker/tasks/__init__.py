@@ -1,5 +1,4 @@
-<<<<<<< HEAD
-#
+
 def add_all_tasks() :
     """
     Permet d'importer tous les tasks pour que celery puisse les découvrir et les exécuter
@@ -10,8 +9,3 @@ def add_all_tasks() :
 
     """
     from app.worker.tasks.audit_task import create_audit_log
-=======
-from app.worker.tasks.audit_task import create_audit_log
->>>>>>> 141282c (feat: Modification des noms des attributs dans les logs d'audit)
-
-
