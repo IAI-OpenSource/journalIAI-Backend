@@ -20,13 +20,13 @@ class CRUDResult(GlobalAppResult[T]):
 
     def __repr__(self) -> str:
         if self.is_success():
-            return f"<CRUDResponse Success: {self._data!r}>"
-        return f"<CRUDResponse Error: {self._error!r}>"
+            return f"<CRUDResponse Status {self.status_code} Success: {self._data!r}>"
+        return f"<CRUDResponse Status {self.status_code} Error: {self._error!r}>"
 
     # --- Fonctions d'aide (Helpers) ---
 
     @classmethod
-    def crud_success(cls, data: T, status_code: int = 200):
+    def crud_success(cls, data: T, status_code: int):
         """Crée une réponse de succès avec les données fournies."""
         return cls(data=data, status_code=status_code)
 

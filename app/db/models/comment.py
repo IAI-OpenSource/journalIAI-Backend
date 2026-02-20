@@ -34,7 +34,7 @@ class Comment(Base, IntegrityMapperMixin):
     __tablename__ = "comments"
 
     # Attributs
-    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4, init=False)
     post_id: Mapped[UUID] = mapped_column(ForeignKey("posts.id", ondelete="CASCADE", name=FK_COMMENTS_POST), nullable=False)
     author_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE", name=FK_COMMENTS_AUTHOR), nullable=False)
 
@@ -48,19 +48,20 @@ class Comment(Base, IntegrityMapperMixin):
     content: Mapped[str] = mapped_column(Text, nullable=False)
 
     # Métriques
-    like_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    reply_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    like_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False, init=False)
+    reply_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False, init=False)
 
     # Soft delete
     deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Timestamps (CRUCIAL pour cursor pagination)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), nullable=False, init=False)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=func.now(),
         onupdate=func.now(),
-        nullable=False
+        nullable=False,
+        init=False
     )
 
     # Index
@@ -76,11 +77,11 @@ class Comment(Base, IntegrityMapperMixin):
     )
 
     # Relationships
-    post: Mapped["Post"] = relationship("Post", foreign_keys=[post_id], back_populates="comments", uselist=False)
-    author: Mapped["User"] = relationship("User", foreign_keys=[author_id], back_populates="comments", uselist=False)
-    parent_comment: Mapped[Optional["Comment"]] = relationship("Comment", remote_side=[id], foreign_keys=[parent_comment_id], back_populates="replies", uselist=False)
-    replies: Mapped[list["Comment"]] = relationship("Comment", remote_side=[parent_comment_id], back_populates="parent_comment", cascade="all, delete-orphan", uselist=True)
-    likes: Mapped[list["Like"]] = relationship("Like", foreign_keys="Like.comment_id", back_populates="comment", cascade="all, delete-orphan", uselist=True)
+    post: Mapped["Post"] = relationship("Post", foreign_keys=[post_id], back_populates="comments", uselist=False, init=False)
+    author: Mapped["User"] = relationship("User", foreign_keys=[author_id], back_populates="comments", uselist=False, init=False)
+    parent_comment: Mapped[Optional["Comment"]] = relationship("Comment", remote_side=[id], foreign_keys=[parent_comment_id], back_populates="replies", uselist=False, init=False)
+    replies: Mapped[list["Comment"]] = relationship("Comment", remote_side=[parent_comment_id], back_populates="parent_comment", cascade="all, delete-orphan", uselist=True, init=False)
+    likes: Mapped[list["Like"]] = relationship("Like", foreign_keys="Like.comment_id", back_populates="comment", cascade="all, delete-orphan", uselist=True, init=False)
 
     # Messages d'erreur
     ERROR_MESSAGES = {

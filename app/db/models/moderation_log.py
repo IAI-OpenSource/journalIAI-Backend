@@ -28,7 +28,7 @@ class ModerationLog(Base, IntegrityMapperMixin):
     __tablename__ = "moderation_logs"
 
     # Attributs
-    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4, init=False)
     moderator_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE", name=FK_MODERATION_LOGS_MODERATOR), nullable=False)
 
     # Action et cible
@@ -41,7 +41,7 @@ class ModerationLog(Base, IntegrityMapperMixin):
     moderation_metadata: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
 
     # Timestamps
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), nullable=False, init=False)
 
     # Index
     __table_args__ = (
@@ -51,7 +51,7 @@ class ModerationLog(Base, IntegrityMapperMixin):
     )
 
     # Relationships
-    moderator: Mapped["User"] = relationship("User", foreign_keys=[moderator_id], back_populates="moderation_logs", uselist=False)
+    moderator: Mapped["User"] = relationship("User", foreign_keys=[moderator_id], back_populates="moderation_logs", uselist=False, init=False)
 
     # Messages d'erreur
     ERROR_MESSAGES = {

@@ -34,7 +34,7 @@ class Like(Base, IntegrityMapperMixin):
     __tablename__ = "likes"
 
     # Attributs
-    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4, init=False)
     user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE", name=FK_LIKES_USER), nullable=False)
     post_id: Mapped[Optional[UUID]] = mapped_column(
         ForeignKey("posts.id", ondelete="CASCADE", name=FK_LIKES_POST),
@@ -46,7 +46,7 @@ class Like(Base, IntegrityMapperMixin):
     )
 
     # Timestamps
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), nullable=False, init=False)
 
     # Index
     __table_args__ = (
@@ -62,9 +62,9 @@ class Like(Base, IntegrityMapperMixin):
     )
 
     # Relationships
-    user: Mapped["User"] = relationship("User", foreign_keys=[user_id], back_populates="likes", uselist=False)
-    post: Mapped[Optional["Post"]] = relationship("Post", foreign_keys=[post_id], back_populates="likes", uselist=False)
-    comment: Mapped[Optional["Comment"]] = relationship("Comment", foreign_keys=[comment_id], back_populates="likes", uselist=False)
+    user: Mapped["User"] = relationship("User", foreign_keys=[user_id], back_populates="likes", uselist=False, init=False)
+    post: Mapped[Optional["Post"]] = relationship("Post", foreign_keys=[post_id], back_populates="likes", uselist=False, init=False)
+    comment: Mapped[Optional["Comment"]] = relationship("Comment", foreign_keys=[comment_id], back_populates="likes", uselist=False, init=False)
 
     # Messages d'erreur
     ERROR_MESSAGES = {

@@ -31,18 +31,18 @@ class ClubMember(Base, IntegrityMapperMixin):
     __tablename__ = "club_members"
 
     # Attributs
-    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4, init=False)
     club_id: Mapped[UUID] = mapped_column(ForeignKey("clubs.id", ondelete="CASCADE", name=FK_CLUB_MEMBERS_CLUB), nullable=False)
     user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE", name=FK_CLUB_MEMBERS_USER), nullable=False)
 
     # Rôle dans le club
-    role_in_club: Mapped[ClubMembersType] = mapped_column(SQLEnum(ClubMembersType), default=ClubMembersType.SIMPLE_MEMBER, nullable=False)
+    role_in_club: Mapped[ClubMembersType] = mapped_column(SQLEnum(ClubMembersType), default=ClubMembersType.SIMPLE_MEMBER, nullable=False, init=False)
 
     # Soft delete
     deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Timestamps
-    joined_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), nullable=False)
+    joined_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), nullable=False, init=False)
 
     # Index
     __table_args__ = (
@@ -55,8 +55,8 @@ class ClubMember(Base, IntegrityMapperMixin):
     )
 
     # Relationships
-    club: Mapped["Club"] = relationship("Club", foreign_keys=[club_id], back_populates="members", uselist=False)
-    user: Mapped["User"] = relationship("User", foreign_keys=[user_id], back_populates="club_members", uselist=False)
+    club: Mapped["Club"] = relationship("Club", foreign_keys=[club_id], back_populates="members", uselist=False, init=False)
+    user: Mapped["User"] = relationship("User", foreign_keys=[user_id], back_populates="club_members", uselist=False, init=False)
 
     # Messages d'erreur
     ERROR_MESSAGES = {
