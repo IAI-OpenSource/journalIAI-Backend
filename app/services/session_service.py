@@ -35,7 +35,7 @@ class SessionService:
   async def service_create_session(
     self, 
     session_data: CreateSession
-  ) -> ServiceResult[Union[ReadSession, str]]:
+  ) -> ServiceResult[ReadSession]:
     """Logique Métier concernant l'insertion d'une session en BD"""
     
       
@@ -56,8 +56,8 @@ class SessionService:
   async def service_find_session_by_sid(self, sid: UUID) -> ServiceResult[ReadSession]:
     """Logique métier de récupération d'une session by SID"""
     
-    ## On cherhe d'abord la donnée dans le cache
-    session_cache_data = self.session_cache.get_session_from_cache(session_id=sid, session_model=ReadSession)
+  async def service_find_session_by_sid(self, sid: UUID) -> ServiceResult[ReadSession]:
+    """Logique métier de récupération d'un session by SID"""
 
     session = await self.session_repo.get_session_by_sid(sid)
     

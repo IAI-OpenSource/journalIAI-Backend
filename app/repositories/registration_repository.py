@@ -55,11 +55,9 @@ class RegistrationRepository:
       return CRUDResult.crud_success(db_reg, 201)
       
     except IntegrityError as ie:
-      traceback.print_exc()
       return RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, RegistrationJeton)
 
     except Exception as e:
-      traceback.print_exc()
       return RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
     
     
@@ -95,11 +93,9 @@ class RegistrationRepository:
       return CRUDResult.crud_success(registration)
       
     except IntegrityError as ie:
-      traceback.print_exc()
       return RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, RegistrationJeton)
 
     except Exception as e:
-      traceback.print_exc()
       return RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
     
     

@@ -51,11 +51,9 @@ class SessionRepository:
       return CRUDResult.crud_success(db_session, 201)
       
     except IntegrityError as ie:
-      traceback.print_exc()
       return RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, Session)
 
     except Exception as e:
-      traceback.print_exc()
       return RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
     
     
@@ -86,7 +84,6 @@ class SessionRepository:
       return RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, Session)
 
     except Exception as e:
-      traceback.print_exc()
       return RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
     
     
