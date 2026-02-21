@@ -64,7 +64,7 @@ async def update_event(db: AsyncSession, event_id: UUID, data: EventUpdate):
 
 
 """
-Suppression logique d'un event
+Suppression logique d'un event dans la base
 """
 async def soft_delete_event(db: AsyncSession, event_id: UUID):
     await db.execute(
