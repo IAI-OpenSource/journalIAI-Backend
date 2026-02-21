@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 class JWTManager:
   
   @staticmethod
-  async def create_access_token(
+  def create_access_token(
     data_to_encode: dict, 
     cle: str,
     expire_delta: timedelta | None = None) -> str | dict[str, JWTError] :
