@@ -106,7 +106,8 @@ class SessionRepository:
     await self.db.delete(session.data)
     await self.db.commit()
     
-    return CRUDResult.crud_success("Session supprimée avec succès")
+    
+    return CRUDResult.crud_success("Session supprimée avec succès", 204)
       
     
 
