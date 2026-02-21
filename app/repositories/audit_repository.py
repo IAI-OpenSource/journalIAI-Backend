@@ -1,7 +1,6 @@
 from asyncio import Semaphore
 
 from app.db.session import AsyncSessionLocal
-from app.globals.messages import Messages
 from uuid import UUID
 
 from sqlalchemy import insert
@@ -58,9 +57,7 @@ class AuditRepository:
             return await RepositoriesUtils.traiter_integrity_error(ie, self.session, logger, AuditLog)
 
         except Exception as e:
-            print(f"Exception non gérée : {e}")
-            await RepositoriesUtils.traiter_exception_inconnue(e, self.session, logger)
-            return CRUDResult.crud_error(Messages.INTERNAL_SERVER_ERROR, 500)
+            return await RepositoriesUtils.traiter_exception_inconnue(e, self.session, logger)
 
     @classmethod
     async def save_action_in_audit(cls, user_id: UUID, readable_message: str, action: TypeActions, destination_entity_type: str, destination_entity_id: UUID) -> None:
