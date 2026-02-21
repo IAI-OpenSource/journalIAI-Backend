@@ -26,3 +26,5 @@ class Messages:
     DELETE_SESSION = "Service: Suppression Session"
     READ_SESSION = "Service: Lecture d'une Session"
     UNKNOWN_SERVICE = "Service Inconnu"
+    REGISTRATION_JETON = "Régistration de jeton"
+    READ_REGISTRATION = "Lecture régistration jeton"

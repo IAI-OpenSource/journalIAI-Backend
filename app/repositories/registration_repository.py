@@ -2,6 +2,7 @@
 ## vous y trouverez les requetes base de donnée
 
 from dataclasses import dataclass
+from datetime import datetime
 import logging
 import traceback
 from typing import Optional, Union
@@ -12,6 +13,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.registration_jeton import RegistrationJeton
+from app.repositories.repositories_utils import RepositoriesUtils
 from app.schemas.registration_schemas import CreateRegistration, FindRegistration
 from . import CRUDResult
 from app.globals.messages import Messages as msg
@@ -50,13 +52,15 @@ class RegistrationRepository:
       await self.db.commit()
 
       logger.info("Session ajoutée avec succès !")
-      return CRUDResult.crud_success(db_reg)
+      return CRUDResult.crud_success(db_reg, 201)
       
-    except IntegrityError as e:
-      await self.db.rollback()
-      logger.exception(f"Exception {e.__class__.__name__}: {e}")
+    except IntegrityError as ie:
       traceback.print_exc()
-      return CRUDResult.crud_error(msg.INTERNAL_SERVER_ERROR)
+      return RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, RegistrationJeton)
+
+    except Exception as e:
+      traceback.print_exc()
+      return RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
     
     
   async def get_registration_by_jeton(self, find_reg_data: FindRegistration) -> CRUDResult[RegistrationJeton]:
@@ -90,11 +94,37 @@ class RegistrationRepository:
       logger.info("Registration récupérer avec succès !")
       return CRUDResult.crud_success(registration)
       
-    except IntegrityError as e:
-      await self.db.rollback()
-      logger.exception(f"Exception {e.__class__.__name__}: {e}")
+    except IntegrityError as ie:
       traceback.print_exc()
-      return CRUDResult.crud_error(msg.INTERNAL_SERVER_ERROR, status_code=500)
+      return RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, RegistrationJeton)
+
+    except Exception as e:
+      traceback.print_exc()
+      return RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
+    
+    
+  async def delete_registration(self, to_delete_data: FindRegistration) -> CRUDResult[str]:
+    """function pour delete une registration: Cependant , on ne vas pas supprimer 
+    de la bd mais on va marquer son attribut used_at
+
+    Args:
+        to_delete_data (FindRegistration): prend le schéma de la donnée a supprimer
+
+    Returns:
+        CRUDResult[str]: retourne instance de CRUDResult
+    """
+    
+    registration = await self.get_registration_by_jeton(find_reg_data=to_delete_data)
+    
+    if registration.is_error():
+      return CRUDResult.crud_error(registration.error, registration.status_code)
+    
+    registration.data.used_at = datetime.now()
+    await self.db.commit()
+
+    return CRUDResult.crud_success("Registration révoquée avec succès")
+
+
     
     
   
