@@ -71,7 +71,7 @@ class AuditRepository:
             destination_entity_type: Type de l'entité cible de l'action (ex: "User", "Post", etc.)
             destination_entity_id: Id de l'entité cible de l'action
         Returns:
-            Que dalle, c'est une méthode utilitaire pour enregistrer une action dans l'audit
+            Que dalle, c'est une méthode utilitaire pour enregistrer une action dans l'audit depuis les worker Celery
         """
         async with cls.write_semaphore:
             nouvel_audit_log = AuditLog(
@@ -99,7 +99,7 @@ class AuditRepository:
             destination_entity_type: Type de l'entité cible de l'action (ex: "User", "Post", etc.)
             destination_entity_id: Id de l'entité cible de l'action
         Returns:
-            Que dalle, c'est une méthode utilitaire pour enregistrer une action de création dans l'audit
+            Que dalle, c'est une méthode utilitaire pour enregistrer une action de création dans l'audit depuis les worker Celery
         """
 
         celery_app.send_task(
@@ -123,7 +123,7 @@ class AuditRepository:
             destination_entity_type: Type de l'entité cible de l'action (ex: "User", "Post", etc.)
             destination_entity_id: Id de l'entité cible de l'action
         Returns:
-            Que dalle, c'est une méthode utilitaire pour enregistrer une action de modification dans l'audit
+            Que dalle, c'est une méthode utilitaire pour enregistrer une action de modification dans l'audit depuis les worker Celery
         """
         celery_app.send_task(
             WorkersTaskNames.SAVE_AUDIT_LOG,
@@ -146,7 +146,7 @@ class AuditRepository:
             destination_entity_type: Type de l'entité cible de l'action (ex: "User", "Post", etc.)
             destination_entity_id: Id de l'entité cible de l'action
         Returns:
-            Que dalle, c'est une méthode utilitaire pour enregistrer une action de suppression dans l'audit
+            Que dalle, c'est une méthode utilitaire pour enregistrer une action de suppression dans l'audit depuis les worker Celery
         """
 
         celery_app.send_task(
@@ -170,7 +170,7 @@ class AuditRepository:
             destination_entity_type: Type de l'entité cible de l'action (ex: "User", "Post", etc.)
             destination_entity_id: Id de l'entité cible de l'action
         Returns:
-            Que dalle, c'est une méthode utilitaire pour enregistrer une action d'accession dans l'audit
+            Que dalle, c'est une méthode utilitaire pour enregistrer une action d'accession dans l'audit depuis les worker Celery
         """
 
         celery_app.send_task(
