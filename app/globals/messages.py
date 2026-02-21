@@ -51,3 +51,4 @@ class Messages:
     ## Message pour le cache
     CACHE_USER_NOT_FOUND = "Utilisateur non Touvé dans le cache"
     CACHE_SESSION_NOT_FOUND = "Session non trouvé dans le cache"
+    READ_REGISTRATION = "Lecture régistration jeton"

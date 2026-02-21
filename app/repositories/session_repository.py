@@ -14,7 +14,6 @@ from app.db.models.session import Session
 from app.schemas.session_schemas import CreateSession
 from . import CRUDResult
 from app.globals.messages import Messages as msg
-from app.globals.status_codes import StatusCode as status
 from .repositories_utils import RepositoriesUtils
 
 
@@ -49,13 +48,15 @@ class SessionRepository:
       await self.db.commit()
 
       logger.info("Session ajoutée avec succès !")
-      return CRUDResult.crud_success(db_session, status._201_STATUS_CREATED.value)
+      return CRUDResult.crud_success(db_session, 201)
       
     except IntegrityError as ie:
-      return await RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, Session)
+      traceback.print_exc()
+      return RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, Session)
 
     except Exception as e:
-      return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
+      traceback.print_exc()
+      return RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
     
     
   async def get_session_by_sid(self, sid: UUID) -> CRUDResult[Session]:
@@ -82,10 +83,11 @@ class SessionRepository:
       return CRUDResult.crud_success(session)
       
     except IntegrityError as ie:
-      return await RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, Session)
+      return RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, Session)
 
     except Exception as e:
-      return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
+      traceback.print_exc()
+      return RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
     
     
   async def delete_session(self, sid: UUID) -> CRUDResult[str]:
