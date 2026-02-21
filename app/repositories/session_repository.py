@@ -3,7 +3,6 @@
 
 from dataclasses import dataclass
 import logging
-import traceback
 from typing import Optional, Union
 from uuid import UUID
 
@@ -26,14 +25,14 @@ class SessionRepository:
   
   db: AsyncSession
   
-  async def insert_session(self, session_data: CreateSession) -> CRUDResult[Union[Session, str]]:
+  async def insert_session(self, session_data: CreateSession) -> CRUDResult[Session]:
     """fonction dao pour créer un e session
 
     Args:
         session_data (CreateSession): on prend les infos de la session
 
     Returns:
-        CRUDResult[Session, str]: _description_
+        CRUDResult[Session]: _description_
     """
     
     try:
@@ -52,22 +51,20 @@ class SessionRepository:
       return CRUDResult.crud_success(db_session, 201)
       
     except IntegrityError as ie:
-      traceback.print_exc()
       return RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, Session)
 
     except Exception as e:
-      traceback.print_exc()
       return RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
     
     
-  async def get_session_by_sid(self, sid: UUID) -> Optional[CRUDResult[Session, str]]:
+  async def get_session_by_sid(self, sid: UUID) -> CRUDResult[Session]:
     """function dao pour trouver une session a partir de son ID
 
     Args:
         sid (UUID): ID de la session
 
     Returns:
-        CRUDResult[Session, str]: _description_
+        CRUDResult[Session]: _description_
     """
     
     try:
@@ -87,7 +84,6 @@ class SessionRepository:
       return RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, Session)
 
     except Exception as e:
-      traceback.print_exc()
       return RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
     
     

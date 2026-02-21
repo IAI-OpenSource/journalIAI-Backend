@@ -26,7 +26,7 @@ DATABASE_HOST: str = os.getenv("DATABASE_HOST")
 DATABASE_NAME: str = os.getenv("DATABASE_NAME")
 
 # Clé secrete pour hashage et autres
-SECRET_KEY: str = os.getenv("SECRET_KEY")
+ACCESS_SECRET_KEY: str = os.getenv("SECRET_KEY")
 REFRESH_TOKEN_SECRET_KEY: str = os.getenv("REFRESH_TOKEN_SECRET_KEY", "refresh-cles-secrete")
 
 # Algorithme de hashage qu'on va utiliser
@@ -37,8 +37,8 @@ JWT_EXPIRES_MINUTES: int = int(os.getenv("JWT_EXPIRES_MINUTES"))
 REFRESH_TOKEN_EXPIRES_MINUTES: int = int(os.getenv("REFRESH_TOKEN_EXPIRES_MINUTES", 7 * 24 * 60))
 
 ## les IDs des cookies
-ACCESS_IDENTIFIER: str = "Access-Token"
-REFRESH_IDENTIFIER: str = "Refresh-Token"
+JWT_COOKIE_ACCESS_ID: str = "_SECURE_TOKEN" ## encoder ID de le session
+SID_REF_COOKIE: str = "_SID_REFRESH" ## encoder le refresh token
 
 ## url redis
 REDIS_URL: str = os.getenv("REDIS_URL", "redis://redis:6379/0")

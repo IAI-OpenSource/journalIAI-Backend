@@ -1,4 +1,5 @@
 from logging import Logger
+import traceback
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,6 +23,7 @@ class RepositoriesUtils:
             Un objet CrudResult d'erreur
         """
         logger.exception(f"Exception {exception.__class__.__name__} : {exception}", exc_info=exception)
+        traceback.print_exc()
         await session.rollback()
         return CRUDResult.crud_error(Messages.INTERNAL_SERVER_ERROR, status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -43,6 +45,7 @@ class RepositoriesUtils:
         user_friendly_message = model_class.translate_integrity_error(exception)
 
         if user_friendly_message:
+            traceback.print_exc()
             return CRUDResult.crud_error(user_friendly_message, status.HTTP_400_BAD_REQUEST)
 
         # Falllback

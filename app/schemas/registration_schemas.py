@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 from uuid import UUID
 
 from app.db.models.enums import ClasseType, UserRole
+from app.schemas import ApiBaseResponse
 
 
 class CreateRegistration(BaseModel):
@@ -46,12 +47,12 @@ class ReadRegistration(BaseModel):
       BaseModel (_type_): Hérite de bas model
   """
   
-  id: UUID = Field("ID de la registration")
-  jeton: str = Field("Jeton a remettre aux utilisteurs")
-  first_name: str = Field("Prenom de l'utilisateur")
-  last_name: str = Field("Nom de l'etudiant")
-  role: UserRole = Field("rolede l'utilisateur")
-  classe: ClasseType = Field("Classe de l'utilisateur")
+  id: UUID = Field(description="ID de la registration")
+  jeton: str = Field(description="Jeton a remettre aux utilisteurs")
+  first_name: str = Field(description="Prenom de l'utilisateur")
+  last_name: str = Field(description="Nom de l'etudiant")
+  role: UserRole = Field(description="rolede l'utilisateur")
+  classe: ClasseType = Field(description="Classe de l'utilisateur")
   used_at: Optional[datetime]
   added_at: datetime
   
@@ -63,5 +64,9 @@ class ReadRegistration(BaseModel):
   class Config:
       from_attributes=True
       
-      
 ReadRegistration.model_rebuild()
+
+class RegistrationInfos(ApiBaseResponse):
+    """Modele de validations des registrations coté routers"""
+
+    result: Optional[ReadRegistration] = Field(description="Infos d'une registration de jeton")
