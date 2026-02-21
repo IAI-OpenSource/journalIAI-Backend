@@ -1,3 +1,5 @@
+from app.core.logging_config import setup_logging, silencer_loggers_externes
+
 try:
     import uvloop
     uvloop.install()  # Nouvelle event loop optimisé à mort
@@ -22,7 +24,8 @@ async def lifespan(_ : FastAPI):
 
     #Code qui s'executera au démarrage de l'app FastApi
     try:
-        pass
+        setup_logging()
+        silencer_loggers_externes()
     except Exception as e:
         print(f"Exception {e.__class__.__name__} lors du démarrade de l'application : {e}")
         traceback.print_exc()

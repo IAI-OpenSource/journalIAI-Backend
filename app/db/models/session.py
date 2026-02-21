@@ -30,7 +30,7 @@ class Session(Base, IntegrityMapperMixin):
     __tablename__ = "sessions"
 
     # Attributs
-    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4, init=False)
     user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE", name=FK_SESSIONS_USER), nullable=False)
 
     # Détails de session
@@ -44,12 +44,13 @@ class Session(Base, IntegrityMapperMixin):
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     # Timestamps
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), nullable=False, init=False)
     last_activity_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=func.now(),
         onupdate=func.now(),
-        nullable=False
+        nullable=False,
+        init=False
     )
 
     # Index
@@ -61,7 +62,7 @@ class Session(Base, IntegrityMapperMixin):
     )
 
     # Relationships
-    user: Mapped["User"] = relationship("User", foreign_keys=[user_id], back_populates="sessions", uselist=False)
+    user: Mapped["User"] = relationship("User", foreign_keys=[user_id], back_populates="sessions", uselist=False, init=False)
 
     # Messages d'erreur
     ERROR_MESSAGES = {

@@ -31,7 +31,7 @@ class PostMedia(Base, IntegrityMapperMixin):
     __tablename__ = "post_media"
 
     # Attributs
-    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4, init=False)
     post_id: Mapped[UUID] = mapped_column(ForeignKey("posts.id", ondelete="CASCADE", name=FK_POST_MEDIA_POST), nullable=False)
 
     # Détails du média
@@ -46,16 +46,16 @@ class PostMedia(Base, IntegrityMapperMixin):
     duration: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
     # Ordre d'affichage
-    display_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    display_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False, init=False)
 
     # Processing status
-    is_processed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    is_processed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, init=False)
 
     # Soft delete
     deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Timestamps
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), nullable=False, init=False)
 
     # Index
     __table_args__ = (
@@ -69,7 +69,7 @@ class PostMedia(Base, IntegrityMapperMixin):
     )
 
     # Relationships
-    post: Mapped["Post"] = relationship("Post", foreign_keys=[post_id], back_populates="media", uselist=False)
+    post: Mapped["Post"] = relationship("Post", foreign_keys=[post_id], back_populates="media", uselist=False, init=False)
 
     # Messages d'erreur
     ERROR_MESSAGES = {

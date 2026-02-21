@@ -37,7 +37,7 @@ class User(Base, IntegrityMapperMixin):
     __tablename__ = "users"
 
     # Attributs
-    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4, init=False)
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     username: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -50,13 +50,13 @@ class User(Base, IntegrityMapperMixin):
     classe: Mapped[ClasseType] = mapped_column(SQLEnum(ClasseType), nullable=False)
 
     # Rôle et permissions
-    role: Mapped[UserRole] = mapped_column(SQLEnum(UserRole), default=UserRole.STUDENT, nullable=False)
-    executive_role: Mapped[Optional[ExecutiveRoleType]] = mapped_column(SQLEnum(ExecutiveRoleType), default=None, nullable=True)
-    can_post: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    role: Mapped[UserRole] = mapped_column(SQLEnum(UserRole), default=UserRole.STUDENT, nullable=False, init=False)
+    executive_role: Mapped[Optional[ExecutiveRoleType]] = mapped_column(SQLEnum(ExecutiveRoleType), default=None, nullable=True, init=False)
+    can_post: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, init=False)
 
     # MFA (Google Authenticator)
-    mfa_secret: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    mfa_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    mfa_secret: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, init=False)
+    mfa_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, init=False)
 
     # Métadonnées
     access_jeton: Mapped[Optional[UUID]] = mapped_column(
@@ -64,19 +64,20 @@ class User(Base, IntegrityMapperMixin):
         nullable=True,
         comment="Référence au jeton d'inscription utilisé"
     )
-    is_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    is_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, init=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False, init=False)
 
     # Soft delete
-    deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True, default=None, init=False)
 
     # Timestamps
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), nullable=False, init=False)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=func.now(),
         onupdate=func.now(),
-        nullable=False
+        nullable=False,
+        init=False
     )
     last_login_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
@@ -99,15 +100,15 @@ class User(Base, IntegrityMapperMixin):
     )
 
     # Relationships
-    posts: Mapped[list["Post"]] = relationship("Post", foreign_keys="Post.author_id", back_populates="author", cascade="all, delete-orphan", uselist=True)
-    comments: Mapped[list["Comment"]] = relationship("Comment", foreign_keys="Comment.author_id", back_populates="author", cascade="all, delete-orphan", uselist=True)
-    likes: Mapped[list["Like"]] = relationship("Like", back_populates="user", cascade="all, delete-orphan", uselist=True)
-    club_members: Mapped[list["ClubMember"]] = relationship("ClubMember", back_populates="user", cascade="all, delete-orphan", uselist=True)
-    notifications: Mapped[list["Notification"]] = relationship("Notification", back_populates="user", cascade="all, delete-orphan", uselist=True)
-    sessions: Mapped[list["Session"]] = relationship("Session", back_populates="user", cascade="all, delete-orphan", uselist=True)
-    moderation_logs: Mapped[list["ModerationLog"]] = relationship("ModerationLog", foreign_keys="ModerationLog.moderator_id", back_populates="moderator", cascade="all, delete-orphan", uselist=True)
-    audit_logs: Mapped[list["AuditLog"]] = relationship("AuditLog", back_populates="user", cascade="all, delete-orphan", uselist=True)
-    access_jeton_ref: Mapped[Optional["RegistrationJeton"]] = relationship("RegistrationJeton", back_populates="users", foreign_keys=[access_jeton], uselist=False)
+    posts: Mapped[list["Post"]] = relationship("Post", foreign_keys="Post.author_id", back_populates="author", cascade="all, delete-orphan", uselist=True, init=False)
+    comments: Mapped[list["Comment"]] = relationship("Comment", foreign_keys="Comment.author_id", back_populates="author", cascade="all, delete-orphan", uselist=True, init=False)
+    likes: Mapped[list["Like"]] = relationship("Like", back_populates="user", cascade="all, delete-orphan", uselist=True, init=False)
+    club_members: Mapped[list["ClubMember"]] = relationship("ClubMember", back_populates="user", cascade="all, delete-orphan", uselist=True, init=False)
+    notifications: Mapped[list["Notification"]] = relationship("Notification", back_populates="user", cascade="all, delete-orphan", uselist=True, init=False)
+    sessions: Mapped[list["Session"]] = relationship("Session", back_populates="user", cascade="all, delete-orphan", uselist=True, init=False)
+    moderation_logs: Mapped[list["ModerationLog"]] = relationship("ModerationLog", foreign_keys="ModerationLog.moderator_id", back_populates="moderator", cascade="all, delete-orphan", uselist=True, init=False)
+    audit_logs: Mapped[list["AuditLog"]] = relationship("AuditLog", back_populates="user", cascade="all, delete-orphan", uselist=True, init=False)
+    access_jeton_ref: Mapped[Optional["RegistrationJeton"]] = relationship("RegistrationJeton", back_populates="users", foreign_keys=[access_jeton], uselist=False, init=False)
 
     # Messages d'erreur
     ERROR_MESSAGES = {

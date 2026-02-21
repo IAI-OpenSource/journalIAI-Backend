@@ -16,7 +16,7 @@ services:
       interval: 20s
       timeout: 10s
       retries: 10
-      start_period: ${START_PERIOD}s
+      start_period: ${START_PERIOD:-5}s
 
   # Cache/Broker Redis
   redis:
@@ -32,7 +32,7 @@ services:
         interval: 20s
         timeout: 10s
         retries: 10
-        start_period: ${START_PERIOD}s
+        start_period: ${START_PERIOD:-5}s
 
   # Stockage d'objets MinIO
   minio:
@@ -58,7 +58,7 @@ services:
   api:
     build: .
     container_name: journal_IAI_api
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
     volumes:
       - .:/app
     ports:
@@ -68,7 +68,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 3
-      start_period: ${START_PERIOD}s
+      start_period: ${START_PERIOD:-5}s
     depends_on:
       db:
         condition: service_healthy

@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import create_async_engine
-from sqlalchemy.orm import declarative_base
+from sqlalchemy.orm import declarative_base, DeclarativeBase, MappedAsDataclass
 
 from app.core.config import (
     DATABASE_HOST,
@@ -28,7 +28,9 @@ engine = create_async_engine(DATABASE_URL, echo=True, future=True,
                              connect_args={"statement_cache_size": 0})
 
 # Creation de  Base: classe qui va servir a creer les model sqlalchemy et les tables
-Base = declarative_base()
+class Base(MappedAsDataclass, DeclarativeBase):     # Base moderne SQLAlchemy, avec support dataclass et méthodes de traduction d'erreurs d'intégrité.
+    """Base pour les modèles SQLAlchemy, avec support dataclass et méthodes de traduction d'erreurs d'intégrité."""
+    pass
 
 
 

@@ -41,7 +41,7 @@ ACCESS_IDENTIFIER: str = "Access-Token"
 REFRESH_IDENTIFIER: str = "Refresh-Token"
 
 ## url redis
-REDIS_URL: str = os.getenv("REDIS_URL")
+REDIS_URL: str = os.getenv("REDIS_URL", "redis://redis:6379/0")
 
 ## Start period pour docker
 START_PERIOD: int = os.getenv("START_PERIOD", 10)

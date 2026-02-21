@@ -1,7 +1,21 @@
 from celery import Celery
 
-celery_app = Celery(
+from app.core.config import REDIS_URL
+from app.worker.tasks import add_all_tasks
+
+
+celery_app : Celery = Celery(
     "app",
-    broker="redis://redis:6379/0",
-    backend="redis://redis:6379/1",
+    broker=REDIS_URL
 )
+
+celery_app.conf.update(
+    task_serializer="json",
+    accept_content=["json"],
+    result_serializer="json",
+    task_acks_late=True,
+    task_reject_on_worker_lost=True,
+)
+
+add_all_tasks()
+celery_app.autodiscover_tasks(["app.worker.tasks"])
