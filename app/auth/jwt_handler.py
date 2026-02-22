@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 class JWTManager:
   
   @staticmethod
-  async def create_access_token(
+  def create_access_token(
     data_to_encode: dict, 
     cle: str,
     expire_delta: timedelta | None = None) -> str | dict[str, JWTError] :
@@ -77,4 +77,4 @@ class JWTManager:
       except JWTError as err:
         logger.exception(f"Error {err.__class__.__name__} : {err}")
         traceback.print_exc()
-        return None  ## on retun None, l'erreur sera gerer dans le login
+        return None  

@@ -1,4 +1,4 @@
-## Ce fichier contient les différents schémas concernant les oérations 
+## Ce fichier contient les différents schémas concernant les opérations 
 # la table session. Inspirez-vous en
 
 from datetime import datetime

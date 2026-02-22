@@ -12,6 +12,7 @@ class Messages:
     # Messages spécifiques
     USER_NOT_FOUND = "Utilisateur non trouvé."
     INVALID_CREDENTIALS = "Identifiants invalides."
+    DELETED_USER = "Compte Utilisateur est supprimé"
     USER_ALREADY_EXISTS = "Un utilisateur avec cet email existe déjà."
     PSWD_TOO_WEAK = "Le mot de passe doit contenir au moins 8 caractères, une majuscule, une minuscule et un chiffre."
     INVALID_EMAIL_FORMAT = "Format d'email invalide."
@@ -26,3 +27,6 @@ class Messages:
     DELETE_SESSION = "Service: Suppression Session"
     READ_SESSION = "Service: Lecture d'une Session"
     UNKNOWN_SERVICE = "Service Inconnu"
+    REGISTRATION_JETON = "Régistration de jeton"
+    READ_REGISTRATION = "Lecture régistration jeton"
+    USER_SERVICE = "Service Utilisateur"

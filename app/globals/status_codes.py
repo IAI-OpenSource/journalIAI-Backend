@@ -1,0 +1,12 @@
+from enum import Enum as enum
+
+
+class StatusCode(int, enum):
+  
+  _200_STATUS_SUCCESS = 200
+  _201_STATUS_CREATED = 201
+  _204_STATUS_NO_CONTENT = 204
+  _404_STATUS_NOT_FOUND = 404
+  _400_STATUS_BAD_REQUEST = 400
+  
+  
