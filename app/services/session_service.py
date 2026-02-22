@@ -57,7 +57,7 @@ class SessionService:
     """Logique métier de récupération d'une session by SID"""
     
   async def service_find_session_by_sid(self, sid: UUID) -> ServiceResult[ReadSession]:
-    """Logique métier de récupération d'un session by SID"""
+    """Logique métier de récupération d'une session by SID"""
 
     session = await self.session_repo.get_session_by_sid(sid)
     

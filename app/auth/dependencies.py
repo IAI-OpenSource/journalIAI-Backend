@@ -5,10 +5,13 @@ from fastapi import status, HTTPException, Response, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.schemas.user_schemas import ReadUser
 from app.services.session_service import SessionService
 from app.auth.cookie_handler import CookieManager
 from app.auth.jwt_handler import JWTManager
 from app.core.config import JWT_COOKIE_ACCESS_ID, ACCESS_SECRET_KEY
+from app.services.user_service import UserService
+from app.globals.status_codes import StatusCode as custom_status
 
 
 class UserAuthDependencies:
@@ -17,6 +20,7 @@ class UserAuthDependencies:
       self.db = db
       self.cookie = CookieManager()
       self.session_service = SessionService(self.db)
+      self.user_service = UserService(self.db)
 
   async def get_token_data(self, token: Annotated[str | None, Cookie(alias=ACCESS_IDENTIFIER)] = None):
       """Fonction permettant de return les données contenues dans le token, on utilisera si on n'a pas forcément besoin de
@@ -38,7 +42,7 @@ class UserAuthDependencies:
       pass
 
 
-  async def get_current_user(self) :
+  async def get_current_user(self) -> Optional[ReadUser]:
 
         """function permettant de return le user actuellement connecter.
           Elle sera utiliser pr securiser certaine routes en exigant le token
@@ -70,8 +74,8 @@ class UserAuthDependencies:
 
         if sid is None:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Erreur de décryptage"
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Clé d'accès invalide"
             )
         
         user_session = await self.session_service.service_find_session_by_sid(sid=sid)
@@ -81,6 +85,20 @@ class UserAuthDependencies:
                 status_code=user_session.status_code,
                 detail=user_session.error
             )
+            
+        user = await self.user_service.service_find_user_by_id(user_session.data.user_id)
+        
+        if user.is_error():
+            if user.status_code == custom_status._404_STATUS_NOT_FOUND.value:
+                return {"Message": "Utilisateur Non Trouvé"}
+            
+            raise HTTPException(
+                detail=user.error,
+                status_code=user.status_code
+            )
+            
+        return user.data
+                
             
         
 

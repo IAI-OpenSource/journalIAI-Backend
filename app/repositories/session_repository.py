@@ -14,6 +14,7 @@ from app.db.models.session import Session
 from app.schemas.session_schemas import CreateSession
 from . import CRUDResult
 from app.globals.messages import Messages as msg
+from app.globals.status_codes import StatusCode as status
 from .repositories_utils import RepositoriesUtils
 
 
@@ -48,7 +49,7 @@ class SessionRepository:
       await self.db.commit()
 
       logger.info("Session ajoutée avec succès !")
-      return CRUDResult.crud_success(db_session, 201)
+      return CRUDResult.crud_success(db_session, status._201_STATUS_CREATED.value)
       
     except IntegrityError as ie:
       return RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, Session)
@@ -107,7 +108,7 @@ class SessionRepository:
     await self.db.commit()
     
     
-    return CRUDResult.crud_success("Session supprimée avec succès", 204)
+    return CRUDResult.crud_success("Session supprimée avec succès", status._204_STATUS_NO_CONTENT.value)
       
     
 
