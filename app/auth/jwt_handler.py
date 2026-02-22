@@ -77,4 +77,4 @@ class JWTManager:
       except JWTError as err:
         logger.exception(f"Error {err.__class__.__name__} : {err}")
         traceback.print_exc()
-        return None  ## on retun None, l'erreur sera gerer dans le login
+        return None  
