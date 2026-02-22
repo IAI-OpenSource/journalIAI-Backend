@@ -18,7 +18,7 @@ class UserAuthDependencies:
   
   def __init__(self, db: AsyncSession):
       self.db = db
-      self.cookie = CookieManager()
+      self.cookie = CookieManager(response=Response, request=Request)
       self.session_service = SessionService(self.db)
       self.user_service = UserService(self.db)
 
