@@ -43,8 +43,8 @@ class User(Base, IntegrityMapperMixin):
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
 
     # Informations personnelles
-    first_name: Mapped[str] = mapped_column(String(100), nullable=False)
     last_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    first_name: Mapped[str] = mapped_column(String(100), nullable=False)
     bio: Mapped[Optional[str]] = mapped_column(nullable=True)
     avatar_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     classe: Mapped[ClasseType] = mapped_column(SQLEnum(ClasseType), nullable=False)
@@ -54,18 +54,13 @@ class User(Base, IntegrityMapperMixin):
     executive_role: Mapped[Optional[ExecutiveRoleType]] = mapped_column(SQLEnum(ExecutiveRoleType), default=None, nullable=True, init=False)
     can_post: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, init=False)
 
-    # MFA (Google Authenticator)
-    mfa_secret: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, init=False)
-    mfa_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, init=False)
-
     # Métadonnées
-    access_jeton: Mapped[Optional[UUID]] = mapped_column(
+    access_jeton_id: Mapped[Optional[UUID]] = mapped_column(
         ForeignKey("registration_jeton.id", ondelete="SET NULL", name=FK_USERS_ACCESS_JETON),
         nullable=True,
         comment="Référence au jeton d'inscription utilisé"
     )
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, init=False)
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False, init=False)
 
     # Soft delete
     deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True, default=None, init=False)
@@ -76,7 +71,7 @@ class User(Base, IntegrityMapperMixin):
         DateTime(timezone=True),
         default=func.now(),
         onupdate=func.now(),
-        nullable=False,
+        nullable=True,
         init=False
     )
     last_login_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -89,7 +84,7 @@ class User(Base, IntegrityMapperMixin):
         Index(IDX_USERS_ROLE, "role", postgresql_where=(deleted_at == None)),
         Index(IDX_USERS_CAN_POST, "can_post", postgresql_where=(deleted_at == None) & (can_post == True)),
         Index(IDX_USERS_CLASSE, "classe", postgresql_where=(deleted_at == None)),
-        Index(IDX_USERS_ACCESS_JETON, "access_jeton", postgresql_where=(access_jeton != None)),
+        Index(IDX_USERS_ACCESS_JETON, "access_jeton_id", postgresql_where=(access_jeton_id != None)),
         Index(IDX_USERS_DELETED_AT, "deleted_at", postgresql_where=(deleted_at != None)),
         CheckConstraint("bio IS NULL OR LENGTH(bio) <= 500", name=CHK_USERS_BIO_LENGTH),
         CheckConstraint(
@@ -108,7 +103,7 @@ class User(Base, IntegrityMapperMixin):
     sessions: Mapped[list["Session"]] = relationship("Session", back_populates="user", cascade="all, delete-orphan", uselist=True, init=False)
     moderation_logs: Mapped[list["ModerationLog"]] = relationship("ModerationLog", foreign_keys="ModerationLog.moderator_id", back_populates="moderator", cascade="all, delete-orphan", uselist=True, init=False)
     audit_logs: Mapped[list["AuditLog"]] = relationship("AuditLog", back_populates="user", cascade="all, delete-orphan", uselist=True, init=False)
-    access_jeton_ref: Mapped[Optional["RegistrationJeton"]] = relationship("RegistrationJeton", back_populates="users", foreign_keys=[access_jeton], uselist=False, init=False)
+    access_jeton_ref: Mapped[Optional["RegistrationJeton"]] = relationship("RegistrationJeton", back_populates="users", foreign_keys=[access_jeton_id], uselist=False, init=False)
 
     # Messages d'erreur
     ERROR_MESSAGES = {
