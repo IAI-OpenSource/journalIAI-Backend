@@ -57,7 +57,6 @@ class ReadUser(BaseModel):
             return False
         return True
 
-
     class Config:
         from_attributes=True
         
@@ -66,4 +65,4 @@ ReadUser.model_rebuild()
 
 class UserInfos(ApiBaseResponse):
     
-    result: Optional[ReadUser] = Field(description="Informations d'un utilisateur")
+    result: ReadUser = Field(description="Informations d'un utilisateur")
