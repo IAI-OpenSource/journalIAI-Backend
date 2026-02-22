@@ -66,7 +66,8 @@ class ReadRegistration(BaseModel):
       
 ReadRegistration.model_rebuild()
 
+
 class RegistrationInfos(ApiBaseResponse):
     """Modele de validations des registrations coté routers"""
 
-    result: Optional[ReadRegistration] = Field(description="Infos d'une registration de jeton")
+    result: ReadRegistration = Field(description="Infos d'une registration de jeton")
