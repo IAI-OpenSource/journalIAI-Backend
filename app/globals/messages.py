@@ -30,3 +30,8 @@ class Messages:
     REGISTRATION_JETON = "Régistration de jeton"
     READ_REGISTRATION = "Lecture régistration jeton"
     USER_SERVICE = "Service Utilisateur"
+    
+    
+    ## Message pour le cache
+    CACHE_USER_NOT_FOUND = "Utilisateur non Touvé dans le cache"
+    CACHE_SESSION_NOT_FOUND = "Session non trouvé dans le cache"

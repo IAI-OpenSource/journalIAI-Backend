@@ -3,7 +3,6 @@
 
 from dataclasses import dataclass
 import logging
-from typing import Optional, Union
 from uuid import UUID
 
 from sqlalchemy import insert, select
@@ -11,7 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.user import User
-from app.schemas.user_schemas import CreateUser, ReadUser
+from app.schemas.user_schemas import CreateUser
 from . import CRUDResult
 from app.globals.messages import Messages as msg
 from app.globals.status_codes import StatusCode as status
@@ -80,7 +79,7 @@ class UserRepository:
         return CRUDResult.crud_error(msg.USER_NOT_FOUND, status_code=status._404_STATUS_NOT_FOUND.value)
       
       logger.info("Session récupérer avec succès !")
-      return CRUDResult.crud_success(user, 201)
+      return CRUDResult.crud_success(user)
       
     except IntegrityError as ie:
       return RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, User)
