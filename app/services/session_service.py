@@ -54,7 +54,7 @@ class SessionService:
   async def service_find_session_by_sid(self, sid: UUID) -> ServiceResult[ReadSession]:
     """Logique métier de récupération d'une session by SID"""
     
-    ## On cherhe d,abord la donnée dans le cache
+    ## On cherhe d'abord la donnée dans le cache
     session_cache_data = self.session_cache.get_session_from_cache(session_id=sid, session_model=ReadSession)
 
     if session_cache_data is not None:
