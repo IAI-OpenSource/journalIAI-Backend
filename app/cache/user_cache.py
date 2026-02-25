@@ -9,6 +9,7 @@ import redis
 
 from app.cache.availables import AvailableCacheKeys
 from app.cache.base import CacheWrapper
+from app.cache.mappers import cache_keys_mapping
 
 from app.cache.cache_keys import CacheKey
 from app.schemas.user_schemas import ReadUser
@@ -36,10 +37,10 @@ class UserCache:
         CacheKey: Retourne une instance de CacheKey
     """
     
-    cache_key = CacheKey.new_key(
-      key=AvailableCacheKeys.USER_OBJECT, 
-      number_of_placeholders=1
-    ).set_arguments(id)
+    cache_key = (
+      cache_keys_mapping[AvailableCacheKeys.USER_OBJECT]
+      .set_arguments(id=id)
+    )
     
     return cache_key
     

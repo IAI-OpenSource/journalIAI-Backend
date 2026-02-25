@@ -56,10 +56,10 @@ class RegistrationRepository:
       return CRUDResult.crud_success(db_reg, StatusCode._201_STATUS_CREATED.value)
       
     except IntegrityError as ie:
-      return RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, RegistrationJeton)
+      return await RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, RegistrationJeton)
 
     except Exception as e:
-      return RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
+      return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
     
     
   async def get_registration_by_jeton(self, find_reg_data: FindRegistration) -> CRUDResult[RegistrationJeton]:
@@ -94,10 +94,10 @@ class RegistrationRepository:
       return CRUDResult.crud_success(registration)
       
     except IntegrityError as ie:
-      return RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, RegistrationJeton)
+      return await RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, RegistrationJeton)
 
     except Exception as e:
-      return RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
+      return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
     
     
   async def delete_registration(self, to_delete_data: FindRegistration) -> CRUDResult[str]:

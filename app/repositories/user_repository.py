@@ -52,10 +52,10 @@ class UserRepository:
       return CRUDResult.crud_success(user, status._201_STATUS_CREATED.value)
       
     except IntegrityError as ie:
-      return RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, User)
+      return await RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, User)
 
     except Exception as e:
-      return RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
+      return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
     
     
   async def get_user_by_sid(self, user_id: UUID) -> CRUDResult[User]:
@@ -82,7 +82,7 @@ class UserRepository:
       return CRUDResult.crud_success(user)
       
     except IntegrityError as ie:
-      return RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, User)
+      return await RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, User)
 
     except Exception as e:
-      return RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
+      return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
