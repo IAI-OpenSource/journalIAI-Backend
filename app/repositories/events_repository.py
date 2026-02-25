@@ -22,7 +22,6 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-db: AsyncSession
 
 
 @dataclass
@@ -33,9 +32,11 @@ class SessionRepository:
     Fournit des méthodes CRUD et de récupération des événements
     avec support de pagination et filtrage.
     """
+
+    db: AsyncSession
+
     
     async def get_event(self) -> List[Event]:
-    
         """
         Récupère la liste de tous les événements non supprimés.
 
@@ -50,7 +51,7 @@ class SessionRepository:
 
         try: 
             stmt = select(Event)
-            result = await db.execute(stmt)
+            result = await self.db.execute(stmt)
             events = result.scalars().all()
            
             
@@ -61,10 +62,10 @@ class SessionRepository:
             logger.info("Events recuperer avec succes !")
             return CRUDResult.crud_success(events)
         except IntegrityError as ie:
-            return RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, Event)
+            return await RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, Event)
 
         except Exception as e:
-            return RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
+            return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
 
 
     
@@ -85,7 +86,7 @@ class SessionRepository:
         """
         try:
             stmt = select(Event).where(Event.id == event_id)
-            result = await db.execute(stmt)
+            result = await self.db.execute(stmt)
             event_ById = result.scalar_one_or_none()
 
             if event_ById is None:
@@ -95,10 +96,10 @@ class SessionRepository:
             logger.info("Evens recuperer avec succes !")
             return CRUDResult.crud_success(event_ById)
         except IntegrityError as ie:
-            return RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, Event)
+            return await RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, Event)
 
         except Exception as e:
-            return RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
+            return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
 
             
 
@@ -121,7 +122,7 @@ class SessionRepository:
         """
         try:
             stmt = select(Event).where(Event.status == status).where(Event.deleted_at == None).order_by(Event.start_date)
-            result = await db.execute(stmt)
+            result = await self.db.execute(stmt)
             events = result.scalars().all()
             
             if events is None:
@@ -132,10 +133,10 @@ class SessionRepository:
             return CRUDResult.crud_success(events)
         
         except IntegrityError as ie:
-            return RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, Event)
+            return await RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, Event)
 
         except Exception as e:
-            return RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
+            return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
 
 
     
@@ -170,10 +171,10 @@ class SessionRepository:
             return CRUDResult.crud_success(db_event)
 
         except IntegrityError as ie:
-            return RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, Event)
+            return await RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, Event)
 
         except Exception as e:
-            return RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
+            return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
 
 
 
@@ -194,21 +195,21 @@ class SessionRepository:
                 - INTERNAL_SERVER_ERROR en cas d'erreur.
         """
         try:
-            await db.execute(
+            await self.db.execute(
                 update(Event)
                 .where(Event.id == event_id)
                 .values(**data.model_dump(exclude_unset=True))
             )
-            await db.commit()
+            await self.db.commit()
 
 
             logger.info("Event supprimer avec succès !")
 
         except IntegrityError as ie:
-            return RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, Event)
+            return await RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, Event)
 
         except Exception as e:
-            return RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
+            return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
 
 
 
@@ -229,20 +230,20 @@ class SessionRepository:
                 - INTERNAL_SERVER_ERROR en cas d'erreur.
         """
         try:
-            await db.execute(
+            await self.db.execute(
                 update(Event)
                 .where(Event.id == event_id)
                 .values(deleted_at=datetime.utcnow())
             )
-            await db.commit()
+            await self.db.commit()
 
             logger.info("Event supprimer avec succès !")
 
         except IntegrityError as ie:
-            return RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, Event)
+            return await RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, Event)
 
         except Exception as e:
-            return RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
+            return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
 
 
     
@@ -273,7 +274,7 @@ class SessionRepository:
 
             query = query.limit(limit)
 
-            result = await db.execute(query)
+            result = await self.db.execute(query)
             events = result.scalars().all()
 
             if not events:
@@ -290,7 +291,7 @@ class SessionRepository:
             return CRUDResult.crud_success(response.model_dump())
 
         except IntegrityError as ie:
-            return RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, Event)
+            return await RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, Event)
 
         except Exception as e:
-            return RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
+            return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
