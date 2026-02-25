@@ -1,6 +1,6 @@
 from uuid import UUID
 from datetime import datetime
-from typing import Optional
+from typing import Optional,List
 from pydantic import BaseModel, Field
 from db.models.enums import EventStatus
 from app.schemas import ApiBaseResponse
@@ -146,3 +146,8 @@ class EventInfo(ApiBaseResponse):
 
 class EventCarte(ApiBaseResponse):
    result : EventSummary = Field(description="Informations de l'evenement pour carte ")
+
+
+class EventListReponse(BaseModel):
+   events: List[EventInfo]
+   next_cursor : Optional[str] = None

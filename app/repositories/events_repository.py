@@ -1,8 +1,10 @@
+from alembic.util import status
 from sqlalchemy.ext.asyncio import AsyncSession
 import logging
 from sqlalchemy import select, update, insert
 from app.db.models.event import Event, EventStatus
-from app.schemas.events_schemas import EventCreate, EventUpdate
+from app.repositories.repositories_utils import RepositoriesUtils
+from app.schemas.events_schemas import EventCreate, EventUpdate,EventListReponse
 from typing import List
 from uuid import UUID
 from datetime import datetime
@@ -54,15 +56,16 @@ class SessionRepository:
             
             if events is None:
                 logger.info("Aucun events Trouve")
-                return CRUDResult.crud_error(msg.NOT_FOUND, status_code=404)
+                return CRUDResult.crud_error(msg.NOT_FOUND, status_code=status._404_STATUS_NOT_FOUND.value)
             
             logger.info("Events recuperer avec succes !")
             return CRUDResult.crud_success(events)
-        except IntegrityError as e:
-            await self.db.rollback()
-            logger.exception(f"Exception {e.__class__.__name__}: {e}")
-            traceback.print_exc()
-            return CRUDResult.crud_error(msg.INTERNAL_SERVER_ERROR)
+        except IntegrityError as ie:
+            return RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, Event)
+
+        except Exception as e:
+            return RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
+
 
     
     async def get_event_by_id(self, event_id: UUID):
@@ -87,15 +90,16 @@ class SessionRepository:
 
             if event_ById is None:
                 logger.info("Aucun event Trouve")
-                return CRUDResult.crud_error(msg.NOT_FOUND, status_code=404)
+                return CRUDResult.crud_error(msg.NOT_FOUND, status_code=status._404_STATUS_NOT_FOUND.value)
             
             logger.info("Evens recuperer avec succes !")
             return CRUDResult.crud_success(event_ById)
-        except IntegrityError as e:
-            await self.db.rollback()
-            logger.exception(f"Exception {e.__class__.__name__}: {e}")
-            traceback.print_exc()
-            return CRUDResult.crud_error(msg.INTERNAL_SERVER_ERROR)
+        except IntegrityError as ie:
+            return RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, Event)
+
+        except Exception as e:
+            return RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
+
             
 
 
@@ -122,17 +126,17 @@ class SessionRepository:
             
             if events is None:
                     logger.info("Aucun event Trouve")
-                    return CRUDResult.crud_error(msg.NOT_FOUND, status_code=404)
+                    return CRUDResult.crud_error(msg.NOT_FOUND, status_code=status._404_STATUS_NOT_FOUND.value)
                     z
             logger.info("Events recuperer avec succes !")
             return CRUDResult.crud_success(events)
         
-        except IntegrityError as e:
-            await self.db.rollback()
-            logger.exception(f"Exception {e.__class__.__name__}: {e}")
-            traceback.print_exc()
-            return CRUDResult.crud_error(msg.INTERNAL_SERVER_ERROR)
-            
+        except IntegrityError as ie:
+            return RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, Event)
+
+        except Exception as e:
+            return RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
+
 
     
     async def create_event(self, event_data: EventCreate):
@@ -165,11 +169,12 @@ class SessionRepository:
             logger.info("Event ajoutée avec succès !")
             return CRUDResult.crud_success(db_event)
 
-        except IntegrityError as e:
-            await self.db.rollback()
-            logger.exception(f"Exception {e.__class__.__name__}: {e}")
-            traceback.print_exc()
-            return CRUDResult.crud_error(msg.INTERNAL_SERVER_ERROR)    
+        except IntegrityError as ie:
+            return RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, Event)
+
+        except Exception as e:
+            return RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
+
 
 
    
@@ -199,11 +204,12 @@ class SessionRepository:
 
             logger.info("Event supprimer avec succès !")
 
-        except IntegrityError as e:
-            await self.db.rollback()
-            logger.exception(f"Exception {e.__class__.__name__}: {e}")
-            traceback.print_exc()
-            return CRUDResult.crud_error(msg.INTERNAL_SERVER_ERROR, status_code=500)
+        except IntegrityError as ie:
+            return RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, Event)
+
+        except Exception as e:
+            return RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
+
 
 
 
@@ -232,11 +238,12 @@ class SessionRepository:
 
             logger.info("Event supprimer avec succès !")
 
-        except IntegrityError as e:
-            await self.db.rollback()
-            logger.exception(f"Exception {e.__class__.__name__}: {e}")
-            traceback.print_exc()
-            return CRUDResult.crud_error(msg.INTERNAL_SERVER_ERROR, status_code=500)
+        except IntegrityError as ie:
+            return RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, Event)
+
+        except Exception as e:
+            return RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
+
 
     
     async def get_events_paginated(self, cursor: Optional[UUID] = None, limit: int = 10):
@@ -275,14 +282,15 @@ class SessionRepository:
 
             next_cursor = events[-1].id if events else None
 
-            logger.info("Événements récupérés avec succès !")
-            return CRUDResult.crud_success({
-                "events": events,
-                "next_cursor": next_cursor
-            })
+            logger.info("Événements récupérés avec succès !") 
+            response = EventListReponse(
+                events=events,
+                next_cursor=next_cursor
+            )
+            return CRUDResult.crud_success(response.model_dump())
 
-        except IntegrityError as e:
-            await self.db.rollback()
-            logger.exception(f"Exception {e.__class__.__name__}: {e}")
-            traceback.print_exc()
-            return CRUDResult.crud_error(msg.INTERNAL_SERVER_ERROR)
+        except IntegrityError as ie:
+            return RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, Event)
+
+        except Exception as e:
+            return RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
