@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+import logging
 from typing import Optional
 from uuid import UUID
 from sqlalchemy import select, func
@@ -6,14 +8,18 @@ from sqlalchemy.exc import IntegrityError
 from app.db.models.club import Club
 from app.repositories import CRUDResult
 from datetime import datetime, timezone
+from app.globals.messages import Messages as msg
+from app.repositories.repositories_utils import RepositoriesUtils
 
+logger = logging.getLogger(__name__)
+
+@dataclass
 class ClubRepository:
     """Repository pour les opérations sur les clubs
     """
-    def __init__(self, db: AsyncSession):
-        self.db = db
+    db: AsyncSession
 
-    async def get_club_by_id(self, club_id: UUID) -> CRUDResult:
+    async def get_club_by_id(self, club_id: UUID) -> CRUDResult[Club]:
         """Récupère un club par son identifiant
         
         Args:
@@ -25,11 +31,19 @@ class ClubRepository:
         try :
             result = await self.db.execute(select(Club).where(Club.id == club_id , Club.deleted_at.is_(None)))
             club = result.scalar_one_or_none()
-            return CRUDResult.crud_success(club)
-        except Exception as e:
-            return CRUDResult.crud_error(str(e))
 
-    async def get_club_by_slug(self, slug: str) -> CRUDResult:
+            if club is None:
+                logger.info(f"Club with id {club_id} not found")
+                return CRUDResult.crud_error(msg.NOT_FOUND, 404)
+            
+            logger.info(f"Club with id {club_id} retrieved successfully")
+            return CRUDResult.crud_success(club, 200)
+        except IntegrityError as ie:
+            return await RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, Club)
+        except Exception as e:
+            return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
+
+    async def get_club_by_slug(self, slug: str) -> CRUDResult[Club]:
         """Récupère un club par son slug
         
         Args:
@@ -41,12 +55,20 @@ class ClubRepository:
         try :
             result = await self.db.execute(select(Club).where(Club.slug == slug , Club.deleted_at.is_(None)))
             club = result.scalar_one_or_none()
-            return CRUDResult.crud_success(club)
+
+            if club is None:
+                logger.info(f"Club with slug {slug} not found")
+                return CRUDResult.crud_error(msg.NOT_FOUND, 404)
+            
+            logger.info(f"Club with slug {slug} retrieved successfully")
+            return CRUDResult.crud_success(club, 200)
+        except IntegrityError as ie:
+            return await RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, Club)
         except Exception as e:
-            return CRUDResult.crud_error(str(e))
+            return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
 
 
-    async def get_all_clubs(self, page :int =1, page_size: int = 20, is_active : bool = False ) -> CRUDResult:
+    async def get_all_clubs(self, page :int =1, page_size: int = 20, is_active : bool = False ) -> CRUDResult[Club]:
         """Récupère tous les clubs avec pagination et filtrage par statut actif/inactif
         
         Args:
@@ -68,13 +90,16 @@ class ClubRepository:
             offset = (page - 1) * page_size
             result = await self.db.execute(base_query.offset(offset).limit(page_size))
             clubs = list(result.scalars().all())
-            return CRUDResult.crud_success((clubs, total))
+            logger.info(f"Retrieved {len(clubs)} clubs (page {page}/{(total + page_size - 1) // page_size})")
+            return CRUDResult.crud_success({"clubs": clubs, "total": total, "page": page, "page_size": page_size}, 200)
+        except IntegrityError as ie:
+            return await RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, Club)
         except Exception as e:
-            return CRUDResult.crud_error(str(e))
+            return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
 
 
 
-    async def create_club(self, club : Club) -> CRUDResult:
+    async def create_club(self, club : Club) -> CRUDResult[Club]:
         """insert un club déja crée dans la base de donnée 
         
         Argzs :
@@ -89,16 +114,9 @@ class ClubRepository:
             await self.db.refresh(club)
             return CRUDResult.crud_success(club)
         except IntegrityError as e :
-            await self.db.rollback()
-            message = Club.translate_integrity_error(e)
-            return CRUDResult.crud_error(message)
+            return await RepositoriesUtils.traiter_integrity_error(e, self.db, logger, Club)
         except Exception as e :
-            await self.db.rollback()
-            return CRUDResult.crud_error(str(e))
-        
-        finally:
-            await self.db.close()
-
+            return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
         
         
     async def update_club(self, club: Club, **fields) -> CRUDResult:
@@ -141,3 +159,4 @@ class ClubRepository:
         except Exception as e :
             await self.db.rollback()
             return CRUDResult.crud_error(str(e))
+    
