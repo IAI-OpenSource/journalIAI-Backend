@@ -36,6 +36,10 @@ class ClubMembersType(str, Enum):
     EXECUTIVE_MEMBER = "EXECUTIVE_MEMBER"
     SIMPLE_MEMBER = "SIMPLE_MEMBER"
 
+class SexeType(str, Enum):
+    """Sexes possibles pour les utilisateurs."""
+    F = "F"
+    M = "M"
 
 class PostType(str, Enum):
     """Types de publications."""
