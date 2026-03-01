@@ -51,6 +51,18 @@ class Post(Base, IntegrityMapperMixin):
     comment_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False, init=False)
 
     # Visibilité
+    academic_year_id: Mapped[UUID] = mapped_column(
+        ForeignKey("academic_year.id", ondelete="CASCADE"),
+        nullable=True,
+        comment="Année académique à laquelle ce post est associé. Permet de filtrer les posts par année scolaire, même pour les posts généraux qui ne sont pas liés à un club ou un événement spécifique."
+    )
+
+    target_classe_id: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey("classe.id", ondelete="SET NULL"),
+        nullable=True,
+        comment="Si le post est ciblé vers une classe spécifique (ex: annonce pour la promo 2023), sinon NULL pour un post général."
+    )
+
     is_pinned: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, init=False)
     is_published: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False, init=False)
 
@@ -82,6 +94,9 @@ class Post(Base, IntegrityMapperMixin):
     comments: Mapped[list["Comment"]] = relationship("Comment", back_populates="post", cascade="all, delete-orphan", uselist=True, init=False)
     media: Mapped[list["PostMedia"]] = relationship("PostMedia", back_populates="post", cascade="all, delete-orphan", uselist=True, init=False)
     likes: Mapped[list["Like"]] = relationship("Like", foreign_keys="Like.post_id", back_populates="post", cascade="all, delete-orphan", uselist=True, init=False)
+    academic_year: Mapped["AcademicYear"] = relationship("AcademicYear", back_populates="posts", uselist=False, init=False)
+    classe: Mapped[Optional["Classe"]] = relationship("Classe", foreign_keys=[target_classe_id], back_populates="posts", uselist=False, init=False)
+    views: Mapped[list["PostView"]] = relationship("PostView", back_populates="post", cascade="all, delete-orphan", uselist=True, init=False)
 
     # Messages d'erreur d'intégrité spécifiques au modèle Post
     ERROR_MESSAGES = {
