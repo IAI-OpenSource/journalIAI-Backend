@@ -79,7 +79,7 @@ class User(Base, IntegrityMapperMixin):
         DateTime(timezone=True),
         default=func.now(),
         onupdate=func.now(),
-        nullable=True,
+        nullable=False,
         init=False
     )
     last_login_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -91,7 +91,7 @@ class User(Base, IntegrityMapperMixin):
         Index(IDX_USERS_USERNAME, "username", postgresql_where=(deleted_at == None)),
         Index(IDX_USERS_ROLE, "role", postgresql_where=(deleted_at == None)),
         Index(IDX_USERS_CAN_POST, "can_post", postgresql_where=(deleted_at == None) & (can_post == True)),
-        Index(IDX_USERS_CLASSE, "classe", postgresql_where=(deleted_at == None)),
+        Index(IDX_USERS_CLASSE, "classe_id", postgresql_where=(deleted_at == None)),
         Index(IDX_USERS_ACCESS_JETON, "access_jeton_id", postgresql_where=(access_jeton_id != None)),
         Index(IDX_USERS_DELETED_AT, "deleted_at", postgresql_where=(deleted_at != None)),
         CheckConstraint("bio IS NULL OR LENGTH(bio) <= 500", name=CHK_USERS_BIO_LENGTH),
@@ -112,6 +112,8 @@ class User(Base, IntegrityMapperMixin):
     moderation_logs: Mapped[list["ModerationLog"]] = relationship("ModerationLog", foreign_keys="ModerationLog.moderator_id", back_populates="moderator", cascade="all, delete-orphan", uselist=True, init=False)
     audit_logs: Mapped[list["AuditLog"]] = relationship("AuditLog", back_populates="user", cascade="all, delete-orphan", uselist=True, init=False)
     access_jeton_ref: Mapped[Optional["RegistrationJeton"]] = relationship("RegistrationJeton", back_populates="users", foreign_keys=[access_jeton_id], uselist=False, init=False)
+    viewed_posts: Mapped[list["PostViews"]] = relationship("PostViews", back_populates="user", cascade="all, delete-orphan", uselist=True, init=False)
+    classe: Mapped[Optional["Classe"]] = relationship("Classe", back_populates="students", foreign_keys=[classe_id], uselist=False, init=False)
 
     # Messages d'erreur
     ERROR_MESSAGES = {

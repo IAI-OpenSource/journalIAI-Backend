@@ -63,12 +63,7 @@ class Classe(Base, IntegrityMapperMixin):
     # Index
     __table_args__ = (
         Index(IDX_CLASSE_CREATED_AT_ID, "created_at", "id", postgresql_where=(deleted_at == None)),
-        Index(
-            UQ_PREFIX_SUFFIX_ACADEMIC_YEAR,
-            "classe_prefix", "classe_suffix", "academic_year_id",
-            unique=True,
-            postgresql_where=(deleted_at == None)
-        ),
+        UniqueConstraint("classe_prefix", "classe_suffix", "academic_year_id", name=UQ_PREFIX_SUFFIX_ACADEMIC_YEAR, postgresql_where=(deleted_at == None)),
         CheckConstraint("effectif >= 0", name=CHK_EFFECTIF_VALID)
     )
 
@@ -77,8 +72,6 @@ class Classe(Base, IntegrityMapperMixin):
     academic_year: Mapped["AcademicYear"] = relationship("AcademicYear", back_populates="classes", uselist=False, init=False)
     students: Mapped[list["User"]] = relationship("User", back_populates="classe", cascade="all, delete-orphan", uselist=True, init=False)
     jetons: Mapped[list["RegistrationJeton"]] = relationship("RegistrationJeton", back_populates="classe", cascade="all, delete-orphan", uselist=True, init=False)
-    stories: Mapped[list["Story"]] = relationship("Story", back_populates="classe", cascade="all, delete-orphan", uselist=True, init=False)
-
     # Messages d'erreur
     ERROR_MESSAGES = {
         UQ_PREFIX_SUFFIX_ACADEMIC_YEAR: "La combinaison de préfixe, suffixe et année académique doit être unique.",

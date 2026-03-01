@@ -16,7 +16,6 @@ from app.db.models.mixins.integrity_error_mixin import IntegrityMapperMixin
 
 # Noms des contraintes
 UQ_ACADEMIC_YEAR_ACTIVE = "uq_academic_year_active"
-UQ_ACADEMIC_YEAR_LIBELLE = "uq_academic_year_libelle"
 IDX_ACADEMIC_YEAR_ACTIVE_ID = "idx_academic_year_active_id"
 CHK_ACADEMIC_YEAR_DATES = "chk_academic_year_dates"
 
@@ -27,7 +26,7 @@ class AcademicYear(Base, IntegrityMapperMixin):
 
     # Attributs
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4, init=False)
-    libelle: Mapped[str] = mapped_column(String(20), nullable=False)
+    libelle: Mapped[str] = mapped_column(String(20), unique=True, nullable=False)
     start_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     end_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False, init=False)
@@ -48,25 +47,16 @@ class AcademicYear(Base, IntegrityMapperMixin):
     # Index
     __table_args__ = (
         Index(IDX_ACADEMIC_YEAR_ACTIVE_ID, "active", "id", postgresql_where=(deleted_at == None)),
-        Index(
-            UQ_ACADEMIC_YEAR_ACTIVE,
-            "active",
-            unique=True,
-            postgresql_where=(active == True) & (deleted_at == None)
-        ),
-        CheckConstraint("end_date > start_date", name=CHK_ACADEMIC_YEAR_DATES),
-        Index(UQ_ACADEMIC_YEAR_LIBELLE, "libelle", unique=True, postgresql_where=(deleted_at == None))
+        UniqueConstraint("active", name=UQ_ACADEMIC_YEAR_ACTIVE, postgresql_where=(active == True) & (deleted_at == None)),
+        CheckConstraint("end_date > start_date", name=CHK_ACADEMIC_YEAR_DATES)
     )
 
     # Relationships
-    classes: Mapped[List["Classe"]] = relationship("Classe", back_populates="academic_year", cascade="all, delete-orphan", init=False)
-    posts: Mapped[List["Post"]] = relationship("Post", back_populates="academic_year", cascade="all, delete-orphan", init=False)
+    classes: Mapped[List["Classe"]] = relationship("Classe", back_populates="academic_year", cascade="all, delete-orphan")
+    posts: Mapped[List["Post"]] = relationship("Post", back_populates="academic_year", cascade="all, delete-orphan")
 
     # Messages d'erreur
     ERROR_MESSAGES = {
         UQ_ACADEMIC_YEAR_ACTIVE: "Il ne peut y avoir qu'une seule année académique active à la fois.",
         CHK_ACADEMIC_YEAR_DATES: "La date de fin doit être postérieure à la date de début.",
-        UQ_ACADEMIC_YEAR_LIBELLE: "Le libellé de l'année académique doit être unique."
     }
-
-
