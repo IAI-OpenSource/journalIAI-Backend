@@ -11,7 +11,7 @@ from app.db.models.mixins.integrity_error_mixin import IntegrityMapperMixin
 FK_VIEWED_POST_USER = "fk_viewed_post_user"
 FK_VIEWED_POST_POSTS = "fk_viewed_post_posts"
 IDX_VIEWED_AT = "viewed_at_index"
-PK_VIEWED_POST = "pk_viewed_post"
+PK_VIEWED_POST = "pk_post_views"
 
 
 class PostViews(Base, IntegrityMapperMixin):
@@ -35,3 +35,9 @@ class PostViews(Base, IntegrityMapperMixin):
     # Relationships
     user: Mapped["User"] = relationship("User", back_populates="viewed_posts", uselist=False, init=False)
     post: Mapped["Post"] = relationship("Post", foreign_keys=[post_id], back_populates="views", uselist=False, init=False)
+
+    ERROR_MESSAGES = {
+        PK_VIEWED_POST: "Un utilisateur ne peut voir un même post qu'une seule fois.",
+        FK_VIEWED_POST_POSTS: "Le post associé à une vue doit exister.",
+        FK_VIEWED_POST_USER: "L'utilisateur associé à une vue doit exister.",
+    }

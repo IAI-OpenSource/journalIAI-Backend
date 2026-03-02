@@ -96,7 +96,7 @@ class Post(Base, IntegrityMapperMixin):
     likes: Mapped[list["Like"]] = relationship("Like", foreign_keys="Like.post_id", back_populates="post", cascade="all, delete-orphan", uselist=True, init=False)
     academic_year: Mapped["AcademicYear"] = relationship("AcademicYear", back_populates="posts", uselist=False, init=False)
     classe: Mapped[Optional["Classe"]] = relationship("Classe", foreign_keys=[target_classe_id], back_populates="posts", uselist=False, init=False)
-    views: Mapped[list["PostView"]] = relationship("PostView", back_populates="post", cascade="all, delete-orphan", uselist=True, init=False)
+    views: Mapped[list["PostViews"]] = relationship("PostViews", back_populates="post", cascade="all, delete-orphan", uselist=True, init=False)
 
     # Messages d'erreur d'intégrité spécifiques au modèle Post
     ERROR_MESSAGES = {

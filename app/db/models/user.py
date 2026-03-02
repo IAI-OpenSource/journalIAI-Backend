@@ -114,6 +114,8 @@ class User(Base, IntegrityMapperMixin):
     access_jeton_ref: Mapped[Optional["RegistrationJeton"]] = relationship("RegistrationJeton", back_populates="users", foreign_keys=[access_jeton_id], uselist=False, init=False)
     viewed_posts: Mapped[list["PostViews"]] = relationship("PostViews", back_populates="user", cascade="all, delete-orphan", uselist=True, init=False)
     classe: Mapped[Optional["Classe"]] = relationship("Classe", back_populates="students", foreign_keys=[classe_id], uselist=False, init=False)
+    viewed_stories: Mapped[list["StoryViews"]] = relationship("StoryViews", back_populates="user", cascade="all, delete-orphan", uselist=True, init=False)
+    stories: Mapped[list["Story"]] = relationship("Story", back_populates="author", cascade="all, delete-orphan", uselist=True, init=False)
 
     # Messages d'erreur
     ERROR_MESSAGES = {
