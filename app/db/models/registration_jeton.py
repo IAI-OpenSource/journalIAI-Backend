@@ -24,7 +24,7 @@ FK_JETON_CLASSE = "fk_registration_jeton_classe"
 class RegistrationJeton(Base, IntegrityMapperMixin):
     """Jetons pré-générés pour l'inscription des étudiants."""
 
-    # TODO: Ajouter une logique robuste pour controoler tout (regenération, expiration, etc.) et éviter les problèmes d'intégrité (ex: jetons utilisés plusieurs fois, jetons associés à des classes supprimées, etc.)
+    # TODO: Avant de passer en Prod Ajouter une logique robuste pour controoler tout (regenération, expiration, etc.) et éviter les problèmes d'intégrité (ex: jetons utilisés plusieurs fois, jetons associés à des classes supprimées, etc.)
     __tablename__ = "registration_jeton"
 
     # Attributs
@@ -51,7 +51,7 @@ class RegistrationJeton(Base, IntegrityMapperMixin):
     __table_args__ = (
         Index(IDX_REGISTRATION_JETON_JETON, "jeton", postgresql_where=(used_at == None)),
         Index(IDX_REGISTRATION_JETON_UNUSED, "used_at", postgresql_where=(used_at == None)),
-        Index(IDX_REGISTRATION_JETON_CLASSE, "classe", "added_at"),
+        Index(IDX_REGISTRATION_JETON_CLASSE, "classe_id", "added_at"),
     )
 
     # Relationships

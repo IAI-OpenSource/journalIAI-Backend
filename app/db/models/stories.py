@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
-from sqlalchemy import DateTime, Index, ForeignKey, Integer, func, String, BigInteger
+from sqlalchemy import DateTime, Index, ForeignKey, Integer, func, String, BigInteger, BOOLEAN
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -66,6 +66,8 @@ class Story(Base, IntegrityMapperMixin):
         comment="Légende optionnelle pour la story, affichée sous le média"
     )
 
+
+
     # Métadonnées
     file_size: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
     width: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
@@ -77,13 +79,14 @@ class Story(Base, IntegrityMapperMixin):
     # deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Timestamps (CRUCIAL pour cursor pagination)
+    is_expired: Mapped[bool] = mapped_column(BOOLEAN, default=False, nullable=False, init=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), nullable=False, init=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, comment="Date et heure d'expiration de la story (généralement 24h après la création)")
 
     __table_args__ = (
-        Index(IDX_STORIES_FEED_PAGINATION, "created_at", "id", postgresql_where=(expires_at > func.now())),
-        Index(IDX_STORIES_BY_AUTHOR, "author_id", "created_at", "id", postgresql_where=(expires_at > func.now())),
-        Index(IDX_STORIES_BY_CLUB, "club_id", "created_at", "id", postgresql_where=(expires_at > func.now())),
+        Index(IDX_STORIES_FEED_PAGINATION, "created_at", "id", postgresql_where=(is_expired == False)),
+        Index(IDX_STORIES_BY_AUTHOR, "author_id", "created_at", "id", postgresql_where=(is_expired == False)),
+        Index(IDX_STORIES_BY_CLUB, "club_id", "created_at", "id", postgresql_where=(is_expired == False) & (club_id != None)),
     )
 
     # Relationships*

@@ -47,7 +47,12 @@ class AcademicYear(Base, IntegrityMapperMixin):
     # Index
     __table_args__ = (
         Index(IDX_ACADEMIC_YEAR_ACTIVE_ID, "active", "id", postgresql_where=(deleted_at == None)),
-        UniqueConstraint("active", name=UQ_ACADEMIC_YEAR_ACTIVE, postgresql_where=(active == True) & (deleted_at == None)),
+        Index(
+            UQ_ACADEMIC_YEAR_ACTIVE,
+            "active",
+            unique=True,
+            postgresql_where=(active == True) & (deleted_at == None)
+        ),
         CheckConstraint("end_date > start_date", name=CHK_ACADEMIC_YEAR_DATES)
     )
 
