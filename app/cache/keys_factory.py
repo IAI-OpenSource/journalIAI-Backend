@@ -1,7 +1,7 @@
 from app.cache.availables import AvailableCacheKeys
 from .cache_keys import CacheKey
 
-class CacheKeyFactory:
+class CacheKeysFactory:
     """Factory pour créer des instances de CacheKey à partir d'AvailableCacheKeys, en utilisant une mapping pré-définie
     pour garantir l'unicité des clés de cache et faciliter la création de clés de cache formatées avec les arguments
     appropriés lors de leur utilisation dans les opérations de cache."""
