@@ -44,7 +44,7 @@ class RepositoriesUtils:
         user_friendly_message = model_class.translate_integrity_error(exception)
 
         if user_friendly_message:
-            traceback.print_exc()
+            await session.rollback()
             return CRUDResult.crud_error(user_friendly_message, status.HTTP_400_BAD_REQUEST)
 
         # Falllback
