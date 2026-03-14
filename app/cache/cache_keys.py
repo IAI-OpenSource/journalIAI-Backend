@@ -26,6 +26,8 @@ class CacheKey:
         Args:
             key: La clé de cache à utiliser, définie dans AvailableCacheKeys, qui peut contenir des placeholders pour les valeurs dynamiques
             number_of_placeholders: Le nombre de placeholders présents dans la clé de cache, indiquant combien de valeurs dynamiques doivent être fournies lors du formatage de la clé
+        Raises:
+            ValueError: Si la clé de cache spécifiée a déjà été utilisée pour créer une instance de CacheKey, afin d'assurer l'unicité des clés de cache et éviter les conflits dans le cache
         Returns:
             Une nouvelle instance de CacheKey avec la clé et le nombre de placeholders spécifiés, prête à être utilisée pour formater la clé de cache lors de son utilisation dans les opérations de cache
         """
