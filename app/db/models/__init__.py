@@ -18,5 +18,10 @@ def add_all_tables():
     from app.db.models.notification import Notification
     from app.db.models.session import Session
     from app.db.models.audit_log import AuditLog
+    from app.db.models.academic_year import AcademicYear
+    from app.db.models.classe import Classe
+    from app.db.models.post_views import PostViews
+    from app.db.models.stories import Story
+    from app.db.models.story_views import StoryViews
 
 add_all_tables()

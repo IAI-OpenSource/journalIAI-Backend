@@ -1,6 +1,9 @@
 from sqlalchemy.exc import IntegrityError
 from typing import Optional
 
+from logging import getLogger
+
+logger = getLogger(__name__)
 
 class IntegrityMapperMixin:
     """Mixin pour traduire les erreurs d'intégrité PostgreSQL en messages clairs."""
@@ -21,17 +24,40 @@ class IntegrityMapperMixin:
             Optional[str] : Un message d'erreur clair si la contrainte est reconnue, sinon None
         """
 
-        # asyncpg expose l'objet PostgreSQL dans __cause__
-        cause = exception.__cause__
+        try:
+            # asyncpg expose l'objet PostgreSQL dans __cause__
+            # asyncpg wrappe lui-même l'erreur PG dans __cause__ (encore)
+            cause = exception.__cause__.__cause__
 
-        # asyncpg wrappe lui-même l'erreur PG dans __cause__
-        if hasattr(cause, "__cause__"):
-            cause = cause.__cause__
+            if not cause:
+                logger.warning("Cause de l'integrityError non trouvé : %s", exception)
+                return None
 
-        # L'objet asyncpg.exceptions.PostgresError expose constraint_name
-        constraint_name: str | None = getattr(cause, "constraint_name", None)
+            logger.debug("Cause de l'integrityError trouvé avec succès : %s", cause)
 
-        return cls.ERROR_MESSAGES.get(
-            constraint_name,
-            None
-        ) if constraint_name else None
+            # L'objet asyncpg.exceptions.PostgresError expose constraint_name
+            constraint_name: str | None = getattr(cause, "constraint_name", None)
+
+            if constraint_name is None:
+                logger.warning("Nom de la contrainte BD non trouvé dans la cause : %s", cause)
+                return None
+
+            logger.debug("Nom de la contrainte BD extrait avec succès : %s", constraint_name)
+
+            friendly_message = cls.ERROR_MESSAGES.get(constraint_name, None)
+
+            if not friendly_message:
+                logger.warning(
+                    "Aucun message d'erreur clair trouvé dans le mappers de la classe pour la contrainte : %s",
+                    constraint_name
+                )
+                return None
+
+            return friendly_message
+
+        except AttributeError as exception:
+            logger.error("Erreur lors de l'extraction du nom de la contrainte, __cause__ n'est pas dispo : %s", exception, exc_info=exception)
+            return None
+        except Exception as exception:
+            logger.error("Erreur inattendue lors de la traduction de l'integrity error : %s", exception, exc_info=exception)
+            return None

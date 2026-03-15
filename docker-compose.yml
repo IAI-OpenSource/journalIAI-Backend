@@ -7,6 +7,7 @@ services:
       POSTGRES_USER: ${DATABASE_USER}
       POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
       POSTGRES_DB: ${DATABASE_NAME}
+    restart: unless-stopped
     ports:
       - "${BD_OUTPUT_PORT}:5432"
     volumes:
@@ -33,6 +34,7 @@ services:
         timeout: 10s
         retries: 10
         start_period: ${START_PERIOD:-5}s
+      restart: unless-stopped
 
   # Stockage d'objets MinIO
   minio:
@@ -53,6 +55,7 @@ services:
         timeout: 10s
         retries: 10
         start_period: 60s
+      restart: unless-stopped
 
   # Backend FastAPI
   api:
@@ -69,6 +72,7 @@ services:
       timeout: 5s
       retries: 3
       start_period: ${START_PERIOD:-5}s
+    restart: unless-stopped
     depends_on:
       db:
         condition: service_healthy
@@ -107,6 +111,7 @@ services:
     command: celery -A app.worker.celery_app worker --loglevel=info
     volumes:
       - .:/app
+    restart: unless-stopped
     depends_on:
       db:
         condition: service_healthy

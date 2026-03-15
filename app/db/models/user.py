@@ -13,12 +13,13 @@ from sqlalchemy import Enum as SQLEnum
 
 from app.db.base import Base
 from app.db.models.mixins.integrity_error_mixin import IntegrityMapperMixin
-from app.db.models.enums import UserRole, ClasseType, ExecutiveRoleType
+from app.db.models.enums import UserRole, ExecutiveRoleType, SexeType
 
 # Noms des contraintes
 UQ_USERS_EMAIL = "uq_users_email"
 UQ_USERS_USERNAME = "uq_users_username"
 FK_USERS_ACCESS_JETON = "fk_users_access_jeton"
+FK_USERS_CLASSE = "fk_users_classe"
 CHK_USERS_BIO_LENGTH = "chk_users_bio_length"
 CHK_USERS_EXEC_ROLE_VALID = "chk_users_exec_role_valid"
 IDX_USERS_CREATED_AT_ID = "idx_users_created_at_id"
@@ -47,7 +48,13 @@ class User(Base, IntegrityMapperMixin):
     first_name: Mapped[str] = mapped_column(String(100), nullable=False)
     bio: Mapped[Optional[str]] = mapped_column(nullable=True)
     avatar_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
-    classe: Mapped[ClasseType] = mapped_column(SQLEnum(ClasseType), nullable=False)
+    sexe: Mapped[SexeType] = mapped_column(SQLEnum(SexeType), nullable=False)
+
+    classe_id: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey("classe.id", ondelete="SET NULL", name=FK_USERS_CLASSE),
+        nullable=True,
+        comment="Référence à la classe de l'utilisateur (peut être NULL pour les membres du bureau ou les anciens élèves qui ne sont plus rattachés à une classe active)"
+    )
 
     # Rôle et permissions
     role: Mapped[UserRole] = mapped_column(SQLEnum(UserRole), default=UserRole.STUDENT, nullable=False, init=False)
@@ -60,6 +67,7 @@ class User(Base, IntegrityMapperMixin):
         nullable=True,
         comment="Référence au jeton d'inscription utilisé"
     )
+
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, init=False)
 
     # Soft delete
@@ -71,7 +79,7 @@ class User(Base, IntegrityMapperMixin):
         DateTime(timezone=True),
         default=func.now(),
         onupdate=func.now(),
-        nullable=True,
+        nullable=False,
         init=False
     )
     last_login_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -83,7 +91,7 @@ class User(Base, IntegrityMapperMixin):
         Index(IDX_USERS_USERNAME, "username", postgresql_where=(deleted_at == None)),
         Index(IDX_USERS_ROLE, "role", postgresql_where=(deleted_at == None)),
         Index(IDX_USERS_CAN_POST, "can_post", postgresql_where=(deleted_at == None) & (can_post == True)),
-        Index(IDX_USERS_CLASSE, "classe", postgresql_where=(deleted_at == None)),
+        Index(IDX_USERS_CLASSE, "classe_id", postgresql_where=(deleted_at == None)),
         Index(IDX_USERS_ACCESS_JETON, "access_jeton_id", postgresql_where=(access_jeton_id != None)),
         Index(IDX_USERS_DELETED_AT, "deleted_at", postgresql_where=(deleted_at != None)),
         CheckConstraint("bio IS NULL OR LENGTH(bio) <= 500", name=CHK_USERS_BIO_LENGTH),
@@ -104,12 +112,17 @@ class User(Base, IntegrityMapperMixin):
     moderation_logs: Mapped[list["ModerationLog"]] = relationship("ModerationLog", foreign_keys="ModerationLog.moderator_id", back_populates="moderator", cascade="all, delete-orphan", uselist=True, init=False)
     audit_logs: Mapped[list["AuditLog"]] = relationship("AuditLog", back_populates="user", cascade="all, delete-orphan", uselist=True, init=False)
     access_jeton_ref: Mapped[Optional["RegistrationJeton"]] = relationship("RegistrationJeton", back_populates="users", foreign_keys=[access_jeton_id], uselist=False, init=False)
+    viewed_posts: Mapped[list["PostViews"]] = relationship("PostViews", back_populates="user", cascade="all, delete-orphan", uselist=True, init=False)
+    classe: Mapped[Optional["Classe"]] = relationship("Classe", back_populates="students", foreign_keys=[classe_id], uselist=False, init=False)
+    viewed_stories: Mapped[list["StoryViews"]] = relationship("StoryViews", back_populates="user", cascade="all, delete-orphan", uselist=True, init=False)
+    stories: Mapped[list["Story"]] = relationship("Story", back_populates="author", cascade="all, delete-orphan", uselist=True, init=False)
 
     # Messages d'erreur
     ERROR_MESSAGES = {
         UQ_USERS_EMAIL: "Cet email est déjà utilisé.",
         UQ_USERS_USERNAME: "Ce nom d'utilisateur est déjà pris.",
+        FK_USERS_CLASSE: "La classe spécifiée n'existe pas.",
         FK_USERS_ACCESS_JETON: "Le jeton d'inscription spécifié n'existe pas.",
         CHK_USERS_BIO_LENGTH: "La biographie ne peut pas dépasser 500 caractères.",
-        CHK_USERS_EXEC_ROLE_VALID: "Erreur au niveau des roles"
+        CHK_USERS_EXEC_ROLE_VALID: "Erreur au niveau des roles",
     }
