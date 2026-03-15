@@ -21,7 +21,13 @@ class Messages:
     LOGOUT_SUCCESSFUL = "Déconnexion réussie."
     PROFILE_UPDATED_SUCCESSFULLY = "Profil mis à jour avec succès."
     INVALID_SESSION = "Session invalide"
-    
+
+    EVENT_NOT_FOUND = "Event non trouvé."
+    DELETED_EVENT = "Event est supprimé"
+    EVENTS_NOT_FOUND = "Aucun event trouver" #Si il y a aucun event en cours 
+
+
+
     # Messages des noms des services 
     INSERT_SESSSION = "Service: Insertion Session"
     DELETE_SESSION = "Service: Suppression Session"

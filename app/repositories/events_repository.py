@@ -188,22 +188,31 @@ class EventRepository:
             data (EventUpdate): Données à mettre à jour.
 
         Returns:
-            CRUDResult: Résultat de l'opération.
+            CRUDResult: L'événement mis à jour.
 
         Raises:
             CRUDResult.crud_error:
+                - NOT_FOUND si l'événement n'existe pas.
                 - INTERNAL_SERVER_ERROR en cas d'erreur.
         """
         try:
-            await self.db.execute(
+            stmt = (
                 update(Event)
                 .where(Event.id == event_id)
                 .values(**data.model_dump(exclude_unset=True))
+                .returning(Event)  
             )
+            result = await self.db.execute(stmt)
+            updated_event = result.scalar_one_or_none()
+
+            if updated_event is None:
+                logger.info(f"Event {event_id} introuvable pour la mise à jour")
+                return CRUDResult.crud_error(msg.NOT_FOUND, status_code=404)
+
             await self.db.commit()
 
-
-            logger.info("Event supprimer avec succès !")
+            logger.info(f"Event {event_id} mis à jour avec succès !")
+            return CRUDResult.crud_success(updated_event)
 
         except IntegrityError as ie:
             return await RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, Event)
@@ -295,3 +304,34 @@ class EventRepository:
 
         except Exception as e:
             return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
+
+
+
+async def get_event_by_title_and_date(self, title: str, start_date: datetime) -> CRUDResult:
+    """
+    Vérifie si un événement avec le même titre et la même date existe déjà.
+
+    Args:
+        title (str): Titre de l'événement.
+        start_date (datetime): Date de début de l'événement.
+
+    Returns:
+        CRUDResult: L'événement trouvé ou None.
+    """
+    try:
+        stmt = (
+            select(Event)
+            .where(Event.title == title)
+            .where(Event.start_date == start_date)
+            .where(Event.deleted_at == None)
+        )
+        result = await self.db.execute(stmt)
+        event = result.scalar_one_or_none()
+
+        return CRUDResult.crud_success(event)
+
+    except IntegrityError as ie:
+        return await RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, Event)
+
+    except Exception as e:
+        return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)

@@ -101,6 +101,11 @@ class EventRead(EventBase):
 
     model_config = {"from_attributes": True}
 
+    def is_deleted(self) -> bool:
+        if self.deleted_at is None:
+            return False
+        return True
+
 
 
     
