@@ -1,5 +1,5 @@
-from app.cache.availables import AvailableCacheKeys
-from .cache_keys import CacheKey
+from app.cache.helpers.availables import AvailableCacheKeys
+from app.cache.helpers.cache_keys import CacheKey
 
 class CacheKeysFactory:
     """Factory pour créer des instances de CacheKey à partir d'AvailableCacheKeys, en utilisant une mapping pré-définie
