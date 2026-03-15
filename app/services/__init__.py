@@ -1,8 +1,13 @@
 from typing import TypeVar, Optional
-from app.globals.messages import Messages as msg
+
+from fastapi import Response
+
+from app.globals.messages import Messages
 
 
 from app.globals.app_result import GlobalAppResult
+from app.schemas import ApiBaseResponse
+
 T = TypeVar("T")
 
 class ServiceResult(GlobalAppResult[T]):
@@ -11,18 +16,35 @@ class ServiceResult(GlobalAppResult[T]):
 
     Elle encapsule soit une donnée de succès (data), soit un message d'erreur (error).
     """
-
-    data: Optional[T]
-    error: Optional[str]
     service_name: str
     status_code: int
 
-    def __init__(self, status_code : int, data: Optional[T] = None, error: Optional[str] = None, service_name: str = msg.UNKNOWN_SERVICE):
+    def __init__(self, status_code : int, data: Optional[T] = None, error: Optional[str] = None, service_name: str = Messages.UNKNOWN_SERVICE):
         """N'utilisez pas directement le constructeur, utilisez les méthodes de classe service_success et service_error pour créer des instances de ServiceResult."""
         super().__init__(data, error)
         self.service_name = service_name
         self.status_code = status_code
 
+    def to_HTTP_api_base_response(self, reponse: Response) -> ApiBaseResponse[T]:
+        """
+        Methode pour convertir une instance de ServiceResult en une réponse HTTP API standardisée (ApiBaseResponse)
+        à retourner aux clients de l'API.
+
+        Cette méthode n'est utilisable que si la reponse à retourner est exactement ce que le service renvoie, c'est pas
+        magie
+
+        Args:
+            reponse: L'objet Response de FastAPI pour pouvoir modifier le status code de la réponse HTTP à retourner.
+
+        Returns:
+            ApiBaseResponse[T]: Une instance de ApiBaseResponse contenant les données de succès ou le message d'erreur,
+             avec le code de status HTTP approprié.
+
+        """
+        if self.is_error():
+            return ApiBaseResponse.error_response(error_message=self._error, response=reponse, status_code=self.status_code)
+
+        return ApiBaseResponse.success_response(data=self._data, response=reponse, status_code=self.status_code)
     # --- Méthodes utilitaires (Optional) ---
 
     def __repr__(self) -> str:
