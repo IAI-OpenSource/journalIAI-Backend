@@ -1,6 +1,6 @@
 from typing import Optional
 
-from app.cache.availables import AvailableCacheKeys
+from app.cache.helpers.availables import AvailableCacheKeys
 
 
 class CacheKey:

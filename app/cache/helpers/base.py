@@ -4,7 +4,7 @@ from typing import Optional, AsyncGenerator, Any
 
 from pydantic import BaseModel, ValidationError
 
-from app.cache.cache_keys import CacheKey
+from app.cache.helpers.cache_keys import CacheKey
 from app.core.config import REDIS_URL
 from redis.asyncio import Redis, ConnectionPool
 
