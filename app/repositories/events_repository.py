@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
-class SessionRepository:
+class EventRepository:
     """
     Repository gérant les opérations liées aux événements.
 
