@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 import logging
 import traceback
-from typing import Union
+from typing import Union, Optional
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -146,7 +146,7 @@ class EventService:
                 service_name=msg.EVENT_SERVICE
             )
 
-        logger.info(f"Event créé avec succès: {created_event.id}")
+        logger.info(f"{msg.EVENT_CREATE_SUCCES}: {created_event.id}")
         return ServiceResult.service_success(
             data=created_event,
             status_code=201,
@@ -185,7 +185,7 @@ class EventService:
                 service_name=msg.EVENT_SERVICE
             )
 
-        logger.info(f"Event mis à jour avec succès: {event_id}")
+        logger.info(f"{msg.EVENT_UPDATE_SUCCES}: {event_id}")
         return ServiceResult.service_success(
             data=updated.data,
             status_code=200,
@@ -197,7 +197,6 @@ class EventService:
     async def service_delete_event(self, event_id: UUID) -> ServiceResult[EventRead]:
         """Logique metier pour supprimer un event (soft delete)"""
 
-        # 1. Vérifier que l'event existe et n'est pas déjà supprimé
         existing = await self.event_repo.get_event_by_id(event_id=event_id)
 
         if existing.is_error():
@@ -208,7 +207,6 @@ class EventService:
                 service_name=msg.EVENT_SERVICE
             )
 
-        # 2. Vérifier qu'il n'est pas déjà supprimé
         if EventRead.model_validate(existing.data).is_deleted():
             logger.warning(f"Event {event_id} déjà supprimé")
             return ServiceResult.service_error(
@@ -217,7 +215,6 @@ class EventService:
                 service_name=msg.EVENT_SERVICE
             )
 
-        # 3. Effectuer le soft delete
         deleted = await self.event_repo.soft_delete_event(event_id=event_id)
 
         if deleted is None or (hasattr(deleted, "is_error") and deleted.is_error()):
@@ -228,9 +225,51 @@ class EventService:
                 service_name=msg.EVENT_SERVICE
             )
 
-        logger.info(f"Event supprimé avec succès: {event_id}")
+        logger.info(f" {msg.EVENT_DELETE_SUCCESS}: {event_id}")
         return ServiceResult.service_success(
             data=None,
             status_code=204,
             service_name=msg.EVENT_SERVICE
         )
+    
+
+
+async def service_get_events_paginated(self, cursor: Optional[UUID] = None, limit: int = 10) -> ServiceResult:
+    """Logique metier pour recuperer les events avec pagination par curseur"""
+
+    events = await self.event_repo.get_events_paginated(cursor=cursor, limit=limit)
+
+    if events.is_error():
+        logger.error(f"Erreur pagination: {events.error}")
+        return ServiceResult.service_error(
+            message=events.error,
+            status_code=events.status_code,
+            service_name=msg.EVENT_SERVICE
+        )
+
+    try:
+        paginated_data = events.data
+        validated_events = [
+            EventRead.model_validate(e) for e in paginated_data["events"]
+        ]
+    except Exception as e:
+        logger.error(f"{msg.EVENT_PAGINATION_ERROR}: {e}")
+        return ServiceResult.service_error(
+            message=str(e),
+            status_code=500,
+            service_name=msg.EVENT_SERVICE
+        )
+
+    logger.info(f"Events récupérés — count: {len(validated_events)}")
+    return ServiceResult.service_success(
+        data={
+            "events": validated_events,
+            "next_cursor": paginated_data["next_cursor"],
+            "count": len(validated_events)
+        },
+        status_code=200,
+        service_name=msg.EVENT_SERVICE
+    )
+
+
+    

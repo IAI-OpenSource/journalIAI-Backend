@@ -243,6 +243,7 @@ class EventRepository:
                 update(Event)
                 .where(Event.id == event_id)
                 .values(deleted_at=datetime.utcnow())
+                .returning(Event) 
             )
             await self.db.commit()
 
@@ -335,3 +336,6 @@ async def get_event_by_title_and_date(self, title: str, start_date: datetime) ->
 
     except Exception as e:
         return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
+    
+
+

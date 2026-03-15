@@ -25,7 +25,11 @@ class Messages:
     EVENT_NOT_FOUND = "Event non trouvé."
     DELETED_EVENT = "Event est supprimé"
     EVENTS_NOT_FOUND = "Aucun event trouver" #Si il y a aucun event en cours 
-
+    EVENT_DELETE_FAILED = "Erreur lors de la suppression de l'événement"
+    EVENT_PAGINATION_ERROR = "Erreur validation events paginés"
+    EVENT_DELETE_SUCCESS = "Event supprimé avec succès"
+    EVENT_UPDATE_SUCCES = "Event mis a jour avec succès"
+    EVENT_CREATE_SUCCES = "Event créé avec succès"
 
 
     # Messages des noms des services 
