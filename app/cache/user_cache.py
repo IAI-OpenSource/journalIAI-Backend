@@ -1,5 +1,3 @@
-
-
 from typing import Optional
 from uuid import UUID
 
@@ -7,11 +5,11 @@ from logging import getLogger
 
 import redis
 
-from app.cache.availables import AvailableCacheKeys
-from app.cache.base import CacheWrapper
-from app.cache.mappers import cache_keys_mapping
+from app.cache.helpers.availables import AvailableCacheKeys
+from app.cache.helpers.base import CacheWrapper
 
-from app.cache.cache_keys import CacheKey
+from app.cache.helpers.cache_keys import CacheKey
+from app.cache.helpers.keys_factory import CacheKeysFactory
 from app.schemas.user_schemas import ReadUser
 from app.globals. messages import Messages as msg
 
@@ -37,10 +35,9 @@ class UserCache:
         CacheKey: Retourne une instance de CacheKey
     """
     
-    cache_key = (
-      cache_keys_mapping[AvailableCacheKeys.USER_OBJECT]
-      .set_arguments(id=id)
-    )
+    cache_key = CacheKeysFactory.get_cache_key(
+      AvailableCacheKeys.SESSION_OBJECT
+    ).set_arguments(id=id)
     
     return cache_key
     

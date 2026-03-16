@@ -9,7 +9,7 @@ from pydantic import BaseModel, EmailStr, Field
 
 from uuid import UUID
 
-from app.db.models.enums import ClasseType, ExecutiveRoleType, UserRole
+from app.db.models.enums import ExecutiveRoleType, SexeType, UserRole
 from app.schemas import ApiBaseResponse
 
 
@@ -39,18 +39,19 @@ class ReadUser(BaseModel):
     username: str
     last_name: str
     first_name: str
-    bio: str
-    avatar_url: str
-    classe: ClasseType
+    bio: Optional[str] = None
+    avatar_url: Optional[str] = None
+    sexe: SexeType
+    classe_id: UUID
     role: UserRole
-    executive_role: Optional[ExecutiveRoleType] 
+    executive_role: Optional[ExecutiveRoleType] = None
     can_post: bool
-    access_jeton_id: Optional[UUID]
+    access_jeton_id: Optional[UUID] = None
     is_verified: bool
-    deleted_at: Optional[datetime]
+    deleted_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
-    last_login_at: Optional[datetime]
+    last_login_at: Optional[datetime] = None
     
     def is_deleted(self) -> bool:
         if self.deleted_at is None:

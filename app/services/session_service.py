@@ -10,7 +10,7 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.cache.base import CacheWrapper
+from app.cache.helpers.base import CacheWrapper
 from app.cache.session_cache import SessionCache
 from app.globals.cache_duration import CacheDurartion
 from app.globals.status_codes import StatusCode
