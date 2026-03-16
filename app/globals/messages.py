@@ -44,6 +44,7 @@ class Messages:
     UNKNOWN_SERVICE = "Service Inconnu"
     REGISTRATION_JETON = "Régistration de jeton"
     READ_REGISTRATION = "Lecture régistration jeton"
+
     UNAUTHORIZED_JETON = "Ce Jeton est invalide"
     USER_SERVICE = "Service Utilisateur"
     
@@ -52,3 +53,6 @@ class Messages:
     CACHE_USER_NOT_FOUND = "Utilisateur non Touvé dans le cache"
     CACHE_SESSION_NOT_FOUND = "Session non trouvé dans le cache"
     READ_REGISTRATION = "Lecture régistration jeton"
+
+    CLUB_SERVICE = "Service : Clubs"
+
