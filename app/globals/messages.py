@@ -30,3 +30,4 @@ class Messages:
     REGISTRATION_JETON = "Régistration de jeton"
     READ_REGISTRATION = "Lecture régistration jeton"
     USER_SERVICE = "Service Utilisateur"
+    CLUB_SERVICE = "Service : Clubs"

@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 import logging
-from typing import Optional
 from uuid import UUID
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -91,7 +90,7 @@ class ClubRepository:
             result = await self.db.execute(base_query.offset(offset).limit(page_size))
             clubs = list(result.scalars().all())
             logger.info(f"Retrieved {len(clubs)} clubs (page {page}/{(total + page_size - 1) // page_size})")
-            return CRUDResult.crud_success({"clubs": clubs, "total": total, "page": page, "page_size": page_size}, 200)
+            return CRUDResult.crud_success(clubs, 200)
         except IntegrityError as ie:
             return await RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, Club)
         except Exception as e:
@@ -112,7 +111,8 @@ class ClubRepository:
             self.db.add(club)
             await self.db.commit()
             await self.db.refresh(club)
-            return CRUDResult.crud_success(club)
+            logger.info(f"Club with name {club.name} created successfully")
+            return CRUDResult.crud_success(club, 201)
         except IntegrityError as e :
             return await RepositoriesUtils.traiter_integrity_error(e, self.db, logger, Club)
         except Exception as e :
@@ -133,14 +133,12 @@ class ClubRepository:
                 setattr(club, field, value)
             await self.db.commit()
             await self.db.refresh(club)
-            return CRUDResult.crud_success(club)
+            return CRUDResult.crud_success(club, 200)
         except IntegrityError as e :
-            await self.db.rollback()
-            message = Club.translate_integrity_error(e)
-            return CRUDResult.crud_error(message)
+            return await RepositoriesUtils.traiter_integrity_error(e, self.db, logger, Club)
         except Exception as e :
             await self.db.rollback()
-            return CRUDResult.crud_error(str(e))
+            return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
         
     async def soft_delete_club(self, club: Club) -> CRUDResult:
         """Supprime logiquement un club (met à jour deleted_at)
@@ -155,8 +153,8 @@ class ClubRepository:
             club.deleted_at = datetime.now(timezone.utc)
             await self.db.commit()
             await self.db.refresh(club)
-            return CRUDResult.crud_success(club)
+            return CRUDResult.crud_success(club, 200)
         except Exception as e :
             await self.db.rollback()
-            return CRUDResult.crud_error(str(e))
+            return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
     
