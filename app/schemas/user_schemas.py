@@ -11,6 +11,7 @@ from uuid import UUID
 
 from app.db.models.enums import ExecutiveRoleType, SexeType, UserRole
 from app.schemas import ApiBaseResponse
+from app.schemas.classe_schemas import ReadUserClasse
 
 
 class CreateUser(BaseModel):
@@ -42,7 +43,7 @@ class ReadUser(BaseModel):
     bio: Optional[str] = None
     avatar_url: Optional[str] = None
     sexe: SexeType
-    classe_id: UUID
+    classe: Optional[ReadUserClasse] = None
     role: UserRole
     executive_role: Optional[ExecutiveRoleType] = None
     can_post: bool

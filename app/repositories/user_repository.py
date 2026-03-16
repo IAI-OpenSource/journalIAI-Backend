@@ -8,6 +8,7 @@ from uuid import UUID
 from sqlalchemy import insert, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 
 from app.db.models.user import User
 from app.schemas.user_schemas import CreateUser
@@ -58,7 +59,7 @@ class UserRepository:
       return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
     
     
-  async def get_user_by_sid(self, user_id: UUID) -> CRUDResult[User]:
+  async def get_user_by_id(self, user_id: UUID) -> CRUDResult[User]:
     """function dao pour trouver un utilisateur a partir de son ID
 
     Args:
@@ -70,7 +71,11 @@ class UserRepository:
     
     try:
       
-      stmt = select(User).where(User.id == user_id)
+      stmt = (
+        select(User)
+        .options(joinedload(User.classe))
+        .where(User.id == user_id)
+      )
       result = await self.db.execute(stmt)
       user = result.scalar_one_or_none()
       

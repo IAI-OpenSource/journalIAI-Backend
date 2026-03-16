@@ -43,7 +43,7 @@ class UserService:
       return ServiceResult.service_success(data=user_data_from_cache, status_code=StatusCode._200_STATUS_SUCCESS.value)
 
     ## si le cache est vide, on fait la requete BD
-    user = await self.user_repo.get_user_by_sid(user_id=user_id)
+    user = await self.user_repo.get_user_by_id(user_id=user_id)
     
     if user.is_error():
       logger.error(f"Erreur: {user.error}")
