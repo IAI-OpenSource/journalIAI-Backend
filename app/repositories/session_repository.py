@@ -52,10 +52,10 @@ class SessionRepository:
       return CRUDResult.crud_success(db_session, status._201_STATUS_CREATED.value)
       
     except IntegrityError as ie:
-      return RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, Session)
+      return await RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, Session)
 
     except Exception as e:
-      return RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
+      return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
     
     
   async def get_session_by_sid(self, sid: UUID) -> CRUDResult[Session]:
@@ -82,10 +82,10 @@ class SessionRepository:
       return CRUDResult.crud_success(session)
       
     except IntegrityError as ie:
-      return RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, Session)
+      return await RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, Session)
 
     except Exception as e:
-      return RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
+      return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
     
     
   async def delete_session(self, sid: UUID) -> CRUDResult[str]:
