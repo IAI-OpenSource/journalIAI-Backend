@@ -18,6 +18,7 @@ from app.repositories.repositories_utils import RepositoriesUtils
 from app.schemas.registration_schemas import CreateRegistration, FindRegistration
 from . import CRUDResult
 from app.globals.messages import Messages as msg
+from app.utils.jetons import generate_code_jeton
 
 
 logger = logging.getLogger(__name__)
@@ -42,9 +43,19 @@ class RegistrationRepository:
     
     try:
       
+      ## génération du jeton
+      jeton = generate_code_jeton(8)
+      
       stmt = (
         insert(RegistrationJeton)
-        .values(**reg_data.model_dump())
+        .values(
+          jeton=jeton,
+          first_name=reg_data.first_name,
+          last_name=reg_data.last_name,
+          role=reg_data.role,
+          sexe=reg_data.sexe,
+          classe_id=reg_data.classe_id
+        )
         .returning(RegistrationJeton)
       )
       
@@ -80,7 +91,7 @@ class RegistrationRepository:
           RegistrationJeton.jeton == find_reg_data.jeton,
           RegistrationJeton.first_name == find_reg_data.first_name,
           RegistrationJeton.last_name == find_reg_data.last_name,
-          RegistrationJeton.classe == find_reg_data.classe
+          RegistrationJeton.classe_id == find_reg_data.classe_id
         )
       )
       result = await self.db.execute(stmt)
