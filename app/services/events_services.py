@@ -154,7 +154,7 @@ class EventService:
         )
         
 
-    async def service_update_event(self, event_id: UUID, event_data: EventUpdate) -> ServiceResult[EventRead]:
+async def service_update_event(self, event_id: UUID, event_data: EventUpdate) -> ServiceResult[Optional[EventRead]]:
         """Logique metier pour mettre a jour un event"""
 
         existing = await self.event_repo.get_event_by_id(event_id=event_id)

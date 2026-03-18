@@ -4,7 +4,7 @@ import logging
 from sqlalchemy import select, update, insert
 from app.db.models.event import Event, EventStatus
 from app.repositories.repositories_utils import RepositoriesUtils
-from app.schemas.events_schemas import EventCreate, EventUpdate,EventListReponse
+from app.schemas.events_schemas import EventCreate, EventUpdate, EventListReponse, EventRead
 from typing import List
 from uuid import UUID
 from datetime import datetime
@@ -69,7 +69,7 @@ class EventRepository:
 
 
     
-    async def get_event_by_id(self, event_id: UUID):
+    async def get_event_by_id(self, event_id: UUID) -> CRUDResult[EventRead]:
         """
         Récupère un événement par son identifiant.
 
