@@ -6,3 +6,4 @@ class CacheDurartion(int, enum):
 
   USER_DURATION = 1500 # 25 min
   SESSION_DURATION = 1200 # 20 min
+  EVENT_DURATION = 1500

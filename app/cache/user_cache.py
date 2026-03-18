@@ -97,7 +97,6 @@ class UserCache:
       return user_in_cache
     
     except redis.ConnectionError as e:
-      logger.exception(f"Erreur de connexion à redis {e.__class__.__name__}: {e}")     
-    
-    
-  
+      logger.exception(f"Erreur de connexion à redis {e.__class__.__name__}: {e}")
+
+
