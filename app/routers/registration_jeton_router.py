@@ -7,7 +7,8 @@ from fastapi import APIRouter, Depends, Response
 
 from app.db.session import get_db
 from app.schemas import ApiBaseResponse
-from app.schemas.registration_schemas import CreateRegistration, ReadRegistration
+from app.schemas.global_schemas import GlobalStringMessage
+from app.schemas.registration_schemas import CreateRegistration, ReadRegistration, RegistrationInfos
 from app.services.registration_service import RegistrationService
 
 
@@ -24,7 +25,7 @@ def get_registration_service(db: AsyncSession = Depends(get_db)) -> Registration
 
 @router.post(
   "/add",
-  response_model=ApiBaseResponse[dict[str, str]]
+  response_model=GlobalStringMessage
 )
 async def create_registration(
   response: Response,
@@ -35,15 +36,23 @@ async def create_registration(
   db_reg = await reg_service.service_create_registration(registration_data=reg_data)
   
   if db_reg.is_error():
-    return ApiBaseResponse.error_response(db_reg.error, response, db_reg.status_code)
-  
-  return ApiBaseResponse.success_response({"Message": f"Jeton créé pour l'étudiant {db_reg.data.last_name}"}, response, db_reg.status_code)
+    return ApiBaseResponse.error_response(
+      error_message=db_reg.error, 
+      response=response, 
+      status_code=db_reg.status_code
+    )
+
+  return ApiBaseResponse.success_response(
+    f"Jeton céer pour l'étudiant {db_reg.data.last_name}", 
+    response=response, 
+    status_code=db_reg.status_code
+  )
 
 
 
 @router.post(
   "/one",
-  response_model=ApiBaseResponse[ReadRegistration]
+  response_model=RegistrationInfos
 )
 async def create_registration(
   response: Response,
@@ -53,8 +62,5 @@ async def create_registration(
   
   db_reg = await reg_service.service_get_registration_by_jeton(find_registration_data=find_reg_data)
   
-  if db_reg.is_error():
-    return ApiBaseResponse.error_response(db_reg.error, response, db_reg.status_code)
-  
-  return ApiBaseResponse.success_response(db_reg.data, response, db_reg.status_code)
+  db_reg.to_HTTP_api_base_response(response)
 
