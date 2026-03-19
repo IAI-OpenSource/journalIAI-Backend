@@ -1,20 +1,24 @@
 from typing import Optional
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
+from app.cache.club_cache import ClubCache
 from app.db.models.club import Club
 from app.repositories.club_repository import ClubRepository
 from app.schemas.clubs_schemas import ClubCreateRequest, ClubUpdateRequest, ClubResponse,ClubsListResponse
 from app.services import ServiceResult
 from app.globals.messages import Messages as msg
 from app.globals.status_codes import StatusCode as status
+from app.cache.helpers.base import CacheWrapper
 
 
 class ClubService:
     """Service pour les opérations sur les clubs
     """
-    def __init__(self, db : AsyncSession):
+    def __init__(self, db : AsyncSession, redis: CacheWrapper):
         self.db = db
+        self.redis = redis
         self.club_repository = ClubRepository(db)
+        self.clubCache = ClubCache(self.redis)
         
     async def get_club(self, club_id: UUID) :
         """Récupère un club par son ID.
@@ -25,15 +29,16 @@ class ClubService:
         Returns:
             Optional[ClubResponse]: Les données du club ou None.
         """
-        club_result = await self.club_repository.get_club_by_id(club_id)
-
-        if club_result.is_error():
-            return ServiceResult.service_error(msg.INTERNAL_SERVER_ERROR, status.INTERNAL_SERVER_ERROR)
+        club_from_cache = await self.clubCache.get_club_by_id(str(club_id))
+        if club_from_cache:
+            return ServiceResult.service_success(club_from_cache, status.OK)
         
+        club_result = await self.club_repository.get_club_by_id(club_id)
+        if club_result.is_error():
+            return ServiceResult.service_error(club_result.error, club_result.status_code)
         club = club_result.data
+        await self.clubCache.set_club_in_cache(ClubResponse.model_validate(club_result.data))
 
-        if club is None:
-            return ServiceResult.service_error(msg.NOT_FOUND, status.NOT_FOUND)
         
         return ServiceResult.service_success(ClubResponse.model_validate(club), status.OK)
     
@@ -46,15 +51,17 @@ class ClubService:
         Returns:
             Optional[ClubResponse]: Les données du club ou None.
         """
+        club_from_cache = await self.clubCache.get_club_by_slug(slug)
+        if club_from_cache:
+            return ServiceResult.service_success(club_from_cache, status.OK)
+
         club_result = await self.club_repository.get_club_by_slug(slug)
 
         if club_result.is_error():
-            return ServiceResult.service_error(msg.INTERNAL_SERVER_ERROR, status.INTERNAL_SERVER_ERROR)
+            return ServiceResult.service_error(club_result.error, club_result.status_code)
         
+        await self.clubCache.set_club_in_cache(ClubResponse.model_validate(club_result.data))
         club = club_result.data
-
-        if club is None:
-            return ServiceResult.service_error(msg.NOT_FOUND, status.NOT_FOUND)
         
         return ServiceResult.service_success(ClubResponse.model_validate(club), status.OK)
     
@@ -71,7 +78,7 @@ class ClubService:
         """
         clubs_result = await self.club_repository.get_all_clubs(page,page_size,is_active)
         if clubs_result.is_error():
-            return ServiceResult.service_error(msg.INTERNAL_SERVER_ERROR, status.INTERNAL_SERVER_ERROR)
+            return ServiceResult.service_error(clubs_result.error, clubs_result.status_code)
         
         clubs, total = clubs_result.data
         clubs_list = [ClubResponse.model_validate(club) for club in clubs]
@@ -89,14 +96,13 @@ class ClubService:
         """
         club = Club(name=payload.name,
                     slug=payload.slug,
-                    description=payload.description)
-        existing_club = await self.club_repository.get_club_by_slug(club.slug)
-        if existing_club.data is not None:
-            return ServiceResult.service_error(msg.CLUB_ALREADY_EXISTS, status.CONFLICT)
+                    description=payload.description,
+                    logo_url=payload.logo_url,
+                    cover_url=payload.cover_url)
         
         create_result = await self.club_repository.create_club(club)
         if create_result.is_error():
-            return ServiceResult.service_error(msg.INTERNAL_SERVER_ERROR, status.INTERNAL_SERVER_ERROR)
+            return ServiceResult.service_error(create_result.error, create_result.status_code)
         
         created_club = create_result.data
         return ServiceResult.service_success(ClubResponse.model_validate(created_club), status.CREATED)
@@ -114,17 +120,17 @@ class ClubService:
         """
         club_result = await self.club_repository.get_club_by_id(club_id)
         if club_result.is_error():
-            return ServiceResult.service_error(msg.INTERNAL_SERVER_ERROR, status.INTERNAL_SERVER_ERROR)
-        
+            return ServiceResult.service_error(club_result.error, club_result.status_code)
         club = club_result.data
-        if club is None:
-            return ServiceResult.service_error(msg.NOT_FOUND, status.NOT_FOUND)
         
         fields = payload.model_dump(exclude_none=True)
         
         update_result = await self.club_repository.update_club(club, **fields)
         if update_result.is_error():
-            return ServiceResult.service_error(msg.INTERNAL_SERVER_ERROR, status.INTERNAL_SERVER_ERROR)
+            return ServiceResult.service_error(update_result.error, update_result.status_code)
+        
+        await self.clubCache.delete_club_from_cache(str(club_id))
+        await self.clubCache.set_club_in_cache(ClubResponse.model_validate(update_result.data))
         
         updated_club = update_result.data
         return ServiceResult.service_success(ClubResponse.model_validate(updated_club), status.OK)
@@ -140,14 +146,14 @@ class ClubService:
         """
         club_result = await self.club_repository.get_club_by_id(club_id)
         if club_result.is_error():
-            return ServiceResult.service_error(msg.INTERNAL_SERVER_ERROR, status.INTERNAL_SERVER_ERROR)
+            return ServiceResult.service_error(club_result.error, club_result.status_code)
         
         club = club_result.data
-        if club is None:
-            return ServiceResult.service_error(msg.NOT_FOUND, status.NOT_FOUND)
         
         delete_result = await self.club_repository.soft_delete_club(club)
         if delete_result.is_error():
-            return ServiceResult.service_error(msg.INTERNAL_SERVER_ERROR, status.INTERNAL_SERVER_ERROR)
+            return ServiceResult.service_error(delete_result.error, delete_result.status_code)
+        
+        await self.clubCache.delete_club_from_cache(str(club_id))
         
         return ServiceResult.service_success(msg.CLUB_DELETED_SUCCESSFULLY, status.OK)
