@@ -18,7 +18,7 @@ from app.repositories.repositories_utils import RepositoriesUtils
 from app.schemas.registration_schemas import CreateRegistration, FindRegistration
 from . import CRUDResult
 from app.globals.messages import Messages as msg
-from app.utils.jetons import generate_code_jeton
+from app.utils.jetons_utils import generate_code_jeton
 
 
 logger = logging.getLogger(__name__)
@@ -28,6 +28,38 @@ logger = logging.getLogger(__name__)
 class RegistrationRepository:
   
   db: AsyncSession
+  
+  
+  async def multiple_registration(self, users: list[dict]) -> CRUDResult[str]:
+    """function repository pour inserer plusieurs etudiants dans 
+      la table de registration token
+
+    Args:
+        users (list[dict]): on prends la liste des etudiants lu depuis 
+        le fichier excel
+
+    Returns:
+        CRUDResult[str]: on return un simple message de succés
+    """
+
+    try:
+      
+      stmt = (
+        insert(RegistrationJeton).values(users)
+      )
+      
+      await self.db.execute(stmt)
+      await self.db.commit()
+
+      logger.info("Plusieurs jetons ajoutée avec succès !")
+      return CRUDResult.crud_success("Plusieurs jetons ajoutée avec succès !", StatusCode._201_STATUS_CREATED.value)
+      
+    except IntegrityError as ie:
+      return await RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, RegistrationJeton)
+
+    except Exception as e:
+      return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
+
 
 
   async def insert_registration(self, reg_data: CreateRegistration) -> CRUDResult[RegistrationJeton]:
@@ -63,7 +95,7 @@ class RegistrationRepository:
       db_reg = result.scalar_one()
       await self.db.commit()
 
-      logger.info("Session ajoutée avec succès !")
+      logger.info("Jeton ajoutée avec succès !")
       return CRUDResult.crud_success(db_reg, StatusCode._201_STATUS_CREATED.value)
       
     except IntegrityError as ie:

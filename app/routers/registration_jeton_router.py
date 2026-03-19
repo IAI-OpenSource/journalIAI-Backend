@@ -62,5 +62,5 @@ async def create_registration(
   
   db_reg = await reg_service.service_get_registration_by_jeton(find_registration_data=find_reg_data)
   
-  db_reg.to_HTTP_api_base_response(response)
+  return db_reg.to_HTTP_api_base_response(response)
 

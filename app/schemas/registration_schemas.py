@@ -24,6 +24,19 @@ class CreateRegistration(BaseModel):
   role: UserRole = Field("rolede l'utilisateur")
   sexe: SexeType 
   classe_id: UUID = Field("ID de la Classe de l'utilisateur")
+
+
+class CreateMultileRegistration(BaseModel):
+  """Schémas pydantic pour valider la création de plusieurs obje Registration_jeton
+    depuis le chargement d'un fichier excel
+  Args:
+      BaseModel (_type_): Hérite de bas model
+  """
+
+  first_name: str 
+  last_name: str 
+  role: UserRole 
+  sexe: SexeType 
   
   
 class FindRegistration(BaseModel):

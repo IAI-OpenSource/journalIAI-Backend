@@ -14,3 +14,5 @@ celery
 celery-types
 redis[asyncio,hiredis]
 alembic-postgresql-enum
+pandas
+openpyxl
