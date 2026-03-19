@@ -60,7 +60,7 @@ class UserService:
       logger.error(f"Erreur: {msg.DELETED_USER}")                        
       return ServiceResult.service_error(
         message=f"Erreur: {msg.DELETED_USER}", 
-        status_code=StatusCode._400_STATUS_BAD_REQUEST.value, 
+        status_code=StatusCode._403_STATUS_FORBIDEN.value, 
         service_name=msg.USER_SERVICE
       )
       

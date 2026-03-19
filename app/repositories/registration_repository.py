@@ -11,6 +11,7 @@ from uuid import UUID
 from sqlalchemy import insert, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 
 from app.db.models.registration_jeton import RegistrationJeton
 from app.globals.status_codes import StatusCode
@@ -119,11 +120,9 @@ class RegistrationRepository:
       
       stmt = (
         select(RegistrationJeton)
+        .options(joinedload(RegistrationJeton.classe))
         .where(
           RegistrationJeton.jeton == find_reg_data.jeton,
-          RegistrationJeton.first_name == find_reg_data.first_name,
-          RegistrationJeton.last_name == find_reg_data.last_name,
-          RegistrationJeton.classe_id == find_reg_data.classe_id
         )
       )
       result = await self.db.execute(stmt)

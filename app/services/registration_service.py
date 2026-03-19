@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.repositories.registration_repository import RegistrationRepository
 from app.schemas.registration_schemas import CreateMultileRegistration, CreateRegistration, FindRegistration, ReadRegistration
 from app.globals.messages import Messages as msg
-from app.utils.jetons_utils import read_excel_file
+from app.utils.jetons_utils import generate_code_jeton, read_excel_file
 
 from . import ServiceResult
 
@@ -84,6 +84,7 @@ class RegistrationService:
         student = CreateMultileRegistration(**row)
         student_dict = student.model_dump()
         student_dict["classe_id"] = classe_id
+        student_dict["jeton"] = generate_code_jeton(8)
         valide_data.append(student_dict)
       except Exception as e:
         errors.append(f"Ligne{i+1}: erreur {str(e)}")

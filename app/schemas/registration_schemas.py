@@ -10,6 +10,7 @@ from uuid import UUID
 
 from app.db.models.enums import ClasseType, SexeType, UserRole
 from app.schemas import ApiBaseResponse
+from app.schemas.classe_schemas import ReadUserClasse
 
 
 class CreateRegistration(BaseModel):
@@ -48,9 +49,7 @@ class FindRegistration(BaseModel):
     """
     
     jeton: str
-    first_name: str
-    last_name: str  
-    classe_id: UUID
+
   
   
 class ReadRegistration(BaseModel):
@@ -65,7 +64,7 @@ class ReadRegistration(BaseModel):
   first_name: str = Field(description="Prenom de l'utilisateur")
   last_name: str = Field(description="Nom de l'etudiant")
   role: UserRole = Field(description="rolede l'utilisateur")
-  classe: ClasseType = Field(description="Classe de l'utilisateur")
+  classe: Optional[ReadUserClasse] = Field(description="Classe de l'utilisateur")
   used_at: Optional[datetime] = None
   added_at: datetime
   
