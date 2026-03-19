@@ -13,6 +13,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.registration_jeton import RegistrationJeton
+from app.globals.status_codes import StatusCode
 from app.repositories.repositories_utils import RepositoriesUtils
 from app.schemas.registration_schemas import CreateRegistration, FindRegistration
 from . import CRUDResult
@@ -52,13 +53,13 @@ class RegistrationRepository:
       await self.db.commit()
 
       logger.info("Session ajoutée avec succès !")
-      return CRUDResult.crud_success(db_reg, 201)
+      return CRUDResult.crud_success(db_reg, StatusCode._201_STATUS_CREATED.value)
       
     except IntegrityError as ie:
-      return RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, RegistrationJeton)
+      return await RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, RegistrationJeton)
 
     except Exception as e:
-      return RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
+      return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
     
     
   async def get_registration_by_jeton(self, find_reg_data: FindRegistration) -> CRUDResult[RegistrationJeton]:
@@ -87,16 +88,16 @@ class RegistrationRepository:
       
       if registration is None:
         logger.info("Registration non Trouvé")
-        return CRUDResult.crud_error(msg.NOT_FOUND, status_code=404)
+        return CRUDResult.crud_error(msg.NOT_FOUND, status_code=StatusCode._404_STATUS_NOT_FOUND)
       
       logger.info("Registration récupérer avec succès !")
       return CRUDResult.crud_success(registration)
       
     except IntegrityError as ie:
-      return RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, RegistrationJeton)
+      return await RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, RegistrationJeton)
 
     except Exception as e:
-      return RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
+      return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
     
     
   async def delete_registration(self, to_delete_data: FindRegistration) -> CRUDResult[str]:
@@ -118,7 +119,7 @@ class RegistrationRepository:
     registration.data.used_at = datetime.now()
     await self.db.commit()
 
-    return CRUDResult.crud_success("Registration révoquée avec succès")
+    return CRUDResult.crud_success("Registration révoquée avec succès", StatusCode._204_STATUS_NO_CONTENT)
 
 
     

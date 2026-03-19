@@ -37,7 +37,7 @@ class IntegrationServiceResult(GlobalAppResult[T]):
         return cls(data=data, service_name=service_name)
 
     @classmethod
-    def integration_service_error(cls, message: str, service_name: str = "Service Intégré Inconnu") -> "IntegrationServiceResult[None]":
+    def integration_service_error(cls, message: str, service_name: str = "Service Intégré Inconnu") -> "IntegrationServiceResult[T]":
         """
         Crée une réponse d'erreur avec le message fourni.
         Args:

@@ -70,7 +70,7 @@ class ServiceResult(GlobalAppResult[T]):
         return cls(data=data, service_name=service_name, status_code=status_code)
 
     @classmethod
-    def service_error(cls, message: str, status_code: int = 400,  service_name: str = "Service Inconnu") -> "ServiceResult[None]":
+    def service_error(cls, message: str, status_code: int = 400,  service_name: str = "Service Inconnu") -> "ServiceResult[T]":
         """
         Crée une réponse d'erreur avec le message fourni, le code de status HTTP à retourner et le nom du service.
         Args:
