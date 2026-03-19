@@ -33,12 +33,10 @@ class ClubRepository:
 
             if club is None:
                 logger.info(f"Club with id {club_id} not found")
-                return CRUDResult.crud_error(msg.NOT_FOUND, 404)
+                return CRUDResult.crud_error(msg.CLUB_NOT_FOUND, 404)
             
             logger.info(f"Club with id {club_id} retrieved successfully")
             return CRUDResult.crud_success(club, 200)
-        except IntegrityError as ie:
-            return await RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, Club)
         except Exception as e:
             return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
 
@@ -57,12 +55,11 @@ class ClubRepository:
 
             if club is None:
                 logger.info(f"Club with slug {slug} not found")
-                return CRUDResult.crud_error(msg.NOT_FOUND, 404)
+                return CRUDResult.crud_error(msg.CLUB_NOT_FOUND, 404)
             
             logger.info(f"Club with slug {slug} retrieved successfully")
             return CRUDResult.crud_success(club, 200)
-        except IntegrityError as ie:
-            return await RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, Club)
+
         except Exception as e:
             return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
 
@@ -90,9 +87,7 @@ class ClubRepository:
             result = await self.db.execute(base_query.offset(offset).limit(page_size))
             clubs = list(result.scalars().all())
             logger.info(f"Retrieved {len(clubs)} clubs (page {page}/{(total + page_size - 1) // page_size})")
-            return CRUDResult.crud_success(clubs, 200)
-        except IntegrityError as ie:
-            return await RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, Club)
+            return CRUDResult.crud_success((clubs,total), 200)
         except Exception as e:
             return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
 

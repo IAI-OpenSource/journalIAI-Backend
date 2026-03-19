@@ -11,6 +11,7 @@ class Messages:
 
     # Messages spécifiques
     USER_NOT_FOUND = "Utilisateur non trouvé."
+    CLUB_NOT_FOUND = "Club non trouvé."
     INVALID_CREDENTIALS = "Identifiants invalides."
     DELETED_USER = "Compte Utilisateur est supprimé"
     USER_ALREADY_EXISTS = "Un utilisateur avec cet email existe déjà."
