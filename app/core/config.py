@@ -42,6 +42,9 @@ SID_REF_COOKIE: str = "_SID_REFRESH" ## encoder le refresh token
 
 ## url redis
 REDIS_URL: str = os.getenv("REDIS_URL", "redis://redis:6379/0")
+MINIO_USER: str = os.getenv("MINIO_ROOT_USER")
+MINIO_PASSWORD: str = os.getenv("MINIO_ROOT_PASSWORD")
+MINIO_BROWSER_REDIRECT_URL: str = os.getenv("MINIO_BROWSER_REDIRECT_URL")
 
 ## Start period pour docker
 START_PERIOD: int = os.getenv("START_PERIOD", 10)

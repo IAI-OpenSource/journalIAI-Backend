@@ -43,6 +43,8 @@ services:
       environment:
         MINIO_ROOT_USER: ${MINIO_ROOT_USER}
         MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+        MINIO_BROWSER_REDIRECT_URL: ${MINIO_BROWSER_REDIRECT_URL}
+        MINIO_SERVER_URL: ${MINIO_SERVER_URL}
       ports:
         - "${MINIO_API_PORT}:9000"
         - "${MINIO_CONSOLE_PORT}:9001"
@@ -56,7 +58,16 @@ services:
         retries: 10
         start_period: 60s
       restart: unless-stopped
-
+  minio-init:
+    build: .
+    container_name: journal_IAI_minio_init
+    volumes:
+      - .:/app
+    command: python -m app.storage.minio_config
+    depends_on:
+      minio:
+        condition: service_healthy
+    restart: "no"
   # Backend FastAPI
   api:
     build: .
@@ -80,6 +91,8 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
 
   # Reverse Proxy Nginx
   nginx:
@@ -88,6 +101,7 @@ services:
     restart: always
     ports:
       - "${NGINX_PORT}:80"
+      - "8181:8181"
     volumes:
       - ./nginx/conf.d/default.conf:/etc/nginx/conf.d/default.conf:ro
       - ./nginx/cache:/var/cache/nginx # Le dossier de cache persistant
