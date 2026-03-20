@@ -21,6 +21,8 @@ class Messages:
     LOGOUT_SUCCESSFUL = "Déconnexion réussie."
     PROFILE_UPDATED_SUCCESSFULLY = "Profil mis à jour avec succès."
     INVALID_SESSION = "Session invalide"
+    ERROR_UPLOAD_URL_GENERATION = "Erreur lors de la génération de l'URL d'upload"
+    VIDEO_UPLOAD_INTENT_SAVED = "Intent d'upload video enregistré avec succès"
     
     # Messages des noms des services 
     INSERT_SESSSION = "Service: Insertion Session"

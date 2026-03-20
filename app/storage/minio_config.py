@@ -3,10 +3,10 @@ import logging
 from dataclasses import dataclass
 from enum import Enum
 from typing import Optional, List
-from app.core.config import MINIO_USER, MINIO_PASSWORD, MINIO_SERVER_URL
-from minio import Minio
 from minio.lifecycleconfig import LifecycleConfig, Rule, Expiration
 from minio.commonconfig import ENABLED, Filter
+
+from app.storage.minio_client import MinioClientFactory
 
 # Configuration Logging
 logging.basicConfig(level=logging.INFO)
@@ -28,8 +28,8 @@ class BucketSpec:
     quota_gb: Optional[int] = None
 
 class StorageManager:
-    def __init__(self, endpoint: str, access_key: str, secret_key: str, secure: bool = False):
-        self.client = Minio(endpoint, access_key=access_key, secret_key=secret_key, secure=secure)
+    def __init__(self):
+        self.client = MinioClientFactory.get_backend_client()
 
     def get_buckets_definition(self) -> List[BucketSpec]:
         return [
@@ -89,5 +89,5 @@ class StorageManager:
 # Exemple d'usage
 if __name__ == "__main__":
     # Remplacer par tes variables d'environnement
-    manager = StorageManager(MINIO_SERVER_URL, MINIO_USER, MINIO_PASSWORD)
+    manager = StorageManager()
     manager.setup_infrastructure()

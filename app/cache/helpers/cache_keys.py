@@ -41,7 +41,7 @@ class CacheKey:
         cls.__can_instantiate = False
         return instance
 
-    def set_arguments(self, **kwargs: int | str) -> "CacheKey":
+    def set_arguments(self, **kwargs: str) -> "CacheKey":
         """
         Définit les arguments à utiliser pour formater la clé de cache, en vérifiant que le nombre d'arguments fournis correspond au nombre de placeholders attendus
         Args:
