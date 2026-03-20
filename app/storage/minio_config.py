@@ -5,6 +5,7 @@ from enum import Enum
 from typing import Optional, List
 from app.core.config import MINIO_USER, MINIO_PASSWORD
 from minio import Minio
+from minio.error import S3Error
 from minio.lifecycleconfig import LifecycleConfig, Rule, Expiration
 from minio.commonconfig import ENABLED, Filter
 
@@ -42,16 +43,23 @@ class StorageManager:
     def setup_infrastructure(self):
         """Initialise toute l'infrastructure de stockage"""
         # logger.info(f"Les buckets actuels : {self.client.list_buckets()}")
-        for spec in self.get_buckets_definition():
-            self._ensure_bucket(spec.name.value)
-            self._configure_lifecycle(spec)
-            self._apply_policy(spec)
-        logger.info("🚀 Infrastructure de stockage synchronisée avec succès.")
+        try:
+            for spec in self.get_buckets_definition():
+                self._ensure_bucket(spec)
+            logger.info("🚀 Infrastructure de stockage synchronisée avec succès.")
+        except Exception as e:
+            logger.error(f"Erreur lors de la configuration de l'infrastructure de stockage : {e}")
+            exit(1)
+    def _ensure_bucket(self, bucket: BucketSpec):
+        if not self.client.bucket_exists(bucket.name.value):
+            self.client.make_bucket(bucket.name.value)
+            logger.info(f"📁 Bucket créé : {bucket.name.value}")
+            self._configure_lifecycle(bucket)
+            self._apply_policy(bucket)
+            logger.info(f"✅ Bucket configuré entierement avec succès : {bucket.name.value} (Public: {bucket.is_public}, Retention: {bucket.retention_days} jours)")
+        else:
+            logger.info(f"✅ Bucket déjà existant : {bucket.name.value}")
 
-    def _ensure_bucket(self, name: str):
-        if not self.client.bucket_exists(name):
-            self.client.make_bucket(name)
-            logger.info(f"📁 Bucket créé : {name}")
 
     def _configure_lifecycle(self, spec: BucketSpec):
         """Gère la suppression automatique (Stories et Raw)."""
@@ -82,5 +90,5 @@ class StorageManager:
 # Exemple d'usage
 if __name__ == "__main__":
     # Remplacer par tes variables d'environnement
-    manager = StorageManager("minio:9000", MINIO_USER, MINIO_PASSWORD)
+    manager = StorageManager("minio:8000", MINIO_USER, MINIO_PASSWORD)
     manager.setup_infrastructure()
