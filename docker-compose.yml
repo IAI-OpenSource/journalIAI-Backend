@@ -45,6 +45,9 @@ services:
         MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
         MINIO_BROWSER_REDIRECT_URL: ${MINIO_BROWSER_REDIRECT_URL}
         MINIO_SERVER_URL: ${MINIO_SERVER_URL}
+      extra_hosts:
+        - "media.iai-journal.test:host-gateway"   # résout vers la machine host → Nginx → minio:9000
+        - "console.iai-journal.test:host-gateway" # idem pour la console
       ports:
         - "${MINIO_API_PORT}:9000"
         - "${MINIO_CONSOLE_PORT}:9001"
@@ -101,7 +104,6 @@ services:
     restart: always
     ports:
       - "${NGINX_PORT}:80"
-      - "8181:8181"
     volumes:
       - ./nginx/conf.d/default.conf:/etc/nginx/conf.d/default.conf:ro
       - ./nginx/cache:/var/cache/nginx # Le dossier de cache persistant
