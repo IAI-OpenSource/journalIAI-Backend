@@ -1,24 +1,34 @@
 from fastapi import APIRouter, Response, Depends
 
 from app.cache.helpers.base import CacheWrapper, get_redis
+from app.db.session import get_db
+from app.globals.api_tags import ApiTags
 from app.schemas.upload_schemas import VideoUploadIntentResponse, CreateVideoUploadIntent
+from app.services.video_upload_service import VideoUploadsService
 
 router = APIRouter(prefix="/post_video_upload")
 
 @router.post(
     path="/intent",
     name="Générer un intent d'upload de vidéo pour un post",
-    response_model=VideoUploadIntentResponse
+    response_model=VideoUploadIntentResponse,
+    tags=[ApiTags.POSTS, ApiTags.UPLOADS]
 )
 async def post_video_upload_intent(
-    request_data: CreateVideoUploadIntent, response: Response, cache : CacheWrapper = Depends(get_redis)
+    request_data: CreateVideoUploadIntent, response: Response, cache : CacheWrapper = Depends(get_redis), bd = Depends(get_db)
 ):
     """
     Endpoint pour générer un intent d'upload de vidéo pour un post, en fournissant les informations nécessaires
     pour initier un upload de vidéo. L'endpoint valide les données d'entrée, génère une URL d'upload
     pré-signée, c'est sur cette Url que vous allez upload le fichier vidéo du post
     """
-    pass
+
+    service = VideoUploadsService(cache=cache, bd=bd)
+
+    res = await service.save_video_upload_intent("Sevtify44", request_data)
+
+    return res.to_HTTP_api_base_response(response)
+
 
 
 
