@@ -3,9 +3,8 @@ import logging
 from dataclasses import dataclass
 from enum import Enum
 from typing import Optional, List
-from app.core.config import MINIO_USER, MINIO_PASSWORD
+from app.core.config import MINIO_USER, MINIO_PASSWORD, MINIO_SERVER_URL
 from minio import Minio
-from minio.error import S3Error
 from minio.lifecycleconfig import LifecycleConfig, Rule, Expiration
 from minio.commonconfig import ENABLED, Filter
 
@@ -90,5 +89,5 @@ class StorageManager:
 # Exemple d'usage
 if __name__ == "__main__":
     # Remplacer par tes variables d'environnement
-    manager = StorageManager("minio:8000", MINIO_USER, MINIO_PASSWORD)
+    manager = StorageManager(MINIO_SERVER_URL, MINIO_USER, MINIO_PASSWORD)
     manager.setup_infrastructure()
