@@ -53,7 +53,12 @@ class CacheKey:
             raise ValueError(f"Nombre d'arguments fourni ({len(kwargs)}) ne correspond pas au nombre "
                              f"de placeholders attendu ({self.number_of_placeholders}) pour la clé {self.key}")
 
-        return CacheKey(self.key, self.number_of_placeholders, **kwargs)
+
+        # On lève temporairement le verrou pour créer la copie enrichie
+        CacheKey.__can_instantiate = True
+        new_instance = CacheKey(self.key, self.number_of_placeholders, **kwargs)
+        CacheKey.__can_instantiate = False
+        return new_instance
 
     @property
     def args(self) -> dict[str, str | int]:
