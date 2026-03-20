@@ -2,19 +2,20 @@
 ## vous y trouverez les appels fonctions de repository
 
 
+import base64
 from dataclasses import dataclass
+from io import BytesIO
 import logging
 import traceback
 from typing import Union
 from uuid import UUID
 
-from fastapi import UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.repositories.registration_repository import RegistrationRepository
 from app.schemas.registration_schemas import CreateMultileRegistration, CreateRegistration, FindRegistration, ReadRegistration
 from app.globals.messages import Messages as msg
-from app.utils.jetons_utils import generate_code_jeton, read_excel_file
+from app.utils.jetons_utils import JetonUtils
 
 from . import ServiceResult
 
@@ -70,24 +71,20 @@ class RegistrationService:
     )
     
     
-  async def service_imports_reg_data(self, file: UploadFile, classe_id: UUID) -> ServiceResult[str]:
+  async def service_imports_reg_data(self, file_base: str, classe_id: UUID) -> ServiceResult[str]:
     """Logique métier pour générer plusieurs jeton en meme temps
       (à partir d'un fichier excel)"""
 
-    rows = await read_excel_file(file)
-    
-    valide_data = []
-    errors = []
+    file_bytes = base64.b64decode(file_base)
+    file_like = BytesIO(file_bytes)
 
-    for i, row in enumerate(rows):
-      try:
-        student = CreateMultileRegistration(**row)
-        student_dict = student.model_dump()
-        student_dict["classe_id"] = classe_id
-        student_dict["jeton"] = generate_code_jeton(8)
-        valide_data.append(student_dict)
-      except Exception as e:
-        errors.append(f"Ligne{i+1}: erreur {str(e)}")
+    res_import = await JetonUtils.read_excel_file(file_like)
+    
+    valide_data = res_import["data"]
+
+    for row in valide_data:
+      row["classe_id"] = classe_id
+      row["jeton"] = JetonUtils.generate_code_jeton(8)
         
     if valide_data:
       result = await self.resgistration_repo.multiple_registration(valide_data)
@@ -106,7 +103,7 @@ class RegistrationService:
       )
       
     return ServiceResult.service_error(
-      message=f"Les erreurs: {errors}",
+      message=f"Les erreurs: {res_import["errors"]}",
     )
       
     

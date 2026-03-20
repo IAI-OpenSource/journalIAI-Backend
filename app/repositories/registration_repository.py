@@ -19,7 +19,7 @@ from app.repositories.repositories_utils import RepositoriesUtils
 from app.schemas.registration_schemas import CreateRegistration, FindRegistration
 from . import CRUDResult
 from app.globals.messages import Messages as msg
-from app.utils.jetons_utils import generate_code_jeton
+from app.utils.jetons_utils import JetonUtils
 
 
 logger = logging.getLogger(__name__)
@@ -77,7 +77,7 @@ class RegistrationRepository:
     try:
       
       ## génération du jeton
-      jeton = generate_code_jeton(8)
+      jeton = JetonUtils.generate_code_jeton(8)
       
       stmt = (
         insert(RegistrationJeton)

@@ -1,3 +1,4 @@
+import base64
 from typing import Annotated
 from uuid import UUID
 
@@ -12,6 +13,7 @@ from app.schemas import ApiBaseResponse
 from app.schemas.global_schemas import GlobalStringMessage
 from app.schemas.registration_schemas import CreateRegistration, ReadRegistration, RegistrationInfos
 from app.services.registration_service import RegistrationService
+from app.worker.tasks.excel_task import import_students_task
 
 
 router = APIRouter(prefix="/registration", tags=[ApiTags.JETON_ENREGISTREMENT])
@@ -82,9 +84,10 @@ async def imports_students(
 ):
   """Roue pour créer des jetons pour plusieurs étudiants(en chargeant un fichier excel)"""
   
-  result = await reg_service.service_imports_reg_data(
-    file=excel_file,
-    classe_id=classe_id
-  )
+  file_bytes = await excel_file.read()
+
+  file_base64 = base64.b64encode(file_bytes).decode("utf-8")
+
+  import_students_task.delay(file_base64=file_base64, classe_id=classe_id, service=reg_service)
   
-  return result.to_HTTP_api_base_response(response)
+  return ApiBaseResponse.success_response({"Message":"Lecture du fichier en arrière plan"}, response)
