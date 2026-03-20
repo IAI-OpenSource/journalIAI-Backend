@@ -24,6 +24,7 @@ class CacheKeysFactory:
         AvailableCacheKeys.LIKE_OBJECT: CacheKey.new_key(AvailableCacheKeys.LIKE_OBJECT, 1),
         AvailableCacheKeys.POST_LIKE_COUNT: CacheKey.new_key(AvailableCacheKeys.POST_LIKE_COUNT, 1),
         AvailableCacheKeys.COMMENT_LIKE_COUNT: CacheKey.new_key(AvailableCacheKeys.COMMENT_LIKE_COUNT, 1),
+        AvailableCacheKeys.FILE_UPLOAD_INTENT_KEY: CacheKey.new_key(AvailableCacheKeys.FILE_UPLOAD_INTENT_KEY, 2),
     }
 
     @classmethod

@@ -20,7 +20,8 @@ class MinioClientFactory:
         données au client, si vous voulez créer une url ou des trucs dans le genre vous devez utiliser
         """
         if cls._private_client is None:
-            cls._private_client = Minio(endpoint=MINIO_SERVER_URL, access_key=MINIO_USER, secret_key=MINIO_PASSWORD, secure=False)
+            endpoint = MINIO_SERVER_URL.replace("http://", "").replace("https://", "").rstrip("/")
+            cls._private_client = Minio(endpoint=endpoint, access_key=MINIO_USER, secret_key=MINIO_PASSWORD, secure=False)
         return cls._private_client
 
     @classmethod
