@@ -78,7 +78,7 @@ class EventService:
 
         return ServiceResult.service_success(validated, status_code=200)
 
-    async def service_find_event_by_statut(self, statut: EventStatus) -> ServiceResult:
+    async def service_find_event_by_statut(self, statut: EventStatus) -> ServiceResult[EventRead]:
         """Récupère les events par statut — cache en priorité."""
 
         # 1. Vérifier le cache
@@ -98,24 +98,12 @@ class EventService:
                 service_name=msg.EVENT_SERVICE
             )
 
-        active_events = [
-            EventRead.model_validate(e) for e in event.data
-            if not EventRead.model_validate(e).is_deleted()
-        ]
-
-        if not active_events:
-            return ServiceResult.service_error(
-                message=msg.DELETED_EVENT,
-                status_code=404,
-                service_name=msg.EVENT_SERVICE
-            )
-
         # 3. Mettre en cache
-        await self.event_cache.set_events_by_status_in_cache(statut, active_events, CacheDurartion.EVENT_DURATION)
+        await self.event_cache.set_events_by_status_in_cache(statut, event.data, CacheDurartion.EVENT_DURATION)
 
-        return ServiceResult.service_success(active_events, status_code=200)
+        return ServiceResult.service_success(event.data or [], status_code=200)
 
-    async def service_find_all_event(self) -> ServiceResult:
+    async def service_find_all_event(self) -> ServiceResult[EventRead]:
         """Récupère tous les events."""
 
         events = await self.event_repo.get_event()
@@ -128,19 +116,7 @@ class EventService:
                 service_name=msg.EVENT_SERVICE
             )
 
-        active_events = [
-            e for e in events.data
-            if not EventRead.model_validate(e).is_deleted()
-        ]
-
-        if not active_events:
-            return ServiceResult.service_error(
-                message=msg.EVENTS_NOT_FOUND,
-                status_code=404,
-                service_name=msg.EVENT_SERVICE
-            )
-
-        return ServiceResult.service_success(data=active_events, service_name=msg.EVENT_SERVICE)
+        return ServiceResult.service_success(data=events.data or [], status_code=200, service_name=msg.EVENT_SERVICE)
 
     async def service_get_events_paginated(
         self, cursor: Optional[UUID] = None, limit: int = 10
@@ -252,15 +228,6 @@ class EventService:
                 service_name=msg.EVENT_SERVICE
             )
 
-        validated_existing = EventRead.model_validate(existing.data)
-
-        if validated_existing.is_deleted():
-            return ServiceResult.service_error(
-                message=msg.DELETED_EVENT,
-                status_code=400,
-                service_name=msg.EVENT_SERVICE
-            )
-
         updated = await self.event_repo.update_event(event_id=event_id, data=event_data)
 
         if updated.is_error():
@@ -271,7 +238,7 @@ class EventService:
             )
 
         # Invalider tous les caches liés
-        await self._invalidate_all_caches(event_id, status=validated_existing.status)
+        await self._invalidate_all_caches(event_id, status=existing.data.status)
 
         logger.info(f"{msg.EVENT_UPDATE_SUCCES}: {event_id}")
-        return ServiceResult.service_s
+        return ServiceResult.service_success(data=updated.data, status_code=200, service_name=msg.EVENT_SERVICE)

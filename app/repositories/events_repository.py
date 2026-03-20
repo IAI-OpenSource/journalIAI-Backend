@@ -36,7 +36,7 @@ class EventRepository:
     db: AsyncSession
 
     
-    async def get_event(self) -> List[Event]:
+    async def get_event(self) -> CRUDResult[List[Event]]:
         """
         Récupère la liste de tous les événements non supprimés.
 
@@ -50,7 +50,7 @@ class EventRepository:
         """
 
         try: 
-            stmt = select(Event)
+            stmt = select(Event).where(Event.deleted_at == None).order_by(Event.start_date)
             result = await self.db.execute(stmt)
             events = result.scalars().all()
            
@@ -85,7 +85,7 @@ class EventRepository:
                 - INTERNAL_SERVER_ERROR en cas d'erreur.
         """
         try:
-            stmt = select(Event).where(Event.id == event_id)
+            stmt = select(Event).where(Event.id == event_id).where(Event.deleted_at == None)
             result = await self.db.execute(stmt)
             event_ById = result.scalar_one_or_none()
 
@@ -105,7 +105,7 @@ class EventRepository:
 
 
    
-    async def get_events_by_status(self, status: EventStatus) -> List[Event]:
+    async def get_events_by_status(self, status: EventStatus) -> CRUDResult[List[Event]]:
         """
         Récupère les événements filtrés par statut.
 
@@ -257,7 +257,7 @@ class EventRepository:
 
 
     
-    async def get_events_paginated(self, cursor: Optional[UUID] = None, limit: int = 10):
+    async def get_events_paginated(self, cursor: Optional[UUID] = None, limit: int = 10) -> CRUDResult[EventRead]:
         """
         Récupère les événements avec pagination basée sur un curseur.
 

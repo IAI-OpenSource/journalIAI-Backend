@@ -16,7 +16,7 @@ class CacheKeysFactory:
         AvailableCacheKeys.POST_OBJECT: CacheKey.new_key(AvailableCacheKeys.POST_OBJECT, 1),
         AvailableCacheKeys.POST_COMMENTS: CacheKey.new_key(AvailableCacheKeys.POST_COMMENTS, 1),
         AvailableCacheKeys.CLUB_OBJECT: CacheKey.new_key(AvailableCacheKeys.CLUB_OBJECT, 1),
-        AvailableCacheKeys.EVENT_LIST:      CacheKey.new_key(AvailableCacheKeys.EVENT_LIST, 2),      # cursor + limit
+        AvailableCacheKeys.EVENT_LIST:      CacheKey.new_key(AvailableCacheKeys.EVENT_LIST, 1),      # cursor + limit
         AvailableCacheKeys.EVENT_BY_STATUS: CacheKey.new_key(AvailableCacheKeys.EVENT_BY_STATUS, 1), # status
         AvailableCacheKeys.CLUB_MEMBERS: CacheKey.new_key(AvailableCacheKeys.CLUB_MEMBERS, 1),
         AvailableCacheKeys.EVENT_OBJECT: CacheKey.new_key(AvailableCacheKeys.EVENT_OBJECT, 1),

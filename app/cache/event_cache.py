@@ -28,14 +28,15 @@ class EventCache:
         ).set_arguments(id=id)
 
     def create_event_list_cache_key(self, cursor: Optional[UUID], limit: int) -> CacheKey:
+        composite_id = f"{str(cursor) if cursor else 'start'}_{limit}"
         return CacheKeysFactory.get_cache_key(
             AvailableCacheKeys.EVENT_LIST
-        ).set_arguments(cursor=str(cursor) if cursor else "start", limit=limit)
+        ).set_arguments(id=composite_id)
 
     def create_event_status_cache_key(self, status: EventStatus) -> CacheKey:
         return CacheKeysFactory.get_cache_key(
             AvailableCacheKeys.EVENT_BY_STATUS
-        ).set_arguments(status=status.value)
+        ).set_arguments(id=status.value)
 
     # -------------------------------------------------------------------------
     # Cache : événement unique
