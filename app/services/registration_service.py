@@ -103,7 +103,7 @@ class RegistrationService:
       )
       
     return ServiceResult.service_error(
-      message=f"Les erreurs: {res_import["errors"]}",
+      message=f'Les erreurs: {res_import["errors"]}',
     )
       
     
