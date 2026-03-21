@@ -21,6 +21,10 @@ class CreateVideoUploadIntent(BaseModel):
 
 class UploadURLSchema(BaseModel):
     upload_url: str = Field(description="L'url sur lequel l'Upload doit s'effectuer")
+    intent_id: str = Field(
+        description="Id de l'intent, cet id sera réutiliser pour les prochaines opérations, donc gardez çà jalousement,"
+                    "vous allez faire beaucoup de choses avec🤣"
+    )
 
 class VideoUploadIntentResponse(ApiBaseResponse):
 

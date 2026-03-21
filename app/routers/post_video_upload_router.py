@@ -8,6 +8,9 @@ from app.services.video_upload_service import VideoUploadsService
 
 router = APIRouter(prefix="/post_video_upload")
 
+
+# TODO: Revoir tout ce fichier quand l'auth sera dispo et re-tester, principalement verifier si l'utilisateur peut post
+
 @router.post(
     path="/intent",
     name="Générer un intent d'upload de vidéo pour un post",
@@ -15,7 +18,8 @@ router = APIRouter(prefix="/post_video_upload")
     tags=[ApiTags.POSTS, ApiTags.UPLOADS]
 )
 async def post_video_upload_intent(
-    request_data: CreateVideoUploadIntent, response: Response, cache : CacheWrapper = Depends(get_redis), bd = Depends(get_db)
+    request_data: CreateVideoUploadIntent, response: Response, cache : CacheWrapper = Depends(get_redis),
+    bd = Depends(get_db)
 ):
     """
     Endpoint pour générer un intent d'upload de vidéo pour un post, en fournissant les informations nécessaires
@@ -28,7 +32,4 @@ async def post_video_upload_intent(
     res = await service.save_video_upload_intent("Sevtify44", request_data)
 
     return res.to_HTTP_api_base_response(response)
-
-
-
 

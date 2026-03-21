@@ -15,11 +15,12 @@ class VideoUploadsCache:
     def __init__(self, cache: CacheWrapper):
         self._cache = cache
 
-    async def save_video_upload_intent(self, user_id: str, intent_data: CreateVideoUploadIntent) -> None:
+    async def save_video_upload_intent(self, user_id: str, intent_id: str, intent_data: CreateVideoUploadIntent) -> None:
         """
         Enregistre un intent d'upload video dans le cache pour les utilisateurs
         Args:
             user_id: Id de l'utilisateur
+            intent_id: Id de l'intent d'upload video
             intent_data: Le données de l'intent d'upload à enregistrer, conformes au schéma CreateVideoUploadIntent
 
         Returns:
@@ -27,7 +28,7 @@ class VideoUploadsCache:
         """
 
         cache_key = CacheKeysFactory.get_cache_key(AvailableCacheKeys.FILE_UPLOAD_INTENT_KEY).set_arguments(
-            user_id=user_id, file_name=intent_data.file_name
+            user_id=user_id, intent_id=intent_id
         )
 
         try:

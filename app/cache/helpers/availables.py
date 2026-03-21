@@ -50,5 +50,5 @@ class AvailableCacheKeys(str, Enum):
     POST_LIKE_COUNT = BaseCacheEntity.POST + ":like_count"  # Clé pour le nombre de likes d'un post
     COMMENT_LIKE_COUNT = BaseCacheEntity.COMMENT + ":like_count"  # Clé pour le nombre de likes d'un commentaire
 
-    FILE_UPLOAD_INTENT_KEY = "upload_intent:{user_id}:{file_name}" # Clé pour stocker les intent d'upload
+    FILE_UPLOAD_INTENT_KEY = "upload_intent:{user_id}:{intent_id}" # Clé pour stocker les intent d'upload
 

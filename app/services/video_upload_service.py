@@ -1,3 +1,4 @@
+import secrets
 from datetime import timedelta
 from logging import getLogger
 
@@ -15,11 +16,19 @@ from app.utils.bucket_files_utils import BucketFilesUtils
 
 logger = getLogger(__name__)
 
+
+def generate_random_intent_id(longueur: int) -> str:
+    """Genere un ID unique pour un intent d'upload video."""
+    return secrets.token_hex(longueur)
+
 class VideoUploadsService:
 
     def __init__(self, cache: CacheWrapper, bd: AsyncSession):
         self._cache = VideoUploadsCache(cache)
         self._bd = bd
+
+
+
 
     async def save_video_upload_intent(self, user_id: str, intent_data: CreateVideoUploadIntent) -> ServiceResult[UploadURLSchema]:
         """
@@ -31,8 +40,12 @@ class VideoUploadsService:
         Returns:
             ServiceResult indiquant le succès ou l'échec de l'opération, avec un message approprié
         """
+        random_intent_id = generate_random_intent_id(16)
 
-        bucket_object_key = BucketFilesUtils.get_object_name_for_raw_video(filename=intent_data.file_name, user_id=user_id)
+        bucket_object_key = BucketFilesUtils.generate_object_name_for_raw_video(
+            intent_id=random_intent_id,
+            filename=intent_data.file_name
+        )
 
         minio_client = MinioClientFactory.get_public_client()
 
@@ -48,7 +61,8 @@ class VideoUploadsService:
 
         logger.info(f"URL d'upload générée avec succès pour l'intent d'upload video générée avec succès")
 
-        await self._cache.save_video_upload_intent(user_id, intent_data)
-        data_to_return = UploadURLSchema(upload_url=upload_url)
+        await self._cache.save_video_upload_intent(user_id, random_intent_id, intent_data)
+
+        data_to_return = UploadURLSchema(upload_url=upload_url, intent_id=random_intent_id)
 
         return ServiceResult.service_success(data=data_to_return)
