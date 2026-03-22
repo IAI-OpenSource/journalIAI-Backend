@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Response, Depends
+from typing import Annotated
+
+from fastapi import APIRouter, Response, Depends, Query, WebSocket
 
 from app.cache.helpers.base import CacheWrapper, get_redis
 from app.db.session import get_db
@@ -29,7 +31,38 @@ async def post_video_upload_intent(
 
     service = VideoUploadsService(cache=cache, bd=bd)
 
-    res = await service.save_video_upload_intent("Sevtify44", request_data)
+    res = await service.service_process_video_upload_intent("Sevtify44", request_data)
 
     return res.to_HTTP_api_base_response(response)
+
+@router.websocket(
+    path="/ws/complete_video_post",
+    name="Finaliser un post vidéo"
+)
+async def ws_complete_video_post(
+    websocket: WebSocket,
+    intent_id = Annotated[str, Query(..., description="L'id d'intent recupéré précedemment")],
+    cache : CacheWrapper = Depends(get_redis), bd = Depends(get_db)
+):
+    """Je suis pas inspiré pour le moment"""
+    service = VideoUploadsService(cache=cache, bd=bd)
+
+    verification = await service.service_verify_complete_video_upload("Sevtify44", str(intent_id))
+
+    if verification.is_error():
+        #TODO : Envoyer d'abord un message avant de close
+        await websocket.close(reason=verification.error)
+        return
+
+    await websocket.accept()
+
+    # Lancer la tache de traitement du fichier
+    while True:
+        # Tenir le front informé de l'avancé du traitement
+        continue
+
+
+
+
+
 

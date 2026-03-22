@@ -1,6 +1,6 @@
 from datetime import timedelta
 from json import dumps, loads, JSONDecodeError
-from typing import Optional, AsyncGenerator, Any, AsyncIterator
+from typing import Optional, Any, AsyncIterator
 
 from pydantic import BaseModel, ValidationError
 

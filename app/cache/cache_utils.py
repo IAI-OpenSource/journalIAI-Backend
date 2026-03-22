@@ -21,5 +21,5 @@ class CacheUtils:
         if isinstance(e, RedisConnectionError):
             logger.exception(f"Erreur de connexion à Redis : {e}")
         else:
-            logger.exception(f"Erreur inattendue liée au cache Redis : {e.__class__.__name__} - {e}")
+            logger.exception(f"Erreur inattendue liée à une opération cache : {e.__class__.__name__} - {e}")
 

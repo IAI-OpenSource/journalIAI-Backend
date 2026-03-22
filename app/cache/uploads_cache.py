@@ -1,4 +1,5 @@
 from logging import getLogger
+from typing import Optional
 
 from app.cache.cache_utils import CacheUtils
 from app.cache.helpers.availables import AvailableCacheKeys
@@ -39,3 +40,26 @@ class VideoUploadsCache:
             )
         except Exception as e:
             CacheUtils.traiter_exceptions(e, logger)
+
+    async def get_video_upload_intent(self, user_id: str, intent_id: str) -> Optional[CreateVideoUploadIntent]:
+        """
+        Recupere l'intent d'upload video
+        Args:
+            user_id: Id de l'utilisateur
+            intent_id: Id de l'intent d'upload video
+
+        Returns:
+            Les données de l'intent d'upload video récupérées du cache, conformes au schéma CreateVideoUploadIntent,
+            ou None si l'intent n'existe pas ou a expiré
+        """
+
+        cache_key = CacheKeysFactory.get_cache_key(AvailableCacheKeys.FILE_UPLOAD_INTENT_KEY).set_arguments(
+            user_id=user_id, intent_id=intent_id
+        )
+
+        try:
+            data = await self._cache.get_pydantic_model_from_cache(cache_key, CreateVideoUploadIntent)
+            return data
+        except Exception as e:
+            CacheUtils.traiter_exceptions(e, logger)
+            return None

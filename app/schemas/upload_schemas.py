@@ -4,7 +4,6 @@ from pydantic import BaseModel, Field
 
 from uuid import UUID
 
-from app.db.models.enums import MediaType, PostType
 from app.schemas import ApiBaseResponse
 
 class CreateVideoUploadIntent(BaseModel):
@@ -25,6 +24,20 @@ class UploadURLSchema(BaseModel):
         description="Id de l'intent, cet id sera réutiliser pour les prochaines opérations, donc gardez çà jalousement,"
                     "vous allez faire beaucoup de choses avec🤣"
     )
+
+class WsPostProcessingInfoSchema(BaseModel):
+    step: int = Field(..., description="L'étape à laquelle on est")
+    progress: int = Field(..., description="Le pourcentage de progression")
+    error_message: Optional[str] = Field(
+        None,
+        description="Message d'erreur en cas d'échec, apres çà c'est terminé, l'opération est instantanément"
+                    " interrompue, le message sera abstrait donc affichable aux utilisateurs, gardez juste en tete que"
+                    " après çà ékpa, mission échouée"
+    )
+
+class StringResponse(BaseModel):
+    message: str = Field(description="Le message de réponse relatif au résultat de l'opération, ce message là sera"
+                                     " forcément pour un succès, si c'est echec ca sera dans le champ 'error'")
 
 class VideoUploadIntentResponse(ApiBaseResponse):
 
