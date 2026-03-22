@@ -60,7 +60,7 @@ async def create_registration(
   response_model=RegistrationInfos,
   tags=[ApiTags.ADMIN_MODERATEUR]
 )
-async def create_registration(
+async def get_registration(
   response: Response,
   find_reg_data: CreateRegistration,
   reg_service: Annotated[RegistrationService, Depends(get_registration_service)]):

@@ -38,7 +38,7 @@ class SessionCache:
     
     cache_key = CacheKeysFactory.get_cache_key(
       AvailableCacheKeys.SESSION_OBJECT
-    ).set_arguments(id=id)
+    ).set_arguments(id=str(id))
     
     return cache_key
     
