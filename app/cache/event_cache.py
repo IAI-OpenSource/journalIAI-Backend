@@ -7,8 +7,7 @@ from app.cache.helpers.base import CacheWrapper
 from app.cache.helpers.cache_keys import CacheKey
 from app.cache.helpers.keys_factory import CacheKeysFactory
 from app.schemas.events_schemas import EventRead, EventListReponse
-from app.db.models.event import EventStatus
-from app.globals.messages import Messages as msg
+from app.db.models.enums import EventStatus  # corrigé : vient de enums
 
 logger = getLogger(__name__)
 

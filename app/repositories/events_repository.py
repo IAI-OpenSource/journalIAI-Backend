@@ -1,27 +1,20 @@
-from alembic.util import status
 from sqlalchemy.ext.asyncio import AsyncSession
 import logging
 from sqlalchemy import select, update, insert
-from app.db.models.event import Event, EventStatus
+from app.db.models.event import Event
+from app.db.models.enums import EventStatus  # corrigé : vient de enums
 from app.repositories.repositories_utils import RepositoriesUtils
 from app.schemas.events_schemas import EventCreate, EventUpdate, EventListReponse, EventRead
-from typing import List
+from typing import List, Optional
 from uuid import UUID
-from datetime import datetime
+from datetime import datetime, timezone
 from . import CRUDResult
 from app.globals.messages import Messages as msg
 from dataclasses import dataclass
 from sqlalchemy.exc import IntegrityError
-import traceback
-from typing import Optional
-
-
-
-
 
 
 logger = logging.getLogger(__name__)
-
 
 
 @dataclass
@@ -35,41 +28,27 @@ class EventRepository:
 
     db: AsyncSession
 
-    
     async def get_event(self) -> CRUDResult[List[Event]]:
         """
         Récupère la liste de tous les événements non supprimés.
 
         Returns:
-            List[Event]: Liste des événements trouvés.
-
-        Raises:
-            CRUDResult.crud_error:
-                - NOT_FOUND si aucun événement n'est trouvé.
-                - INTERNAL_SERVER_ERROR en cas d'erreur de base de données.
+            CRUDResult[List[Event]]: Liste des événements trouvés.
         """
-
-        try: 
+        try:
             stmt = select(Event).where(Event.deleted_at == None).order_by(Event.start_date)
             result = await self.db.execute(stmt)
             events = result.scalars().all()
-           
-            
-            if events is None:
-                logger.info("Aucun events Trouve")
-                return CRUDResult.crud_error(msg.NOT_FOUND, status_code=status._404_STATUS_NOT_FOUND.value)
-            
-            logger.info("Events recuperer avec succes !")
+
+            logger.info("Events récupérés avec succès !")
             return CRUDResult.crud_success(events)
+
         except IntegrityError as ie:
             return await RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, Event)
-
         except Exception as e:
             return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
 
-
-    
-    async def get_event_by_id(self, event_id: UUID) -> CRUDResult[EventRead]:
+    async def get_event_by_id(self, event_id: UUID) -> CRUDResult[Event]:
         """
         Récupère un événement par son identifiant.
 
@@ -77,34 +56,25 @@ class EventRepository:
             event_id (UUID): Identifiant unique de l'événement.
 
         Returns:
-            Event: L'événement trouvé.
-
-        Raises:
-            CRUDResult.crud_error:
-                - NOT_FOUND si l'événement n'existe pas.
-                - INTERNAL_SERVER_ERROR en cas d'erreur.
+            CRUDResult[Event]: L'événement trouvé.
         """
         try:
             stmt = select(Event).where(Event.id == event_id).where(Event.deleted_at == None)
             result = await self.db.execute(stmt)
-            event_ById = result.scalar_one_or_none()
+            event_by_id = result.scalar_one_or_none()
 
-            if event_ById is None:
-                logger.info("Aucun event Trouve")
-                return CRUDResult.crud_error(msg.NOT_FOUND, status_code=status._404_STATUS_NOT_FOUND.value)
-            
-            logger.info("Evens recuperer avec succes !")
-            return CRUDResult.crud_success(event_ById)
+            if event_by_id is None:
+                logger.info(f"Aucun event trouvé pour l'id {event_id}")
+                return CRUDResult.crud_error(msg.NOT_FOUND, status_code=404)
+
+            logger.info("Event récupéré avec succès !")
+            return CRUDResult.crud_success(event_by_id)
+
         except IntegrityError as ie:
             return await RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, Event)
-
         except Exception as e:
             return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
 
-            
-
-
-   
     async def get_events_by_status(self, status: EventStatus) -> CRUDResult[List[Event]]:
         """
         Récupère les événements filtrés par statut.
@@ -113,34 +83,27 @@ class EventRepository:
             status (EventStatus): Statut des événements à récupérer.
 
         Returns:
-            List[Event]: Liste des événements correspondant au statut.
-
-        Raises:
-            CRUDResult.crud_error:
-                - NOT_FOUND si aucun événement n'est trouvé.
-                - INTERNAL_SERVER_ERROR en cas d'erreur.
+            CRUDResult[List[Event]]: Liste des événements correspondant au statut.
         """
         try:
-            stmt = select(Event).where(Event.status == status).where(Event.deleted_at == None).order_by(Event.start_date)
+            stmt = (
+                select(Event)
+                .where(Event.status == status)
+                .where(Event.deleted_at == None)
+                .order_by(Event.start_date)
+            )
             result = await self.db.execute(stmt)
             events = result.scalars().all()
-            
-            if events is None:
-                    logger.info("Aucun event Trouve")
-                    return CRUDResult.crud_error(msg.NOT_FOUND, status_code=status._404_STATUS_NOT_FOUND.value)
-                    z
-            logger.info("Events recuperer avec succes !")
+
+            logger.info("Events récupérés avec succès !")
             return CRUDResult.crud_success(events)
-        
+
         except IntegrityError as ie:
             return await RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, Event)
-
         except Exception as e:
             return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
 
-
-    
-    async def create_event(self, event_data: EventCreate):
+    async def create_event(self, event_data: EventCreate) -> CRUDResult[Event]:
         """
         Crée un nouvel événement.
 
@@ -148,38 +111,31 @@ class EventRepository:
             event_data (EventCreate): Données de l'événement à créer.
 
         Returns:
-            Event: L'événement créé.
-
-        Raises:
-            CRUDResult.crud_error:
-                - INTERNAL_SERVER_ERROR en cas d'erreur.
+            CRUDResult[Event]: L'événement créé.
         """
         try:
-
             stmt = (
-            insert(Event).values(**event_data
-            .model_dump())
-            .returning(Event)
+                insert(Event)
+                .values(**event_data.model_dump())
+                .returning(Event)
             )
             result = await self.db.execute(stmt)
             db_event = result.scalar_one_or_none()
+
             if db_event is None:
-                return CRUDResult.crud_error("Event not created")
+                return CRUDResult.crud_error(msg.NOT_FOUND, status_code=500)
+
             await self.db.commit()
 
-            logger.info("Event ajoutée avec succès !")
+            logger.info("Event créé avec succès !")
             return CRUDResult.crud_success(db_event)
 
         except IntegrityError as ie:
             return await RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, Event)
-
         except Exception as e:
             return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
 
-
-
-   
-    async def update_event(self, event_id: UUID, data: EventUpdate):
+    async def update_event(self, event_id: UUID, data: EventUpdate) -> CRUDResult[Event]:
         """
         Met à jour un événement existant.
 
@@ -188,19 +144,15 @@ class EventRepository:
             data (EventUpdate): Données à mettre à jour.
 
         Returns:
-            CRUDResult: L'événement mis à jour.
-
-        Raises:
-            CRUDResult.crud_error:
-                - NOT_FOUND si l'événement n'existe pas.
-                - INTERNAL_SERVER_ERROR en cas d'erreur.
+            CRUDResult[Event]: L'événement mis à jour.
         """
         try:
             stmt = (
                 update(Event)
                 .where(Event.id == event_id)
+                .where(Event.deleted_at == None)  # corrigé : on ne met pas à jour un event supprimé
                 .values(**data.model_dump(exclude_unset=True))
-                .returning(Event)  
+                .returning(Event)
             )
             result = await self.db.execute(stmt)
             updated_event = result.scalar_one_or_none()
@@ -216,15 +168,10 @@ class EventRepository:
 
         except IntegrityError as ie:
             return await RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, Event)
-
         except Exception as e:
             return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
 
-
-
-
-    
-    async def soft_delete_event(self, event_id: UUID):
+    async def soft_delete_event(self, event_id: UUID) -> CRUDResult[Event]:
         """
         Supprime logiquement un événement (soft delete).
 
@@ -232,49 +179,43 @@ class EventRepository:
             event_id (UUID): Identifiant de l'événement à supprimer.
 
         Returns:
-            CRUDResult: Résultat de l'opération.
-
-        Raises:
-            CRUDResult.crud_error:
-                - INTERNAL_SERVER_ERROR en cas d'erreur.
+            CRUDResult[Event]: L'événement supprimé.
         """
         try:
-            await self.db.execute(
+            stmt = (
                 update(Event)
                 .where(Event.id == event_id)
-                .values(deleted_at=datetime.utcnow())
-                .returning(Event) 
+                .where(Event.deleted_at == None)  # corrigé : on ne supprime pas deux fois
+                .values(deleted_at=datetime.now(timezone.utc))  # corrigé : utcnow() déprécié
+                .returning(Event)
             )
+            result = await self.db.execute(stmt)
+            deleted_event = result.scalar_one_or_none()  # corrigé : on récupère le résultat
+
+            if deleted_event is None:
+                logger.info(f"Event {event_id} introuvable pour la suppression")
+                return CRUDResult.crud_error(msg.NOT_FOUND, status_code=404)
+
             await self.db.commit()
 
-            logger.info("Event supprimer avec succès !")
+            logger.info(f"Event {event_id} supprimé avec succès !")
+            return CRUDResult.crud_success(deleted_event)  # corrigé : retourne un CRUDResult
 
         except IntegrityError as ie:
             return await RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, Event)
-
         except Exception as e:
             return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
 
-
-    
-    async def get_events_paginated(self, cursor: Optional[UUID] = None, limit: int = 10) -> CRUDResult[EventRead]:
+    async def get_events_paginated(self, cursor: Optional[UUID] = None, limit: int = 10) -> CRUDResult:
         """
         Récupère les événements avec pagination basée sur un curseur.
 
         Args:
-            cursor (Optional[UUID]): Identifiant du dernier événement
-                récupéré. Les résultats seront retournés après ce curseur.
+            cursor (Optional[UUID]): Identifiant du dernier événement récupéré.
             limit (int): Nombre maximum d'événements à récupérer.
 
         Returns:
-            dict:
-                - events (List[Event]): Liste des événements.
-                - next_cursor (Optional[UUID]): Curseur pour la prochaine requête.
-
-        Raises:
-            CRUDResult.crud_error:
-                - NOT_FOUND si aucun événement n'est trouvé.
-                - INTERNAL_SERVER_ERROR en cas d'erreur.
+            CRUDResult: dict avec events et next_cursor.
         """
         try:
             query = select(Event).where(Event.deleted_at == None).order_by(Event.id)
@@ -287,55 +228,46 @@ class EventRepository:
             result = await self.db.execute(query)
             events = result.scalars().all()
 
-            if not events:
-                logger.info("Aucun événement trouvé")
-                return CRUDResult.crud_error(msg.NOT_FOUND, status_code=404)
-
             next_cursor = events[-1].id if events else None
 
-            logger.info("Événements récupérés avec succès !") 
-            response = EventListReponse(
-                events=events,
-                next_cursor=next_cursor
-            )
-            return CRUDResult.crud_success(response.model_dump())
+            logger.info("Événements paginés récupérés avec succès !")
+            return CRUDResult.crud_success({
+                "events": events,           # corrigé : on retourne les objets Event bruts
+                "next_cursor": next_cursor  # le service s'occupe de la validation Pydantic
+            })
 
         except IntegrityError as ie:
             return await RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, Event)
-
         except Exception as e:
             return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
 
+    async def get_event_by_title_and_date(self, title: str, start_date: datetime) -> CRUDResult:
+        """
+        Vérifie si un événement avec le même titre et la même date existe déjà.
 
+        Args:
+            title (str): Titre de l'événement.
+            start_date (datetime): Date de début de l'événement.
 
-async def get_event_by_title_and_date(self, title: str, start_date: datetime) -> CRUDResult:
-    """
-    Vérifie si un événement avec le même titre et la même date existe déjà.
+        Returns:
+            CRUDResult: L'événement trouvé ou None.
+        """
+        try:
+            stmt = (
+                select(Event)
+                .where(Event.title == title)
+                .where(Event.start_date == start_date)
+                .where(Event.deleted_at == None)
+            )
+            result = await self.db.execute(stmt)
+            event = result.scalar_one_or_none()
 
-    Args:
-        title (str): Titre de l'événement.
-        start_date (datetime): Date de début de l'événement.
+            if event is None:
+                return CRUDResult.crud_error(msg.NOT_FOUND, status_code=404)
 
-    Returns:
-        CRUDResult: L'événement trouvé ou None.
-    """
-    try:
-        stmt = (
-            select(Event)
-            .where(Event.title == title)
-            .where(Event.start_date == start_date)
-            .where(Event.deleted_at == None)
-        )
-        result = await self.db.execute(stmt)
-        event = result.scalar_one_or_none()
+            return CRUDResult.crud_success(event)
 
-        return CRUDResult.crud_success(event)
-
-    except IntegrityError as ie:
-        return await RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, Event)
-
-    except Exception as e:
-        return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
-    
-
-
+        except IntegrityError as ie:
+            return await RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, Event)
+        except Exception as e:
+            return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)

@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 import logging
 from typing import Optional
 from uuid import UUID
@@ -7,9 +6,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.repositories.events_repository import EventRepository
 from app.cache.event_cache import EventCache
 from app.cache.helpers.base import CacheWrapper
-from app.globals.cache_duration import CacheDurartion 
+from app.globals.cache_duration import CacheDurartion
 from app.schemas.events_schemas import EventCreate, EventRead, EventUpdate, EventListReponse
-from app.db.models.event import EventStatus
+from app.db.models.enums import EventStatus  # corrigé : vient de enums
 from app.globals.messages import Messages as msg
 
 from . import ServiceResult
@@ -45,13 +44,9 @@ class EventService:
         cached = await self.event_cache.get_event_from_cache(event_id)
         if cached is not None:
             logger.info(f"Event {event_id} trouvé en cache")
-            if cached.is_deleted():
-                return ServiceResult.service_error(
-                    message=msg.DELETED_EVENT,
-                    status_code=400,
-                    service_name=msg.EVENT_SERVICE
-                )
             return ServiceResult.service_success(cached, status_code=200)
+            # corrigé : pas besoin de vérifier is_deleted() ici
+            # le repo filtre déjà deleted_at == None, et le cache ne stocke que des events valides
 
         # 2. Sinon, aller en base
         event = await self.event_repo.get_event_by_id(event_id=event_id)
@@ -66,19 +61,12 @@ class EventService:
 
         validated = EventRead.model_validate(event.data)
 
-        if validated.is_deleted():
-            return ServiceResult.service_error(
-                message=msg.DELETED_EVENT,
-                status_code=400,
-                service_name=msg.EVENT_SERVICE
-            )
-
         # 3. Mettre en cache
         await self.event_cache.set_event_in_cache(event_id, validated, CacheDurartion.EVENT_DURATION)
 
         return ServiceResult.service_success(validated, status_code=200)
 
-    async def service_find_event_by_statut(self, statut: EventStatus) -> ServiceResult[EventRead]:
+    async def service_find_event_by_statut(self, statut: EventStatus) -> ServiceResult:
         """Récupère les events par statut — cache en priorité."""
 
         # 1. Vérifier le cache
@@ -88,7 +76,7 @@ class EventService:
             return ServiceResult.service_success(cached, status_code=200)
 
         # 2. Sinon, aller en base
-        event = await self.event_repo.get_events_by_status(statut=statut)
+        event = await self.event_repo.get_events_by_status(status=statut)  # corrigé : paramètre s'appelle status
 
         if event.is_error():
             logger.error(f"Erreur: {event.error}")
@@ -103,7 +91,7 @@ class EventService:
 
         return ServiceResult.service_success(event.data or [], status_code=200)
 
-    async def service_find_all_event(self) -> ServiceResult[EventRead]:
+    async def service_find_all_event(self) -> ServiceResult:
         """Récupère tous les events."""
 
         events = await self.event_repo.get_event()
@@ -176,19 +164,22 @@ class EventService:
     async def service_create_event(self, event_data: EventCreate) -> ServiceResult[EventRead]:
         """Crée un event et invalide les caches liste/statut."""
 
+        # Vérification doublon
         existing = await self.event_repo.get_event_by_title_and_date(
             title=event_data.title,
             start_date=event_data.start_date
         )
 
-        if existing.is_error():
+        if existing.is_error() and existing.status_code != 404:
             return ServiceResult.service_error(
                 message=existing.error,
                 status_code=existing.status_code,
                 service_name=msg.EVENT_SERVICE
             )
 
-        if existing.data is not None:
+        # Si 404 → pas de doublon, on continue
+        # Si success → doublon détecté
+        if not existing.is_error() and existing.data is not None:
             return ServiceResult.service_error(
                 message=msg.EVENT_ALREADY_EXISTS,
                 status_code=409,
@@ -242,3 +233,34 @@ class EventService:
 
         logger.info(f"{msg.EVENT_UPDATE_SUCCES}: {event_id}")
         return ServiceResult.service_success(data=updated.data, status_code=200, service_name=msg.EVENT_SERVICE)
+
+    async def service_delete_event(self, event_id: UUID) -> ServiceResult:
+        """Supprime (soft delete) un event et invalide tous ses caches."""
+
+        existing = await self.event_repo.get_event_by_id(event_id=event_id)
+
+        if existing.is_error():
+            return ServiceResult.service_error(
+                message=existing.error,
+                status_code=existing.status_code,
+                service_name=msg.EVENT_SERVICE
+            )
+
+        deleted = await self.event_repo.soft_delete_event(event_id=event_id)
+
+        if deleted.is_error():  # corrigé : soft_delete_event retourne maintenant un CRUDResult
+            return ServiceResult.service_error(
+                message=msg.DELETE_FAILED,
+                status_code=500,
+                service_name=msg.EVENT_SERVICE
+            )
+
+        # Invalider tous les caches liés
+        await self._invalidate_all_caches(event_id, status=existing.data.status)
+
+        logger.info(f"{msg.EVENT_DELETE_SUCCESS}: {event_id}")
+        return ServiceResult.service_success(
+            data={"message": msg.EVENT_DELETE_SUCCESS, "id": str(event_id)},
+            status_code=200,  # corrigé : 204 ne renvoie pas de body, on met 200
+            service_name=msg.EVENT_SERVICE
+        )

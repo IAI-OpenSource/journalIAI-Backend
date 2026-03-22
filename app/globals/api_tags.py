@@ -8,4 +8,5 @@ class ApiTags:
     CLUB: str = "Routes clubs"
     ADMINISTRATEUR: str = "Routes Administrateur"
     ETUDIANT: str = "Routes étudiants"
+    EVENT: str = "Routes events"
 

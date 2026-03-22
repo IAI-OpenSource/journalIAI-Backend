@@ -1,158 +1,108 @@
 from uuid import UUID
 from datetime import datetime
-from typing import Optional,List
+from typing import Optional, List
 from pydantic import BaseModel, Field
-from db.models.enums import EventStatus
+from app.db.models.enums import EventStatus  # corrigé : vient de enums pas de event
 from app.schemas import ApiBaseResponse
 
 
+# ── Base ──────────────────────────────────────────────────────────────────────
 
-
-#Les status des evenements
-
-
-
-#Base des shemas
 class EventBase(BaseModel):
-  """
+    """
     Modèle de base représentant un événement.
 
     Contient les champs communs utilisés par la création,
     la mise à jour et la lecture des événements.
-
-    Attributes:
-        title (str): Titre de l'événement (max 255 caractères).
-        slug (str): Identifiant URL-friendly de l'événement.
-        description (Optional[str]): Description de l'événement.
-        location (Optional[str]): Lieu de l'événement (max 255).
-        start_date (datetime): Date et heure de début.
-        end_date (Optional[datetime]): Date et heure de fin (optionnel).
-        cover_image_url (Optional[str]): URL de l'image de couverture (max 500).
-        organizer_club_id (Optional[UUID]): ID du club organisateur.
-        status (EventStatus): Statut de l'événement.
-        parent_event_id (Optional[UUID]): ID de l'événement parent (si sous-événement).
     """
-  title : str = Field(...,min_length=3, max_length=255 , description= "Titre de l'event")
-  slug  : str = Field(..., max_length=255, description= "slug de l'event"  )
-  description : Optional[str]  = Field(None, description= "La description de l'event")
-  location : Optional[str]  = Field(None, max_length=255,  description="Lieu de l'événement")
-  start_date : datetime =  Field(None,   description="Date et heure de  debut l'événement")
-  end_date : Optional[datetime] =  Field( None, description="Date et heure de fin de l'événement ")
-  organizer_club_id : Optional[UUID] = Field(None, description="Identifiant du club organisateur ")
-  status : EventStatus    = Field(EventStatus.DRAFT, description="Statut actuel de l'événement ")
-  parent_event_id : Optional[UUID] = Field(None, description="Identifiant de l'événement parent")
+    title: str = Field(..., min_length=3, max_length=255, description="Titre de l'event")
+    slug: str = Field(..., max_length=255, description="Slug de l'event")
+    description: Optional[str] = Field(None, description="La description de l'event")
+    location: Optional[str] = Field(None, max_length=255, description="Lieu de l'événement")
+    start_date: datetime = Field(..., description="Date et heure de début de l'événement")  # corrigé : ... obligatoire
+    end_date: Optional[datetime] = Field(None, description="Date et heure de fin de l'événement")
+    organizer_club_id: Optional[UUID] = Field(None, description="Identifiant du club organisateur")
+    parent_event_id: Optional[UUID] = Field(None, description="Identifiant de l'événement parent")
 
 
+# ── Création ──────────────────────────────────────────────────────────────────
 
-#Creation des evenements
 class EventCreate(EventBase):
-  """
+    """
     Schéma utilisé pour la création d'un événement.
 
-    Hérite de EventBase car tous les champs du modèle
-    de base sont nécessaires lors de la création.
+    Hérite de EventBase. Le status est géré par le modèle (défaut DRAFT),
+    il n'est donc pas exposé à la création.
     """
-  pass
+    pass
 
-#Modificaton des evenements (Put et Pacth)
+
+# ── Mise à jour ───────────────────────────────────────────────────────────────
+
 class EventUpdate(BaseModel):
-  """
-    Schéma utilisé pour la mise à jour d'un événement.
-
-    Tous les champs sont optionnels afin de permettre
-    des mises à jour partielles (PATCH) ou complètes (PUT).
-
-    Attributes:
-        title (Optional[str]): Nouveau titre.
-        slug (Optional[str]): Nouveau slug.
-        description (Optional[str]): Nouvelle description.
-        location (Optional[str]): Nouveau lieu.
-        start_date (Optional[datetime]): Nouvelle date de début.
-        end_date (Optional[datetime]): Nouvelle date de fin.
-        cover_image_url (Optional[str]): Nouvelle image de couverture.
-        organizer_club_id (Optional[UUID]): Nouveau club organisateur.
-        status (Optional[EventStatus]): Nouveau statut.
-        parent_event_id (Optional[UUID]): Nouvel événement parent.
     """
-  title : Optional[str] = Field(None, max_length=255,description= "Titre de l'event")
-  slug : Optional[str] = Field(None, max_length=255, description= "slug de l'event"  )
-  description :Optional[str] = Field(None, max_length=255,  description="Lieu de l'événement")
-  location : Optional[str] = Field(None, max_length=255,description="Lieu de l'événement")
-  start_date : Optional[datetime] = Field(None,   description="Date et heure de  debut l'événement")
-  end_date : Optional[datetime] = Field(None,   description="Date et heure de fin l'événement")
-  organizer_club_id : Optional[UUID] = Field(None, description="Identifiant du club organisateur ")
-  status : Optional[EventStatus]   = Field(EventStatus.DRAFT, description="Statut actuel de l'événement ")
-  parent_event_id : Optional[UUID] = Field(None, description="Identifiant de l'événement parent")
+    Schéma utilisé pour la mise à jour partielle ou complète d'un événement.
+
+    Tous les champs sont optionnels (PATCH / PUT).
+    """
+    title: Optional[str] = Field(None, max_length=255, description="Titre de l'event")
+    slug: Optional[str] = Field(None, max_length=255, description="Slug de l'event")
+    description: Optional[str] = Field(None, description="Description de l'événement")
+    location: Optional[str] = Field(None, max_length=255, description="Lieu de l'événement")
+    start_date: Optional[datetime] = Field(None, description="Date et heure de début de l'événement")
+    end_date: Optional[datetime] = Field(None, description="Date et heure de fin de l'événement")
+    organizer_club_id: Optional[UUID] = Field(None, description="Identifiant du club organisateur")
+    status: Optional[EventStatus] = Field(None, description="Statut actuel de l'événement")  # corrigé : None par défaut pas DRAFT
+    parent_event_id: Optional[UUID] = Field(None, description="Identifiant de l'événement parent")
 
 
+# ── Lecture complète ──────────────────────────────────────────────────────────
 
-#Pour tous les details de l'evenement 
 class EventRead(EventBase):
-    
-    id: UUID = Field(..., description="Identifiant unique de l'événement ")
+    """Schéma complet de lecture d'un événement."""
 
-    deleted_at: Optional[datetime] = Field(None,description="Date de suppression de l'événement (si supprimé)")
-
+    id: UUID = Field(..., description="Identifiant unique de l'événement")
+    status: EventStatus = Field(..., description="Statut actuel de l'événement")  # ajouté : géré par le modèle
+    deleted_at: Optional[datetime] = Field(None, description="Date de suppression (si supprimé)")
     created_at: datetime = Field(..., description="Date de création de l'événement")
-
-    updated_at: datetime = Field(..., description="Date de dernière mise à jour de l'événement")
-
-    published_at: Optional[datetime] = Field(None, description="Date de publication de l'événement (si publié)")
+    updated_at: datetime = Field(..., description="Date de dernière mise à jour")
+    published_at: Optional[datetime] = Field(None, description="Date de publication (si publié)")
 
     model_config = {"from_attributes": True}
 
     def is_deleted(self) -> bool:
-        if self.deleted_at is None:
-            return False
-        return True
+        return self.deleted_at is not None
 
 
+# ── Résumé léger ──────────────────────────────────────────────────────────────
 
-    
-
-
-
-#Juste les informations minimum de l'evenement
 class EventSummary(BaseModel):
     """
     Schéma léger pour représenter un événement dans des listes.
 
     Contient uniquement les informations essentielles
     afin d'optimiser les performances des requêtes.
-
-    Attributes:
-        id (UUID): Identifiant de l'événement.
-        title (str): Titre de l'événement.
-        slug (str): Slug URL-friendly.
-        status (EventStatus): Statut de l'événement.
-        start_date (datetime): Date de début.
-        location (Optional[str]): Lieu (si disponible).
-        cover_image_url (Optional[str]): Image de couverture.
     """
     id: UUID = Field(..., description="Identifiant unique de l'événement")
-
-    title: str = Field( ..., description="Titre de l'événement" )
-
-    slug: str = Field( ...,  description="Slug URL-friendly de l'événement" )
-
+    title: str = Field(..., description="Titre de l'événement")
+    slug: str = Field(..., description="Slug URL-friendly de l'événement")
     status: EventStatus = Field(..., description="Statut actuel de l'événement")
+    start_date: datetime = Field(..., description="Date et heure de début de l'événement")
+    location: Optional[str] = Field(None, description="Lieu de l'événement")
 
-    start_date: datetime = Field( ..., description="Date et heure de début de l'événement" )
+    model_config = {"from_attributes": True}
 
-    location: Optional[str] = Field(None, description="Lieu de l'événement (optionnel)")
 
-    cover_image_url: Optional[str] = Field(None , description="URL de l'image de couverture (optionnel)")
-
-    model_config = {"from_attributes": True}    
+# ── Réponses API ──────────────────────────────────────────────────────────────
 
 class EventInfo(ApiBaseResponse):
-  result : EventRead =  Field(description="Informations de l'evenement") 
+    result: EventRead = Field(..., description="Informations de l'événement")
 
 
 class EventCarte(ApiBaseResponse):
-   result : EventSummary = Field(description="Informations de l'evenement pour carte ")
+    result: EventSummary = Field(..., description="Informations de l'événement pour carte")
 
 
 class EventListReponse(BaseModel):
-   events: List[EventInfo]
-   next_cursor : Optional[str] = None
+    events: List[EventRead]  # corrigé : List[EventRead] pas List[EventInfo]
+    next_cursor: Optional[UUID] = None  # corrigé : UUID pas str, cohérent avec la pagination

@@ -80,3 +80,6 @@ if __name__ == "__main__":
     conf = uvicorn.Config(app, port=8000, log_level='info')
     server = uvicorn.Server(conf)
     server.run()
+
+
+

@@ -22,6 +22,7 @@ class Messages:
     PROFILE_UPDATED_SUCCESSFULLY = "Profil mis à jour avec succès."
     INVALID_SESSION = "Session invalide"
 
+    EVENT_SERVICE = "Service Events"
     EVENT_NOT_FOUND = "Event non trouvé."
     DELETED_EVENT = "Event est supprimé"
     EVENTS_NOT_FOUND = "Aucun event trouver" #Si il y a aucun event en cours 
