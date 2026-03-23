@@ -25,6 +25,14 @@ class UploadURLSchema(BaseModel):
         description="Id de l'intent, cet id sera réutiliser pour les prochaines opérations, donc gardez çà jalousement,"
                     "vous allez faire beaucoup de choses avec🤣"
     )
+
+class VideoUploadCompleteSchema(BaseModel):
+    job_id: str = Field(
+        description="L'id du job de post-traitement qui a été lancé pour traiter la vidéo uploadée, vous "
+                    "pouvez utiliser cet id pour suivre l'état de traitement de la vidéo via le websocket"
+                    " de suivi PS: C'est intent_id juste renommé"
+    )
+
 class WsPostProcessingInfoSchemaSteps(str, Enum):
     VERIFICATION = "verification"
     PROCESSING = "processing"
@@ -47,3 +55,7 @@ class StringResponse(BaseModel):
 class VideoUploadIntentResponse(ApiBaseResponse):
 
     result: UploadURLSchema
+
+class VideoUploadCompleteResponse(ApiBaseResponse):
+
+    result: VideoUploadCompleteSchema

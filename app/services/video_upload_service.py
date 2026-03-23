@@ -6,7 +6,7 @@ from fastapi import status
 from app.cache.helpers.base import CacheWrapper
 from app.cache.uploads_cache import VideoUploadsCache
 from app.globals.messages import Messages
-from app.schemas.upload_schemas import CreateVideoUploadIntent, UploadURLSchema, StringResponse
+from app.schemas.upload_schemas import CreateVideoUploadIntent, UploadURLSchema, VideoUploadCompleteSchema
 from app.services import ServiceResult
 
 from app.storage.post_video_storage import PostVideoStorage
@@ -53,7 +53,7 @@ class VideoUploadsService:
 
         return ServiceResult.service_success(data=data_to_return)
 
-    async def service_verify_complete_video_upload(self, user_id: str, intent_id: str) -> ServiceResult[StringResponse]:
+    async def service_verify_complete_video_upload(self, user_id: str, intent_id: str) -> ServiceResult[VideoUploadCompleteSchema]:
         """
         Logique métier pour finaliser un upload de vidéo et lancer une tache de traitement dans le worker
         Args:
@@ -72,8 +72,10 @@ class VideoUploadsService:
         if not intent_file_metadata:
             return ServiceResult.service_error(message=Messages.ERROR_VIDEO_UPLOAD_INTENT_NOT_FOUND, status_code=status.HTTP_404_NOT_FOUND)
 
+
         return ServiceResult.service_success(
-            data=StringResponse(
-                message="Video existe"
+            data=VideoUploadCompleteSchema(
+                job_id=intent_id
             )
         )
+

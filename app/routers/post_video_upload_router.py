@@ -1,13 +1,14 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Response, Depends, Query, WebSocket
-from starlette.websockets import WebSocketDisconnect
+from fastapi.websockets import WebSocketDisconnect
 from time import time
 from app.cache.helpers.base import CacheWrapper, get_redis
+from app.db.models.user import User
 from app.db.session import get_db
 from app.globals.api_tags import ApiTags
 from app.schemas.upload_schemas import VideoUploadIntentResponse, CreateVideoUploadIntent, WsPostProcessingInfoSchema, \
-    WsPostProcessingInfoSchemaSteps
+    WsPostProcessingInfoSchemaSteps, VideoUploadCompleteSchema, VideoUploadCompleteResponse
 from app.services.video_upload_service import VideoUploadsService
 
 router = APIRouter(prefix="/post_video_upload")
@@ -16,10 +17,8 @@ router = APIRouter(prefix="/post_video_upload")
 # TODO: Revoir tout ce fichier quand l'auth sera dispo et re-tester, principalement verifier si l'utilisateur peut post
 
 @router.post(
-    path="/intent",
-    name="Générer un intent d'upload de vidéo pour un post",
-    response_model=VideoUploadIntentResponse,
-    tags=[ApiTags.POSTS, ApiTags.UPLOADS]
+    path="/intent", name="Générer un intent d'upload de vidéo pour un post",
+    response_model=VideoUploadIntentResponse, tags=[ApiTags.POSTS, ApiTags.UPLOADS]
 )
 async def post_video_upload_intent(
     request_data: CreateVideoUploadIntent, response: Response, cache : CacheWrapper = Depends(get_redis),
@@ -37,45 +36,62 @@ async def post_video_upload_intent(
 
     return res.to_HTTP_api_base_response(response)
 
-@router.websocket(
-    path="/ws/complete_video_post",
-    name="Finaliser un post vidéo"
+@router.post(
+    path="/complete_video_post", name="Finaliser un post vidéo",
+    tags=[ApiTags.POSTS, ApiTags.UPLOADS], response_model=VideoUploadCompleteResponse
 )
-async def ws_complete_video_post(
-    websocket: WebSocket,
+async def complete_video_post(
+    response: Response,
     intent_id = Annotated[str, Query(..., description="L'id d'intent recupéré précedemment")],
     cache : CacheWrapper = Depends(get_redis), bd = Depends(get_db)
 ):
-    """Je suis pas inspiré pour le moment"""
-
-    await websocket.accept()
+    """
+    Route pour confirmé l'upload du post vidéo, vous ferrez une requete
+    sur cette route après avoir uploadé totalement le fichier
+    """
 
     service = VideoUploadsService(cache=cache, bd=bd)
 
-    message_de_suivi: WsPostProcessingInfoSchema = WsPostProcessingInfoSchema(
-        step=WsPostProcessingInfoSchemaSteps.VERIFICATION, progress=0, error_message=None,
-        timestamp=time()
-    )
-
     verification = await service.service_verify_complete_video_upload("Sevtify44", str(intent_id))
 
-    if verification.is_error():
-        message_de_suivi.timestamp = time()
-        message_de_suivi.error_message = verification.error
-        await websocket.send_json(message_de_suivi.model_dump_json())
-        await websocket.close()
-        return
+    return verification.to_HTTP_api_base_response(response)
 
-    # Lancer la tache de traitement du fichier
+
+@router.websocket(path="/ws/post_processing_info", name="Websocket de suivi du post-traitement d'une vidéo uploadée")
+async def ws_post_processing_info(
+    websocket: WebSocket, intent_id: str = Query(..., description="L'id d'intent d'upload de vidéo pour lequel on veut suivre le post-traitement")
+):
+    """
+    Websocket pour suivre le post-traitement d'une vidéo uploadée, vous devez vous connecter à ce
+    websocket après avoir confirmé l'upload de la vidéo via l'endpoint /complete_video_post, et fournir
+    l'id d'intent d'upload de vidéo pour lequel vous voulez suivre le post-traitement, vous recevrez des
+    messages de suivi indiquant l'étape actuelle du post-traitement (verification ou processing), le pourcentage de
+    progression et un timestamp, en cas d'échec vous recevrez un message d'erreur dans le champ 'error_message'
+    et le suivi sera terminé
+    """
+
+    await websocket.accept()
+
     try:
         while True:
-            # Tenir le front informé de l'avancé du traitement
-            continue
+            # Simuler l'envoi périodique d'informations de suivi du post-traitement
+            for progress in range(0, 101, 10):
+                if progress < 50:
+                    step = WsPostProcessingInfoSchemaSteps.VERIFICATION
+                else:
+                    step = WsPostProcessingInfoSchemaSteps.PROCESSING
+
+                info = WsPostProcessingInfoSchema(
+                    step=step,
+                    progress=progress,
+                    timestamp=int(time() * 1000)
+                )
+                await websocket.send_json(info.dict())
+                await asyncio.sleep(1)
+
+            # Simuler la fin du suivi après avoir atteint 100% de progression
+            break
+
     except WebSocketDisconnect:
-        pass
-
-
-
-
-
-
+        print("Client déconnecté du websocket de suivi du post-traitement"
+)
