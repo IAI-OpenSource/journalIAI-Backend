@@ -11,7 +11,7 @@ from app.db.session import get_db
 from app.globals.api_tags import ApiTags
 from app.schemas import ApiBaseResponse
 from app.schemas.global_schemas import GlobalStringMessage
-from app.schemas.registration_schemas import CreateRegistration, ReadRegistration, RegistrationInfos
+from app.schemas.registration_schemas import CreateRegistration, FindRegistration, ReadRegistration, RegistrationInfos
 from app.services.registration_service import RegistrationService
 from app.worker.tasks.excel_task import import_students_task
 
@@ -29,7 +29,7 @@ def get_registration_service(db: AsyncSession = Depends(get_db)) -> Registration
 
 @router.post(
   "/add",
-  response_model=GlobalStringMessage,
+  response_model=ApiBaseResponse,
   tags=[ApiTags.ADMIN_MODERATEUR]
 )
 async def create_registration(
@@ -55,14 +55,14 @@ async def create_registration(
 
 
 
-@router.get(
+@router.post(
   "/one",
   response_model=RegistrationInfos,
   tags=[ApiTags.ADMIN_MODERATEUR]
 )
 async def get_registration(
   response: Response,
-  find_reg_data: CreateRegistration,
+  find_reg_data: FindRegistration,
   reg_service: Annotated[RegistrationService, Depends(get_registration_service)]):
   """Route pour récupérer 1 seul jeton"""
   
@@ -88,6 +88,6 @@ async def imports_students(
 
   file_base64 = base64.b64encode(file_bytes).decode("utf-8")
 
-  import_students_task.delay(file_base64=file_base64, classe_id=classe_id, service=reg_service)
+  import_students_task.delay(file_base64=file_base64, classe_id=classe_id)
   
   return ApiBaseResponse.success_response({"Message":"Lecture du fichier en arrière plan"}, response)

@@ -59,8 +59,8 @@ class AcademicYear(Base, IntegrityMapperMixin):
     )
 
     # Relationships
-    classes: Mapped[List["Classe"]] = relationship("Classe", back_populates="academic_year", cascade="all, delete-orphan")
-    posts: Mapped[List["Post"]] = relationship("Post", back_populates="academic_year", cascade="all, delete-orphan")
+    classes: Mapped[List["Classe"]] = relationship("Classe", back_populates="academic_year", cascade="all, delete-orphan", init=False)
+    posts: Mapped[List["Post"]] = relationship("Post", back_populates="academic_year", cascade="all, delete-orphan", init=False)
 
     # Messages d'erreur
     ERROR_MESSAGES = {
@@ -68,3 +68,5 @@ class AcademicYear(Base, IntegrityMapperMixin):
         CHK_ACADEMIC_YEAR_DATES: "La date de fin doit être postérieure à la date de début.",
         UQ_ACADEMIC_YEAR_LIBELLE: "Le libellé de l'année académique doit être unique."
     }
+
+
