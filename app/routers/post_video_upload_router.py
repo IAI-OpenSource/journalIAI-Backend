@@ -1,11 +1,13 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Response, Depends, Query, WebSocket
-
+from starlette.websockets import WebSocketDisconnect
+from time import time
 from app.cache.helpers.base import CacheWrapper, get_redis
 from app.db.session import get_db
 from app.globals.api_tags import ApiTags
-from app.schemas.upload_schemas import VideoUploadIntentResponse, CreateVideoUploadIntent
+from app.schemas.upload_schemas import VideoUploadIntentResponse, CreateVideoUploadIntent, WsPostProcessingInfoSchema, \
+    WsPostProcessingInfoSchemaSteps
 from app.services.video_upload_service import VideoUploadsService
 
 router = APIRouter(prefix="/post_video_upload")
@@ -45,21 +47,32 @@ async def ws_complete_video_post(
     cache : CacheWrapper = Depends(get_redis), bd = Depends(get_db)
 ):
     """Je suis pas inspiré pour le moment"""
+
+    await websocket.accept()
+
     service = VideoUploadsService(cache=cache, bd=bd)
+
+    message_de_suivi: WsPostProcessingInfoSchema = WsPostProcessingInfoSchema(
+        step=WsPostProcessingInfoSchemaSteps.VERIFICATION, progress=0, error_message=None,
+        timestamp=time()
+    )
 
     verification = await service.service_verify_complete_video_upload("Sevtify44", str(intent_id))
 
     if verification.is_error():
-        #TODO : Envoyer d'abord un message avant de close
-        await websocket.close(reason=verification.error)
+        message_de_suivi.timestamp = time()
+        message_de_suivi.error_message = verification.error
+        await websocket.send_json(message_de_suivi.model_dump_json())
+        await websocket.close()
         return
 
-    await websocket.accept()
-
     # Lancer la tache de traitement du fichier
-    while True:
-        # Tenir le front informé de l'avancé du traitement
-        continue
+    try:
+        while True:
+            # Tenir le front informé de l'avancé du traitement
+            continue
+    except WebSocketDisconnect:
+        pass
 
 
 

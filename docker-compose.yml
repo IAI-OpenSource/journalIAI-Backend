@@ -124,10 +124,22 @@ services:
   worker:
     build: .
     container_name: journal_IAI_worker
-    command: celery -A app.worker.celery_app worker --loglevel=info
+    command: celery -A app.worker.celery_app worker --loglevel=info --concurrency=2 --max-tasks-per-child=10
+     # --concurrency=2 : Limite à 2 tâches simultanées pour éviter de surcharger le serveur
+     # --max-tasks-per-child=10 : Redémarre le worker après 10 tâches pour libérer la mémoire (utile si certaines tâches sont gourmandes en RAM)
     volumes:
       - .:/app
     restart: unless-stopped
+    deploy:
+      resources:
+        # Limitation des ressources pour éviter que le worker ne consomme tout le CPU/RAM du serveur, surtout lors de traitements lourds
+        # A ajuster selon les capacités réelles du serveur qu'on utilisera et les besoins du worker
+        limits:
+          cpus: '1.5'          # Maximum 1.5 coeurs CPU (sur les X du serveur)
+          memory: 1G           # Maximum 1 Go de RAM
+        reservations:
+          cpus: '0.5'          # Réserver au moins 0.5 coeur
+          memory: 256M         # Réserver au moins 256 Mo
     depends_on:
       db:
         condition: service_healthy
