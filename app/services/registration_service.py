@@ -13,6 +13,7 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.repositories.registration_repository import RegistrationRepository
+from app.schemas.global_schemas import GlobalStringMessage, StringMessage
 from app.schemas.registration_schemas import CreateMultileRegistration, CreateRegistration, FindRegistration, ReadRegistration
 from app.globals.messages import Messages as msg
 from app.utils.jetons_utils import JetonUtils
@@ -30,14 +31,14 @@ class RegistrationService:
     self.resgistration_repo = RegistrationRepository(self.db)
 
   
-  async def service_create_registration(self, registration_data: CreateRegistration) -> ServiceResult[ReadRegistration]:
+  async def service_create_registration(self, registration_data: CreateRegistration) -> ServiceResult[StringMessage]:
       """Logique Métier pour la création d'une régistration de jeton"""
 
       reg_repo = await self.resgistration_repo.insert_registration(reg_data=registration_data)
       
       if reg_repo.is_success():
         return ServiceResult.service_success(
-          data=reg_repo.data,
+          data=StringMessage(message=f"Jeton céer pour l'étudiant {reg_repo.data.last_name}"),
           status_code=reg_repo.status_code,
           service_name=msg.REGISTRATION_JETON
         )
@@ -65,7 +66,7 @@ class RegistrationService:
       )
       
     return ServiceResult.service_success(
-      data=repo_reg.data,
+      data=ReadRegistration(**repo_reg.data),
       status_code=repo_reg.status_code,
       service_name=msg.READ_REGISTRATION
     )

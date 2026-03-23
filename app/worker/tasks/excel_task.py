@@ -5,7 +5,7 @@ from app.worker.tasks.async_loop_manager import task_async_loop_manager
 from app.db.session import AsyncSessionLocal as SessionLocal
 
 
-@shared_task
+@shared_task(name="excel")
 def import_students_task(file_base64: str, classe_id: int):
   """Tache celery pour lire le fichier excel
 

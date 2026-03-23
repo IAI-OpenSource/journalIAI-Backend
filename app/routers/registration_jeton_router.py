@@ -29,7 +29,7 @@ def get_registration_service(db: AsyncSession = Depends(get_db)) -> Registration
 
 @router.post(
   "/add",
-  response_model=ApiBaseResponse,
+  response_model=GlobalStringMessage,
   tags=[ApiTags.ADMIN_MODERATEUR]
 )
 async def create_registration(
@@ -40,18 +40,7 @@ async def create_registration(
   
   db_reg = await reg_service.service_create_registration(registration_data=reg_data)
   
-  if db_reg.is_error():
-    return ApiBaseResponse.error_response(
-      error_message=db_reg.error, 
-      response=response, 
-      status_code=db_reg.status_code
-    )
-
-  return ApiBaseResponse.success_response(
-    f"Jeton céer pour l'étudiant {db_reg.data.last_name}", 
-    response=response, 
-    status_code=db_reg.status_code
-  )
+  return db_reg.to_HTTP_api_base_response(response)
 
 
 
