@@ -1,6 +1,6 @@
 from datetime import timedelta
 from json import dumps, loads, JSONDecodeError
-from typing import Optional, AsyncGenerator, Any
+from typing import Optional, AsyncGenerator, Any, AsyncIterator
 
 from pydantic import BaseModel, ValidationError
 
@@ -23,7 +23,7 @@ class CacheWrapper:
             raise ValueError(f"Nombre d'arguments fourni ({len(cle.args)}) ne correspond pas au nombre "
                              f"de placeholders attendu ({cle.number_of_placeholders}) pour la clé {cle.key}")
 
-        return cle.key.value.format(cle.args)
+        return cle.key.value.format(**cle.args)
 
     @staticmethod
     def _serialize(value: Any) -> str:
@@ -176,7 +176,7 @@ class CacheWrapper:
         cached_value = await self.__get_from_cache(key)
         if cached_value is not None:
             try:
-                return model_class.model_validate(cached_value)
+                return model_class.model_validate_json(cached_value)
             except ValidationError:
                 raise ValueError(f"Erreur de validation lors de la désérialisation de la valeur du cache pour la clé {key}: "
                                  f"la valeur récupérée ne correspond pas au modèle {model_class.__name__}")
@@ -314,13 +314,13 @@ class CacheWrapper:
 
         return await self._connection.decr(self._format_cache_key(key), amount)
 
-    def close(self) -> None:
+    async def close(self) -> None:
         """
         Ferme la connexion Redis associée à ce CacheWrapper
         Returns:
             Que dalle, cette méthode ne retourne rien, elle effectue simplement l'opération de fermeture de la connexion Redis
         """
-        self._connection.close()
+        await self._connection.close()
 
 
 class CacheManager:
@@ -352,7 +352,7 @@ class CacheManager:
 
 cache_manager = CacheManager()  # singleton global
 
-async def get_redis() -> AsyncGenerator[CacheWrapper]:
+async def get_redis() -> AsyncIterator[CacheWrapper]:
     """
     Fournit une instance CacheWrapper par requête FastAPI
     """
@@ -360,4 +360,4 @@ async def get_redis() -> AsyncGenerator[CacheWrapper]:
     try:
         yield redis_instance
     finally:
-        redis_instance.close()  # ferme juste le client, pas le pool
+        await redis_instance.close()  # ferme juste le client, pas le pool
