@@ -92,7 +92,7 @@ class RegistrationService:
 
       if result.is_success():
         return ServiceResult.service_success(
-          data=result.data,
+          data=StringMessage(result.data),
           status_code=result.status_code,
           service_name=msg.REGISTRATION_JETON
         )

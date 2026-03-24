@@ -1,7 +1,7 @@
 import base64
 from typing import Annotated
 from uuid import UUID
-
+from app.worker.celery_app import celery_app
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, File, Form, Response, UploadFile
 from app.db.session import get_db
 from app.globals.api_tags import ApiTags
 from app.schemas import ApiBaseResponse
-from app.schemas.global_schemas import GlobalStringMessage
+from app.schemas.global_schemas import GlobalStringMessage, StringMessage
 from app.schemas.registration_schemas import CreateRegistration, FindRegistration, ReadRegistration, RegistrationInfos
 from app.services.registration_service import RegistrationService
 from app.worker.tasks.excel_task import import_students_task
@@ -69,7 +69,6 @@ async def imports_students(
   response: Response,
   classe_id: Annotated[UUID, Form(..., description="ID de la classe concernée")],
   excel_file: Annotated[UploadFile, File(..., description="le fichier excel")],
-  reg_service: Annotated[RegistrationService, Depends(get_registration_service)]
 ):
   """Roue pour créer des jetons pour plusieurs étudiants(en chargeant un fichier excel)"""
   
@@ -79,4 +78,4 @@ async def imports_students(
 
   import_students_task.delay(file_base64=file_base64, classe_id=classe_id)
   
-  return ApiBaseResponse.success_response({"Message":"Lecture du fichier en arrière plan"}, response)
+  return GlobalStringMessage.success_response(data=StringMessage(message="Lecture du fichier en arrière plan"), response=response)
