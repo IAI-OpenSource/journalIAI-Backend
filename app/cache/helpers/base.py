@@ -177,7 +177,7 @@ class CacheWrapper:
         cached_value = await self.__get_from_cache(key)
         if cached_value is not None:
             try:
-                return model_class.model_validate(cached_value)
+                return model_class.model_validate_json(cached_value)
             except ValidationError:
                 raise ValueError(f"Erreur de validation lors de la désérialisation de la valeur du cache pour la clé {key}: "
                                  f"la valeur récupérée ne correspond pas au modèle {model_class.__name__}")
