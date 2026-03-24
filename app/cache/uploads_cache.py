@@ -85,24 +85,40 @@ class VideoUploadsCache:
             CacheUtils.traiter_exceptions(e, logger)
             return False
 
-    async def add_upload_event_in_a_stream(self, user_id: str, intent_id: str, data: WsPostProcessingInfoSchema) -> Optional[str]:
+    async def add_upload_event_in_a_stream(self, user_id: str, intent_id: str, data: WsPostProcessingInfoSchema, enum_compatible = False) -> Optional[str]:
         """
         Ajoute un evenement dans le stream redis qui gère l'avancée des uploads
         Args:
             user_id: Id de l'utilisateur
             intent_id: Id de l'intent d'upload
             data:  La donnée à envoyer
-
+            enum_compatible: Indique si la donnée est déjà compatible avec le format attendu par le
+            stream (c'est à dire que les enums sont déjà convertis en leurs valeurs), si False, la fonction
+            convertira les enums en valeurs avant d'ajouter l'événement dans le stream, si True, la fonction
+            ajoutera directement la donnée dans le stream sans conversion, ce qui peut être utile si la donnée
+            a déjà été préparée pour être compatible avec le format du stream, ou si la conversion des enums
+            n'est pas nécessaire pour cette donnée spécifique
         Returns:
             La clé généré automatiquement par Redis pour l'evenement ajouté
         """
+
+        def ensure_compatibility(schema: WsPostProcessingInfoSchema) -> dict:
+            return {
+                "step": schema.step.value,
+                "progress": schema.progress,
+                "timestamp": schema.timestamp,
+                "error_message": schema.error_message if schema.error_message else None,
+            }
 
         cache_key = CacheKeysFactory.get_cache_key(AvailableCacheKeys.FILE_UPLOAD_PROGRESS_STREAM_KEY).set_arguments(
             user_id=user_id, intent_id=intent_id
         )
 
         try:
-            res = await self._cache.stream_add(cache_key, data.model_dump())
+            res = await self._cache.stream_add(
+                cache_key,
+                ensure_compatibility(data) if enum_compatible else data.model_dump()
+            )
 
             return res
         except Exception as e:
@@ -127,15 +143,15 @@ class VideoUploadsCache:
         )
 
         try:
-            event = await self._cache.stream_read(cache_key, last_id=last_id if last_id else "0-0", count=1, block=10)
+            event = await self._cache.stream_read(cache_key, last_id=last_id if last_id else "0-0", count=1, block=10000)
 
             if not event:
                 return None, None
 
             # On convertit la donnée de l'événement en objet WsPostProcessingInfoSchema
-            progress_info = WsPostProcessingInfoSchema.model_validate(event[0])
+            progress_info = WsPostProcessingInfoSchema.model_validate(event[0][1])
 
-            return progress_info, event[0]['id']
+            return progress_info, event[0][0]
         except Exception as e:
             CacheUtils.traiter_exceptions(e, logger)
             return None, None

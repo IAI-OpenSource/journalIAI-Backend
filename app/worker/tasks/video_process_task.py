@@ -6,7 +6,6 @@ from typing import Any
 from uuid import uuid4
 
 from celery import shared_task
-from minio.datatypes import Object
 
 from app.cache.helpers.base import cache_manager
 from app.cache.uploads_cache import VideoUploadsCache
@@ -39,7 +38,7 @@ def verify_file_is_video(file_path : str) -> InternalResultPatern:
             return True, None
         return False, None
 
-def download_file_from_bucket(bucket_name: str, file_path_in_bucket : str, file_destination_path: str) -> InternalResultPatern:
+def download_file_from_minio(bucket_name: str, file_path_in_bucket : str, file_destination_path: str) -> InternalResultPatern:
     """
     Télécharge un fichier depuis le bucket Minio et le stocke localement pour traitement
     Args:
@@ -57,6 +56,15 @@ def download_file_from_bucket(bucket_name: str, file_path_in_bucket : str, file_
         return True, file_destination_path
     except Exception as e:
         return False, f"Erreur ({e.__class__.__name__}) lors du téléchargement du fichier depuis le bucket Minio : {e}"
+
+def get_file_metadata_from_minio(bucket_name: str, file_path_in_bucket : str) -> InternalResultPatern:
+    try:
+        minio_client = MinioClientFactory.get_backend_client()
+
+        res = minio_client.stat_object(bucket_name, file_path_in_bucket)
+        return True, res
+    except Exception as e:
+        return False, f"Erreur ({e.__class__.__name__}) lors du StatObject du fichier depuis le bucket Minio : {e}"
 
 def upload_processed_file_to_bucket(bucket_name: str, file_path_in_bucket: str, file_local_path: str) -> InternalResultPatern:
     """
@@ -98,17 +106,19 @@ def process_video_file_with_ffmpeg(input_path: str, output_path: str) -> Interna
             "ffmpeg", "-y", "-i", input_path,
             "-vcodec", "libx264", "-crf", "23",  # Bon compromis poids/qualité
             "-preset", "medium",
-            "-acodec", "aac", "-ba", "128k",
-            "-vf", "scale=-2:720",  # Redimensionne à 720p en gardant l'aspect ratio
+            "-acodec", "aac", "-b:a", "128k",
+            "-vf", "scale='bitand(oh*dar,65534)':720",  # Redimensionne à 720p en gardant l'aspect ratio
             output_path
         ]
 
         subprocess.run(ffmpeg_cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
         return True, output_path
+    except subprocess.CalledProcessError as e:
+        return False, f"Erreur FFMPEG stderr lors du traitement de la vidéo avec ffmpeg : {e.stderr}"
     except Exception as e:
         return False, f"Erreur ({e.__class__.__name__}) lors du traitement de la vidéo avec ffmpeg : {e}"
 
-async def send_data_to_progress_stream(cache: VideoUploadsCache, user_id: str, intent_id: str, data: WsPostProcessingInfoSchema) -> InternalResultPatern:
+async def send_data_to_progress_stream(cache: VideoUploadsCache, user_id: str, intent_id: str, data: WsPostProcessingInfoSchema) -> None:
     """
     Envoie une mise à jour de progression du post-traitement de la vidéo dans le stream Redis dédié à cet effet
     Args:
@@ -125,15 +135,17 @@ async def send_data_to_progress_stream(cache: VideoUploadsCache, user_id: str, i
         Que dalle, c'est une fonction pour envoyer une mise à jour de progression dans le stream Redis, le résultat de cette fonction
         est que la mise à jour de progression est ajoutée dans le stream Redis pour que le frontend puisse la récupérer et afficher l'avancée du post-traitement à l'utilisateur
     """
-    await cache.add_upload_event_in_a_stream(user_id, intent_id, data)
+    await cache.add_upload_event_in_a_stream(user_id, intent_id, data, enum_compatible=True)
+
 
 
 @shared_task(name=WorkersTaskNames.PROCESS_VIDEO)
-def process_video_task(raw_object: Object, user_id: str, intent_id: str) -> None:
+def process_video_task(raw_bucket_name: str, raw_object_name: str, user_id: str, intent_id: str) -> None:
     """
     Tâche pour traiter un fichier video, Normalise une vidéo brute en MP4 standard (720p, H.264/AAC).
     Args:
-        raw_object: Le fichier video dans MinIo
+        raw_bucket_name: Le bucket du fichier brut dans MinIo
+        raw_object_name: Le fichier video dans MinIo
         user_id: L'id de l'utilisateur à qui appartient le fichier video à traiter, utilisé pour faire le lien entre le fichier traité et l'utilisateur
         intent_id: L'id de l'intent d'upload video associé à ce fichier,
          utilisé pour faire le lien entre le fichier traité et l'intent d'upload qui a été créé pour ce fichier
@@ -142,6 +154,12 @@ def process_video_task(raw_object: Object, user_id: str, intent_id: str) -> None
         Que dalle, c'est une tâche pour traiter une vidéo, le résultat du traitement (la vidéo normalisée)
         est uploadé dans le bucket Minio et lié à l'intent d'upload video grâce à l'id de l'intent fourni en argument
     """
+    raw_object = get_file_metadata_from_minio(raw_bucket_name, raw_object_name)
+
+    if not raw_object[0]:
+        logger.error(raw_object[1])
+        return
+    raw_object = raw_object[1]
 
     local_raw_path = f"/tmp/{uuid4()}_raw"
     local_processed_path = f"/tmp/{uuid4()}_processed.mp4"
@@ -176,7 +194,7 @@ def process_video_task(raw_object: Object, user_id: str, intent_id: str) -> None
     try:
         update_progress(WsPostProcessingInfoSchemaSteps.VERIFICATION, 10)
 
-        down_res = download_file_from_bucket(raw_object.bucket_name, raw_object.object_name, local_raw_path)
+        down_res = download_file_from_minio(raw_object.bucket_name, raw_object.object_name, local_raw_path)
 
         if not down_res[0]:
             logger.error(down_res[1])

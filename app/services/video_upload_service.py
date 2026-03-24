@@ -77,22 +77,21 @@ class VideoUploadsService:
         if not intent_file_metadata:
             return ServiceResult.service_error(message=Messages.ERROR_VIDEO_UPLOAD_INTENT_NOT_FOUND, status_code=status.HTTP_404_NOT_FOUND)
 
-        await self._cache.add_upload_event_in_a_stream(
-            user_id=user_id,
-            intent_id=intent_id,
-            data=WsPostProcessingInfoSchema(
-                step=WsPostProcessingInfoSchemaSteps.PROCESSING,
-                progress=0,
-                timestamp=time(),
-                error_message=None
-            )
-        )
+        await self._cache.add_upload_event_in_a_stream(user_id=user_id, intent_id=intent_id,
+                                                       data=WsPostProcessingInfoSchema(
+                                                           step=WsPostProcessingInfoSchemaSteps.PROCESSING,
+                                                           progress=0,
+                                                           timestamp=time(),
+                                                           error_message=None
+                                                       ))
 
         celery_app.send_task(
             name=WorkersTaskNames.PROCESS_VIDEO,
             kwargs={
-                "raw_object": intent_file_metadata,
-                "intent_id": intent_id
+                "raw_object_name": intent_file_metadata.object_name,
+                "raw_bucket_name": intent_file_metadata.bucket_name,
+                "intent_id": intent_id,
+                "user_id": user_id
             }
         )
 
@@ -102,7 +101,7 @@ class VideoUploadsService:
             )
         )
 
-    async def listen_video_processing_intent(self, user_id: str, intent_id: str, ws: WebSocket) -> ServiceResult[None]:
+    async def listen_video_processing_intent(self, user_id: str, intent_id: str, ws: WebSocket) -> None:
         """
         Suis l'avancée d'un intent d'upload video en écoutant les messages de progression du post-traitement de la
         vidéo dans le cache, et retourne les infos de progression à l'utilisateur via le websocket
@@ -114,12 +113,12 @@ class VideoUploadsService:
         Returns:
             Jsp encore
         """
-        verification = self._cache.verify_a_upload_is_in_processing(user_id, intent_id)
+        verification = await self._cache.verify_a_upload_is_in_processing(user_id, intent_id)
 
         try:
             if not verification:
                 logger.info(f"Aucun upload en cours de post-traitement trouvé pour l'intent d'upload video avec id {intent_id} et user_id {user_id}")
-                await ws.send_json(
+                await ws.send_text(
                     WsPostProcessingInfoSchema(
                         progress=0,
                         step=WsPostProcessingInfoSchemaSteps.UNKNOWN,
@@ -128,7 +127,7 @@ class VideoUploadsService:
                     ).model_dump_json()
                 )
                 await ws.close()
-                return ServiceResult.service_error(message=Messages.ERROR_VIDEO_UPLOAD_INTENT_NOT_FOUND, status_code=status.HTTP_404_NOT_FOUND)
+                return
 
             last_id = None
             MAX_WAIT_ATEMPT = 10
@@ -149,7 +148,7 @@ class VideoUploadsService:
                                 error_message=Messages.INTERNAL_SERVER_ERROR
                             ).model_dump_json()
                         )
-                        return ServiceResult.service_error(message=Messages.INTERNAL_SERVER_ERROR, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                        return
 
                     attempts+=1
                     continue
@@ -161,18 +160,19 @@ class VideoUploadsService:
                 await ws.send_json(
                     progress_data.model_dump_json()
                 )
-
+                logger.info(progress_data.error_message)
                 if progress_data.step == WsPostProcessingInfoSchemaSteps.COMPLETED or progress_data.error_message is not None:
                     logger.info(f"Traitement de l'intent d'upload video avec id {intent_id} et user_id {user_id} terminé, fermeture du websocket")
                     await ws.close()
-                    return ServiceResult.service_success(None)
+                    return
 
             logger.warning(f"Sortie de la boucle d'écoute du websocket pour l'intent d'upload video avec id {intent_id} et user_id {user_id} sans fermeture du websocket, fermeture forcée du websocket")
             await ws.close()
-            return ServiceResult.service_error(message=Messages.INTERNAL_SERVER_ERROR,
-                                       status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return
+
         except WebSocketDisconnect:
             logger.info(f"Websocket de suivi de l'intent d'upload video avec id {intent_id} et user_id {user_id} déconnecté par le client")
+            raise
         except Exception as e:
             logger.exception(f"Exception {e.__class__.__name__} lors de l'écoute du websocket de suivi de l'intent d'upload video avec id {intent_id} et user_id {user_id} : {e}", exc_info=e)
             try:
@@ -185,10 +185,8 @@ class VideoUploadsService:
                     ).model_dump_json()
                 )
                 await ws.close()
-            except:
-                pass
-        finally:
-            return ServiceResult.service_success(None)
+            except WebSocketDisconnect:
+                return
 
 
 

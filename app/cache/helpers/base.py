@@ -1,6 +1,6 @@
 from datetime import timedelta
 from json import dumps, loads, JSONDecodeError
-from typing import Optional, Any, AsyncIterator, AsyncGenerator
+from typing import Optional, Any, AsyncIterator, AsyncGenerator, List, Tuple, Dict
 
 from pydantic import BaseModel, ValidationError
 from redis.asyncio.client import PubSub
@@ -27,7 +27,9 @@ class CacheWrapper:
         return cle.key.value.format(**cle.args)
 
     @staticmethod
-    def _serialize(value: Any) -> str:
+    def _serialize(value: Any) -> Optional[str]:
+        if value is None:
+            return None
         if isinstance(value, BaseModel):
             return value.model_dump_json()
         if isinstance(value, (str, int, float)):
@@ -36,6 +38,24 @@ class CacheWrapper:
             return dumps(value)
         except TypeError:
             raise ValueError(f"Type de valeur non sérialisable pour le cache: {type(value)}")
+
+    @staticmethod
+    def _extract_and_decode_stream_messages(streams: dict) -> List[Tuple[str, Dict[str, Any]]]:
+        if not streams:
+            return []
+
+        return [
+            (
+                msg_id.decode() if isinstance(msg_id, bytes) else msg_id,
+                {
+                    k.decode() if isinstance(k, bytes) else k:
+                        v.decode() if isinstance(v, bytes) else v
+                    for k, v in data.items()
+                }
+            )
+            for _, messages in streams
+            for msg_id, data in messages
+        ]
 
     @staticmethod
     def _deserialize(value: str) -> Any:
@@ -398,7 +418,9 @@ class CacheWrapper:
         """
         stream_name = self._format_cache_key(key)
         # xread prend un dictionnaire {stream_name: last_id}
-        return await self._connection.xread({stream_name: last_id}, count=count, block=block)
+        stream_res = await self._connection.xread({stream_name: last_id}, count=count, block=block)
+
+        return self._extract_and_decode_stream_messages(stream_res)
 
     async def stream_create_group(self, key: CacheKey, group_name: str, start_id: str = "$",
                                   mkstream: bool = True) -> None:
