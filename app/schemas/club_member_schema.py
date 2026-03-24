@@ -56,3 +56,6 @@ class ClubMemberInfo(ApiBaseResponse):
 class ClubMemberListResponse(BaseModel):
     members: list[ClubMemberRead]
     next_cursor: Optional[UUID] = None
+
+class ApiClubMemberListResponse(ApiBaseResponse):
+    result: ClubMemberListResponse
