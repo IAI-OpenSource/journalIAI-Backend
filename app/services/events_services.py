@@ -230,7 +230,7 @@ class EventService:
     # Mutations
     # -------------------------------------------------------------------------
 
-    async def service_create_event(self, event_data: EventCreate) -> ServiceResult:
+    async def service_create_event(self, event_data: EventCreate) -> ServiceResult[EventRead]:
         """Crée un event et invalide les caches associés."""
 
         # 1. Appel au repository
