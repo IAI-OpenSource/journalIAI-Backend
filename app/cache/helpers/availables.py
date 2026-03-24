@@ -52,3 +52,7 @@ class AvailableCacheKeys(str, Enum):
 
     FILE_UPLOAD_INTENT_KEY = "upload_intent:{user_id}:{intent_id}" # Clé pour stocker les intent d'upload
 
+    FILE_UPLOAD_PROGRESS_STREAM_KEY = "upload_progress_stream:{user_id}:{intent_id}" # Clé pour le stream sur l'anvancement du traitemenr d'un upload
+
+    FILE_UPLOAD_PROCESSING_KEY = "upload_processing_stream:{user_id}:{intent_id}"
+

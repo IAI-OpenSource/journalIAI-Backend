@@ -11,7 +11,7 @@ class CreateVideoUploadIntent(BaseModel):
     """Schéma de validation pour un intent d'upload de fichier, contenant les informations nécessaires pour initier un upload de fichier, comme le nom du fichier, son type et sa taille"""
 
     file_name: str = Field(description="Le nom du fichier à uploader, incluant son extension")
-    file_size: int = Field(description="La taille du fichier à uploader en octets")
+    file_size: int = Field(description="La taille du fichier à uploader en octets, le fichier ne doit pas depasser 500Mo sinon Errrooor")
     event_id: Optional[UUID] = Field(None, description="L'ID de l'événement auquel le fichier est associé, si applicable")
     club_id: Optional[UUID] = Field(None, description="L'ID du club auquel le fichier est associé, si applicable")
     content: Optional[str] = Field(None, description="Le contenu textuel associé au post")
@@ -34,8 +34,12 @@ class VideoUploadCompleteSchema(BaseModel):
     )
 
 class WsPostProcessingInfoSchemaSteps(str, Enum):
+    UNKNOWN = "unknown"
     VERIFICATION = "verification"
     PROCESSING = "processing"
+    COMPRESSING = "compressing"
+    CREATING = "creating"
+    COMPLETED = "completed"
 
 class WsPostProcessingInfoSchema(BaseModel):
     step: WsPostProcessingInfoSchemaSteps = Field(..., description="L'étape à laquelle on est")

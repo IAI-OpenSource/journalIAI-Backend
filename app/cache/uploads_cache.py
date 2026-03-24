@@ -6,7 +6,7 @@ from app.cache.helpers.availables import AvailableCacheKeys
 from app.cache.helpers.base import CacheWrapper
 from app.cache.helpers.keys_factory import CacheKeysFactory
 from app.globals.cache_duration import CacheDurartion
-from app.schemas.upload_schemas import CreateVideoUploadIntent
+from app.schemas.upload_schemas import CreateVideoUploadIntent, WsPostProcessingInfoSchema
 
 logger = getLogger(__name__)
 
@@ -63,3 +63,79 @@ class VideoUploadsCache:
         except Exception as e:
             CacheUtils.traiter_exceptions(e, logger)
             return None
+
+    async def verify_a_upload_is_in_processing(self, user_id: str, intent_id: str) -> bool:
+        """
+        Verifie dans le cache si un upload est en cours de post-traitement pour un intent d'upload video donné, en vérifiant l'existence d'une clé spécifique pour cet état
+        Args:
+            user_id: Id de l'utilisateur
+            intent_id: Id de l'intent d'upload video
+
+        Returns:
+            True si le post-traitement de l'upload est en cours pour cet intent d'upload video, False sinon ou en cas d'erreur
+        """
+
+        cache_key = CacheKeysFactory.get_cache_key(AvailableCacheKeys.FILE_UPLOAD_PROGRESS_STREAM_KEY).set_arguments(
+            user_id=user_id, intent_id=intent_id
+        )
+
+        try:
+            return await self._cache.exists_in_cache(cache_key)
+        except Exception as e:
+            CacheUtils.traiter_exceptions(e, logger)
+            return False
+
+    async def add_upload_event_in_a_stream(self, user_id: str, intent_id: str, data: WsPostProcessingInfoSchema) -> Optional[str]:
+        """
+        Ajoute un evenement dans le stream redis qui gère l'avancée des uploads
+        Args:
+            user_id: Id de l'utilisateur
+            intent_id: Id de l'intent d'upload
+            data:  La donnée à envoyer
+
+        Returns:
+            La clé généré automatiquement par Redis pour l'evenement ajouté
+        """
+
+        cache_key = CacheKeysFactory.get_cache_key(AvailableCacheKeys.FILE_UPLOAD_PROGRESS_STREAM_KEY).set_arguments(
+            user_id=user_id, intent_id=intent_id
+        )
+
+        try:
+            res = await self._cache.stream_add(cache_key, data.model_dump())
+
+            return res
+        except Exception as e:
+            CacheUtils.traiter_exceptions(e, logger)
+            return None
+
+    async def read_upload_progress_event_in_a_stream(self, user_id: str, intent_id: str, last_id: str = None) -> tuple[Optional[WsPostProcessingInfoSchema], Optional[str]]:
+        """
+            Lit les événements du stream redis qui gère l'avancée des uploads
+        Args:
+            user_id: L'id de l'utilisateur
+            intent_id: Le id de l'intent d'upload
+            last_id: Le id du dernier événement lu, pour ne lire que les événements suivants. Si None, lit le prochain événement disponible
+        Returns:
+            Un tuple contenant les données de l'événement lu, converties en objet WsPostProcessingInfoSchema,
+            et le id de cet événement dans le stream. Si une erreur survient ou si aucun événement n'est
+            disponible, retourne (None, None)
+        """
+
+        cache_key = CacheKeysFactory.get_cache_key(AvailableCacheKeys.FILE_UPLOAD_PROGRESS_STREAM_KEY).set_arguments(
+            user_id=user_id, intent_id=intent_id
+        )
+
+        try:
+            event = await self._cache.stream_read(cache_key, last_id=last_id if last_id else "0-0", count=1, block=10)
+
+            if not event:
+                return None, None
+
+            # On convertit la donnée de l'événement en objet WsPostProcessingInfoSchema
+            progress_info = WsPostProcessingInfoSchema.model_validate(event[0])
+
+            return progress_info, event[0]['id']
+        except Exception as e:
+            CacheUtils.traiter_exceptions(e, logger)
+            return None, None

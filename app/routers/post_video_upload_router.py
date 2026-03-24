@@ -3,6 +3,9 @@ from typing import Annotated
 from fastapi import APIRouter, Response, Depends, Query, WebSocket
 from fastapi.websockets import WebSocketDisconnect
 from time import time
+
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.cache.helpers.base import CacheWrapper, get_redis
 from app.db.models.user import User
 from app.db.session import get_db
@@ -22,7 +25,7 @@ router = APIRouter(prefix="/post_video_upload")
 )
 async def post_video_upload_intent(
     request_data: CreateVideoUploadIntent, response: Response, cache : CacheWrapper = Depends(get_redis),
-    bd = Depends(get_db)
+    bd: AsyncSession = Depends(get_db)
 ):
     """
     Endpoint pour générer un intent d'upload de vidéo pour un post, en fournissant les informations nécessaires
@@ -42,8 +45,8 @@ async def post_video_upload_intent(
 )
 async def complete_video_post(
     response: Response,
-    intent_id = Annotated[str, Query(..., description="L'id d'intent recupéré précedemment")],
-    cache : CacheWrapper = Depends(get_redis), bd = Depends(get_db)
+    intent_id: str = Query(..., description="L'id d'intent recupéré précedemment"),
+    cache : CacheWrapper = Depends(get_redis), bd: AsyncSession = Depends(get_db)
 ):
     """
     Route pour confirmé l'upload du post vidéo, vous ferrez une requete
@@ -59,7 +62,9 @@ async def complete_video_post(
 
 @router.websocket(path="/ws/post_processing_info", name="Websocket de suivi du post-traitement d'une vidéo uploadée")
 async def ws_post_processing_info(
-    websocket: WebSocket, intent_id: str = Query(..., description="L'id d'intent d'upload de vidéo pour lequel on veut suivre le post-traitement")
+    websocket: WebSocket,
+    intent_id: str = Query(..., description="L'id d'intent d'upload de vidéo pour lequel on veut suivre le post-traitement"),
+    cache : CacheWrapper = Depends(get_redis), bd: AsyncSession = Depends(get_db)
 ):
     """
     Websocket pour suivre le post-traitement d'une vidéo uploadée, vous devez vous connecter à ce
@@ -69,29 +74,11 @@ async def ws_post_processing_info(
     progression et un timestamp, en cas d'échec vous recevrez un message d'erreur dans le champ 'error_message'
     et le suivi sera terminé
     """
+    service = VideoUploadsService(cache=cache, bd=bd)
 
     await websocket.accept()
 
     try:
-        while True:
-            # Simuler l'envoi périodique d'informations de suivi du post-traitement
-            for progress in range(0, 101, 10):
-                if progress < 50:
-                    step = WsPostProcessingInfoSchemaSteps.VERIFICATION
-                else:
-                    step = WsPostProcessingInfoSchemaSteps.PROCESSING
-
-                info = WsPostProcessingInfoSchema(
-                    step=step,
-                    progress=progress,
-                    timestamp=int(time() * 1000)
-                )
-                await websocket.send_json(info.dict())
-                await asyncio.sleep(1)
-
-            # Simuler la fin du suivi après avoir atteint 100% de progression
-            break
-
+        await service.listen_video_processing_intent('Sevtify44', intent_id, websocket)
     except WebSocketDisconnect:
-        print("Client déconnecté du websocket de suivi du post-traitement"
-)
+        pass
