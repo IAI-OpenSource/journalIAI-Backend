@@ -4,7 +4,7 @@ from sqlalchemy import select, update, insert
 from app.db.models.event import Event
 from app.db.models.enums import EventStatus  # corrigé : vient de enums
 from app.repositories.repositories_utils import RepositoriesUtils
-from app.schemas.events_schemas import EventCreate, EventUpdate, EventListReponse, EventRead
+from app.schemas.events_schemas import EventCreate, EventUpdate, ApiEventListReponse, EventInfo
 from typing import List, Optional
 from uuid import UUID
 from datetime import datetime, timezone
@@ -131,8 +131,10 @@ class EventRepository:
             return CRUDResult.crud_success(db_event)
 
         except IntegrityError as ie:
+            await self.db.rollback() 
             return await RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, Event)
         except Exception as e:
+            await self.db.rollback()  
             return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
 
     async def update_event(self, event_id: UUID, data: EventUpdate) -> CRUDResult[Event]:
@@ -206,7 +208,7 @@ class EventRepository:
         except Exception as e:
             return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
 
-    async def get_events_paginated(self, cursor: Optional[UUID] = None, limit: int = 10) -> CRUDResult:
+    async def get_events_paginated(self, cursor: Optional[UUID] = None, limit: int = 10) -> CRUDResult[List[Event]]:
         """
         Récupère les événements avec pagination basée sur un curseur.
 
@@ -241,7 +243,7 @@ class EventRepository:
         except Exception as e:
             return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
 
-    async def get_event_by_title_and_date(self, title: str, start_date: datetime) -> CRUDResult:
+    async def get_event_by_title_and_date(self, title: str, start_date: datetime) -> CRUDResult[Event]:
         """
         Vérifie si un événement avec le même titre et la même date existe déjà.
 

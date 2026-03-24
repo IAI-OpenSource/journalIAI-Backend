@@ -96,8 +96,7 @@ class EventSummary(BaseModel):
 # ── Réponses API ──────────────────────────────────────────────────────────────
 
 class EventInfo(ApiBaseResponse):
-    result: EventRead = Field(..., description="Informations de l'événement")
-
+    result: Optional[EventRead] = Field(None, description="Informations de l'événement")
 
 class EventCarte(ApiBaseResponse):
     result: EventSummary = Field(..., description="Informations de l'événement pour carte")
@@ -106,3 +105,6 @@ class EventCarte(ApiBaseResponse):
 class EventListReponse(BaseModel):
     events: List[EventRead]  # corrigé : List[EventRead] pas List[EventInfo]
     next_cursor: Optional[UUID] = None  # corrigé : UUID pas str, cohérent avec la pagination
+
+class ApiEventListReponse(ApiBaseResponse):
+    result: Optional[EventListReponse] = None

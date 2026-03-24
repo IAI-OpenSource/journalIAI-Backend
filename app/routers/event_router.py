@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Response
 from app.cache.helpers.base import get_redis
 from app.globals.api_tags import ApiTags
 from app.services.events_services import EventService
-from app.schemas.events_schemas import EventCreate, EventUpdate, EventRead, EventListReponse
+from app.schemas.events_schemas import EventCreate, EventUpdate, EventInfo,ApiEventListReponse
 from app.db.session import get_db
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
@@ -16,7 +16,7 @@ routeur = APIRouter(prefix="/events", tags=[ApiTags.EVENT])
 # AVANT les routes dynamiques (/{event_id}) pour éviter les conflits FastAPI
 
 
-@routeur.get("/", name="pour récupérer tous les events.")
+@routeur.get("/", name="Récupérer tous les events.", response_model=ApiEventListReponse)
 async def get_all_events(
     reponse: Response,
     db: AsyncSession = Depends(get_db),
@@ -35,7 +35,7 @@ async def get_all_events(
     return result.to_HTTP_api_base_response(reponse)
 
 
-@routeur.get("/paginated/", name="Récupérer les events avec pagination")
+@routeur.get("/paginated/", name="Récupérer les events avec pagination",response_model=ApiEventListReponse)
 async def get_events_paginated(
     reponse: Response,
     db: AsyncSession = Depends(get_db),
@@ -58,7 +58,7 @@ async def get_events_paginated(
     return result.to_HTTP_api_base_response(reponse)
 
 
-@routeur.get("/status/{statut}", name="Récupérer les events par statut")
+@routeur.get("/status/{statut}", name="Récupérer les events par statut",response_model=ApiEventListReponse)
 async def get_events_by_statut(
     statut: EventStatus,
     reponse: Response,
@@ -79,7 +79,7 @@ async def get_events_by_statut(
     return result.to_HTTP_api_base_response(reponse)
 
 
-@routeur.get("/{event_id}", name="Récupérer un event par son ID")
+@routeur.get("/{event_id}", name="Récupérer un event par son ID", response_model=EventInfo)
 async def get_event_by_id(
     event_id: UUID,
     reponse: Response,
@@ -100,7 +100,7 @@ async def get_event_by_id(
     return result.to_HTTP_api_base_response(reponse)
 
 
-@routeur.post("/", name="Créer un event")
+@routeur.post("/", name="Créer un event", response_model=EventInfo)
 async def create_event(
     payload: EventCreate,
     reponse: Response,
@@ -121,7 +121,7 @@ async def create_event(
     return result.to_HTTP_api_base_response(reponse)
 
 
-@routeur.put("/{event_id}", name="Mettre à jour un event")
+@routeur.put("/{event_id}", name="Mettre à jour un event", response_model=EventInfo)
 async def update_event(
     event_id: UUID,
     payload: EventUpdate,

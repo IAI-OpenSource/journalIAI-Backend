@@ -31,7 +31,7 @@ class Messages:
     EVENT_DELETE_SUCCESS = "Event supprimé avec succès"
     EVENT_UPDATE_SUCCES = "Event mis a jour avec succès"
     EVENT_CREATE_SUCCES = "Event créé avec succès"
-
+    EVENT_ALREADY_EXISTS = 'Evenement deja existant'
 
     # Messages des noms des services 
     INSERT_SESSSION = "Service: Insertion Session"

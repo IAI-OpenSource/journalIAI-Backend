@@ -71,7 +71,7 @@ class EventCache:
     async def delete_event_from_cache(self, event_id: UUID) -> None:
         try:
             cache_key = self.create_event_cache_key(event_id)
-            await self.event_cache.delete_from_cache(key=cache_key)
+            await self.event_cache.delete_in_cache(key=cache_key)
             logger.info(f"Événement {event_id} supprimé du cache avec succès")
         except redis.ConnectionError:
             logger.exception(f"Erreur de connexion Redis lors de la suppression de l'événement {event_id}")
@@ -148,7 +148,7 @@ class EventCache:
     ) -> None:
         try:
             cache_key = self.create_event_list_cache_key(cursor, limit)
-            await self.event_cache.delete_from_cache(key=cache_key)
+            await self.event_cache.delete_in_cache(key=cache_key)
             logger.info(f"Cache liste paginée (cursor={cursor}, limit={limit}) supprimé avec succès")
         except redis.ConnectionError:
             logger.exception("Erreur de connexion Redis lors de la suppression du cache liste paginée")
@@ -198,7 +198,7 @@ class EventCache:
     async def delete_events_by_status_from_cache(self, status: EventStatus) -> None:
         try:
             cache_key = self.create_event_status_cache_key(status)
-            await self.event_cache.delete_from_cache(key=cache_key)
+            await self.event_cache.delete_in_cache(key=cache_key)
             logger.info(f"Cache statut '{status.value}' supprimé avec succès")
         except redis.ConnectionError:
             logger.exception(f"Erreur de connexion Redis lors de la suppression du cache statut {status.value}")
