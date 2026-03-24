@@ -167,7 +167,7 @@ class EventCache:
     ) -> None:
         try:
             cache_key = self.create_event_status_cache_key(status)
-            await self.event_cache.save_json_in_cache(
+            await self.event_cache.save_list_in_cache(
                 key=cache_key,
                 data=[e.model_dump(mode="json") for e in events],
                 expire_seconds=ttl
