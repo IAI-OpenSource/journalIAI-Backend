@@ -9,3 +9,4 @@ class WorkersTaskNames:
     """
 
     SAVE_AUDIT_LOG: str = "audit_log.create"
+    IMPORT_DATA_FROM_EXCEL: str = "regstration.import_from_excel"

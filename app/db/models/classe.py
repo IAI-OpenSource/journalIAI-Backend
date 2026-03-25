@@ -73,7 +73,7 @@ class Classe(Base, IntegrityMapperMixin):
     )
 
     # Relationships
-    posts: Mapped[list["Post"]] = relationship("Post", foreign_keys="Post.author_id", back_populates="classe", cascade="all, delete-orphan", uselist=True, init=False)
+    posts: Mapped[list["Post"]] = relationship("Post", foreign_keys="Post.target_classe_id", back_populates="classe", cascade="all, delete-orphan", uselist=True, init=False)
     academic_year: Mapped["AcademicYear"] = relationship("AcademicYear", back_populates="classes", uselist=False, init=False)
     students: Mapped[list["User"]] = relationship("User", back_populates="classe", cascade="all, delete-orphan", uselist=True, init=False)
     jetons: Mapped[list["RegistrationJeton"]] = relationship("RegistrationJeton", back_populates="classe", cascade="all, delete-orphan", uselist=True, init=False)
