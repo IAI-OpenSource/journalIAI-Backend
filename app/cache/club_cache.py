@@ -1,8 +1,8 @@
 from typing import Optional
 from app.cache.helpers.base import CacheWrapper
 from app.schemas.clubs_schemas import ClubResponse
-from cache.helpers.cache_keys import CacheKey
-from cache.helpers.availables import AvailableCacheKeys
+from app.cache.helpers.cache_keys import CacheKey
+from app.cache.helpers.availables import AvailableCacheKeys
 
 CLUB_BY_ID_KEY = CacheKey.new_key(AvailableCacheKeys.CLUB_OBJECT, number_of_placeholders=1)
 

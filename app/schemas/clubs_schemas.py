@@ -11,14 +11,11 @@ class ClubCreateRequest(BaseModel):
         name: Le nom du club
         slug: Le slug du club
         description: La description du club
-        logo_url: L'url du logo du club
-        cover_url: L'url de la cover du club
     """
     name : str = Field(..., min_length=2, max_length=200, description = "le nom du club")
     slug : str = Field(..., min_length=2, max_length=200, description = "le slug du club", pattern=r'^[a-z0-9]+(?:-[a-z0-9]+)*$')
     description : Optional[str] = Field(None, max_length=500, description = "la description du club")
-    logo_url : Optional[str] = Field(None, max_length=500, description = "l'url du logo du club")
-    cover_url : Optional[str] = Field(None, max_length=500, description = "l'url de la cover du club")
+
 
 class ClubUpdateRequest(BaseModel):
     """Schemas pydantic pour la mise à jour d'un club
@@ -27,8 +24,6 @@ class ClubUpdateRequest(BaseModel):
         name: Le nom du club
         is_active: (bool) le club est actif ou pas
         description: La description du club
-        logo_url: L'url du logo du club
-        cover_url: L'url de la cover du club
     """
     name : Optional[str] = Field(None, min_length=2, max_length=200, description = "le nom du club")
     is_active : Optional[bool] = Field(None, description = "le club est actif ou pas")

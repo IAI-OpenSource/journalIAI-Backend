@@ -96,9 +96,7 @@ class ClubService:
         """
         club = Club(name=payload.name,
                     slug=payload.slug,
-                    description=payload.description,
-                    logo_url=payload.logo_url,
-                    cover_url=payload.cover_url)
+                    description=payload.description)
         
         create_result = await self.club_repository.create_club(club)
         if create_result.is_error():
