@@ -58,8 +58,8 @@ class StringResponse(BaseModel):
 
 class VideoUploadIntentResponse(ApiBaseResponse):
 
-    result: UploadURLSchema
+    result: Optional[UploadURLSchema]
 
 class VideoUploadCompleteResponse(ApiBaseResponse):
 
-    result: VideoUploadCompleteSchema
+    result: Optional[VideoUploadCompleteSchema]

@@ -41,6 +41,24 @@ class VideoUploadsCache:
         except Exception as e:
             CacheUtils.traiter_exceptions(e, logger)
 
+    async def delete_video_upload_intent(self, user_id: str, intent_id: str) -> None:
+        """
+        Supprime l'intent du cache
+        Args:
+            user_id: Id de l'utilisateur
+            intent_id: Id de l'intent d'upload video
+
+        Returns:
+            Rien du tout
+        """
+        try:
+            cache_key = CacheKeysFactory.get_cache_key(AvailableCacheKeys.FILE_UPLOAD_INTENT_KEY).set_arguments(
+                user_id=user_id, intent_id=intent_id
+            )
+            await self._cache.delete_in_cache(cache_key)
+        except Exception as e:
+            CacheUtils.traiter_exceptions(e, logger)
+
     async def get_video_upload_intent(self, user_id: str, intent_id: str) -> Optional[CreateVideoUploadIntent]:
         """
         Recupere l'intent d'upload video
@@ -85,30 +103,28 @@ class VideoUploadsCache:
             CacheUtils.traiter_exceptions(e, logger)
             return False
 
-    async def add_upload_event_in_a_stream(self, user_id: str, intent_id: str, data: WsPostProcessingInfoSchema, enum_compatible = False) -> Optional[str]:
+    async def add_upload_event_in_a_stream(self, user_id: str, intent_id: str, data: WsPostProcessingInfoSchema) -> Optional[str]:
         """
         Ajoute un evenement dans le stream redis qui gère l'avancée des uploads
         Args:
             user_id: Id de l'utilisateur
             intent_id: Id de l'intent d'upload
             data:  La donnée à envoyer
-            enum_compatible: Indique si la donnée est déjà compatible avec le format attendu par le
-            stream (c'est à dire que les enums sont déjà convertis en leurs valeurs), si False, la fonction
-            convertira les enums en valeurs avant d'ajouter l'événement dans le stream, si True, la fonction
-            ajoutera directement la donnée dans le stream sans conversion, ce qui peut être utile si la donnée
-            a déjà été préparée pour être compatible avec le format du stream, ou si la conversion des enums
-            n'est pas nécessaire pour cette donnée spécifique
+
         Returns:
             La clé généré automatiquement par Redis pour l'evenement ajouté
         """
 
         def ensure_compatibility(schema: WsPostProcessingInfoSchema) -> dict:
-            return {
+            to_return = {
                 "step": schema.step.value,
                 "progress": schema.progress,
                 "timestamp": schema.timestamp,
-                "error_message": schema.error_message if schema.error_message else None,
             }
+
+            if schema.error_message:
+                to_return["error_message"] = schema.error_message
+            return to_return
 
         cache_key = CacheKeysFactory.get_cache_key(AvailableCacheKeys.FILE_UPLOAD_PROGRESS_STREAM_KEY).set_arguments(
             user_id=user_id, intent_id=intent_id
@@ -117,7 +133,7 @@ class VideoUploadsCache:
         try:
             res = await self._cache.stream_add(
                 cache_key,
-                ensure_compatibility(data) if enum_compatible else data.model_dump()
+                ensure_compatibility(data)
             )
 
             return res

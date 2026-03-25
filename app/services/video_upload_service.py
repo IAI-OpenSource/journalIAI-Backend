@@ -77,13 +77,15 @@ class VideoUploadsService:
         if not intent_file_metadata:
             return ServiceResult.service_error(message=Messages.ERROR_VIDEO_UPLOAD_INTENT_NOT_FOUND, status_code=status.HTTP_404_NOT_FOUND)
 
-        await self._cache.add_upload_event_in_a_stream(user_id=user_id, intent_id=intent_id,
-                                                       data=WsPostProcessingInfoSchema(
-                                                           step=WsPostProcessingInfoSchemaSteps.PROCESSING,
-                                                           progress=0,
-                                                           timestamp=time(),
-                                                           error_message=None
-                                                       ))
+        await self._cache.add_upload_event_in_a_stream(
+            user_id=user_id, intent_id=intent_id,
+            data=WsPostProcessingInfoSchema(
+               step=WsPostProcessingInfoSchemaSteps.PROCESSING,
+               progress=0,
+               timestamp=time(),
+               error_message=None
+           )
+        )
 
         celery_app.send_task(
             name=WorkersTaskNames.PROCESS_VIDEO,

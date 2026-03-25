@@ -8,7 +8,7 @@ class BucketFilesUtils:
 
     _RAW_VIDEO_UPLOAD_TEMPLATE = "raw_uploads/videos/{intent_id}.{extension}"
 
-    _PROCESSED_VIDEO_UPLOAD_TEMPLATE = "processed-videos/{intent_id}.{extension}"
+    _PROCESSED_VIDEO_UPLOAD_TEMPLATE = "processed-videos/{intent_id}"
 
     @classmethod
     def generate_object_name_for_raw_video(cls, intent_id: str, filename: str) -> str:
@@ -25,14 +25,12 @@ class BucketFilesUtils:
         return cls._RAW_VIDEO_UPLOAD_TEMPLATE.format(intent_id=intent_id, extension=extension)
 
     @classmethod
-    def generate_object_name_for_processed_video(cls, intent_id: str, filename: str) -> str:
+    def generate_objects_path_for_processed_video(cls, intent_id: str) -> str:
         """
         Genere un nom d'objet unique pour un fichier vidéo traité à uploader dans le bucket Minio, en utilisant le nom du fichier et l'ID de l'utilisateur
         Args:
             intent_id: Id de l'intent
-            filename: Le nom du file
         Returns:
             Un nom d'objet unique pour le fichier vidéo traité
         """
-        extension = filename.split(".")[-1]
-        return cls._RAW_VIDEO_UPLOAD_TEMPLATE.format(intent_id=intent_id, extension=extension)
+        return cls._PROCESSED_VIDEO_UPLOAD_TEMPLATE.format(intent_id=intent_id)
