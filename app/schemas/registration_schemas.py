@@ -22,7 +22,7 @@ class CreateRegistration(BaseModel):
 
   first_name: str = Field("Prenom de l'utilisateur")
   last_name: str = Field("Nom de l'etudiant")
-  role: UserRole = Field("rolede l'utilisateur")
+  role: UserRole = Field("role de l'utilisateur")
   sexe: SexeType 
   classe_id: UUID = Field("ID de la Classe de l'utilisateur")
 
@@ -36,7 +36,6 @@ class CreateMultileRegistration(BaseModel):
 
   first_name: str 
   last_name: str 
-  role: UserRole 
   sexe: SexeType 
   
   

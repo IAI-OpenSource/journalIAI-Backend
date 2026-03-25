@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 from app.routers.registration_jeton_router import router as registration_router
+from app.routers.auth_router import router as authentification_router
 
 
 v1_api_router = APIRouter(prefix="/v1")
@@ -12,3 +13,4 @@ async def hello():
 # pour que le main.py puisse juste inclure ce router principal et avoir accès à tous les endpoints de l'api
 
 v1_api_router.include_router(router=registration_router)
+v1_api_router.include_router(router=authentification_router)

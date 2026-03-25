@@ -12,6 +12,7 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.db.models.enums import UserRole
 from app.repositories.registration_repository import RegistrationRepository
 from app.schemas.global_schemas import GlobalStringMessage, StringMessage
 from app.schemas.registration_schemas import CreateMultileRegistration, CreateRegistration, FindRegistration, ReadRegistration
@@ -85,6 +86,7 @@ class RegistrationService:
 
     for row in valide_data:
       row["classe_id"] = classe_id
+      row["role"] = UserRole.STUDENT.value
       row["jeton"] = JetonUtils.generate_code_jeton(8)
         
     if valide_data:
