@@ -48,7 +48,7 @@ class FindRegistration(BaseModel):
         BaseModel (_type_): Hérite de BaseModel
     """
     
-    jeton: str
+    jeton: str = Field(description="le jeton appartenant a lutilisateur. EX: E45FTR0P")
 
   
   

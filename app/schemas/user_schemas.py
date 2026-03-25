@@ -12,6 +12,7 @@ from uuid import UUID
 from app.db.models.enums import ExecutiveRoleType, SexeType, UserRole
 from app.schemas import ApiBaseResponse
 from app.schemas.classe_schemas import ReadUserClasse
+from app.schemas.registration_schemas import FindRegistration
 
 
 class CreateUser(BaseModel):
@@ -26,6 +27,7 @@ class CreateUser(BaseModel):
   email: EmailStr
   username: str = Field(description="Nom d'utilisateur")
   password: str
+  jeton: FindRegistration
   
   
 class ReadUser(BaseModel):
