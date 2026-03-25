@@ -10,4 +10,5 @@ class ApiTags:
     ETUDIANT: str = "Routes étudiants"
     JETON_ENREGISTREMENT: str = "Routes pour les jetons"
     ADMIN_MODERATEUR: str = "Routes ADMIN ou MODERATEUR"
+    ALL_USERS: str = "Routes pour tous les utilisateurs"
 

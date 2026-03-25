@@ -1,12 +1,7 @@
 
 ## fichier contenant le service/logique métier de la table session
 ## vous y trouverez les appels fonctions de repository
-
-
-from dataclasses import dataclass
 import logging
-import traceback
-from typing import Union
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
