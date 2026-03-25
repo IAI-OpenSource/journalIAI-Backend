@@ -57,7 +57,7 @@ class UserRepository:
         logger.info("Cet utilisateurs n'existe pas dans la DB de IAI")
         return CRUDResult.crud_error(
           message=f"Usurpateur de Jeton. {msg.USER_NOT_FOUND}",
-          status_code=status._404_STATUS_NOT_FOUND
+          status_code=status._404_STATUS_NOT_FOUND.value
         )
       
       # etape 2: on récupère certaines données du jeton pour complèter avant d'inserer

@@ -70,4 +70,43 @@ class UserService:
       ttl=CacheDurartion.USER_DURATION.value
     )
         
-    return ServiceResult.service_success(user.data, status_code=user.status_code)
+    return ServiceResult.service_success(
+      data=user.data, 
+      status_code=user.status_code,
+      service_name=msg.USER_SERVICE
+    )
+
+
+
+  async def service_create_user(self, user_data: CreateUser) -> ServiceResult[ReadUser]:
+    """logique métier pour inserer un utilisateur dans la bd (genre à la création de compte que)
+
+    Args:
+        user_data (CreateUser): On prend les données validé et envoyer par le front
+
+    Returns:
+        ServiceResult[ReadUser]: on va retourner une instance de ServiceResult
+    """
+    
+    db_user = await self.user_repo.insert_user(user_data=user_data)
+    
+    if db_user.is_error():
+      return ServiceResult.service_error(
+        message=db_user.error,
+        status_code=db_user.status_code,
+        service_name=msg.USER_SERVICE
+      )
+      
+    read_user = ReadUser.model_validate(db_user.data)
+
+    await self.user_cache.set_user_in_cache(
+      user_id=read_user.id, 
+      user=read_user,
+      ttl=CacheDurartion.USER_DURATION.value
+    )
+
+    return ServiceResult.service_success(
+      data=read_user,
+      status_code=db_user.status_code,
+      service_name=msg.USER_SERVICE
+    )

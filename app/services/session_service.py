@@ -48,7 +48,7 @@ class SessionService:
         service_name=msg.INSERT_SESSSION
       )
       
-    return ServiceResult.service_success(session_repo.data, status_code=session_repo.status_code)
+    return ServiceResult.service_success(data=ReadSession(**session_repo.data), status_code=session_repo.status_code)
 
     
   async def service_find_session_by_sid(self, sid: UUID) -> ServiceResult[ReadSession]:
