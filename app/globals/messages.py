@@ -37,6 +37,8 @@ class Messages:
     ERROR_UPLOAD_URL_GENERATION = "Erreur lors de la génération de l'URL d'upload"
     VIDEO_UPLOAD_INTENT_SAVED = "Intent d'upload video enregistré avec succès"
     ERROR_MEDIA_UPLOAD_INTENT_NOT_FOUND = "Intent d'upload média expirée ou inexistant"
+    CLUB_DELETED_SUCCESSFULLY = "Club supprimé avec succès."
+    CLUB_ALREADY_EXISTS = "Un club avec ce slug existe déjà."
     
     # Messages des noms des services 
     INSERT_SESSSION = "Service: Insertion Session"

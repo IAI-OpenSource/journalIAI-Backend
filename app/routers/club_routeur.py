@@ -7,40 +7,26 @@ from app.db.session import get_db
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
 
-routeur = APIRouter(prefix="/clubs", tags=[ApiTags.CLUB])
+router = APIRouter(prefix="/clubs", tags=[ApiTags.CLUB])
 
-@routeur.get("/{club_id}")
+@router.get("/{club_id}")
 async def get_club_by_id(club_id: UUID, reponse: Response , db: AsyncSession = Depends(get_db), redis = Depends(get_redis)) -> ClubResponse:
     """Endpoint pour récupérer un club par son ID.
-    
-    Args:
-        club_id (UUID): L'identifiant du club à récupérer.
-        db (AsyncSession): La session de base de données, injectée par FastAPI.
-        
-    Returns:
-        ClubResponse: Les données du club ou une erreur si le club n'est pas trouvé.
     """
     club_service = ClubService(db, redis)
     result = await club_service.get_club(club_id)
     return result.to_HTTP_api_base_response(reponse)
     
     
-@routeur.get("/slug/{slug}")
+@router.get("/slug/{slug}")
 async def get_club_by_slug(slug: str, reponse: Response , db: AsyncSession = Depends(get_db), redis = Depends(get_redis)) -> ClubResponse:
     """Endpoint pour récupérer un club par son slug.
-    
-    Args:
-        slug (str): Le slug du club à récupérer.
-        db (AsyncSession): La session de base de données, injectée par FastAPI.
-        
-    Returns:
-        ClubResponse: Les données du club ou une erreur si le club n'est pas trouvé.
     """
     club_service = ClubService(db, redis)
     result = await club_service.get_club_by_slug(slug)
     return result.to_HTTP_api_base_response(reponse)
 
-@routeur.get("/")
+@router.get("/")
 async def get_all_clubs(reponse: Response , db: AsyncSession = Depends(get_db), redis = Depends(get_redis), page:int = 1, page_size: int = 20, is_active: bool = False, ) -> ClubsListResponse:
     """Endpoint pour lister tous les clubs.
     
@@ -58,7 +44,7 @@ async def get_all_clubs(reponse: Response , db: AsyncSession = Depends(get_db), 
     return result.to_HTTP_api_base_response(reponse)
 
 
-@routeur.post("/")
+@router.post("/")
 async def create_club(payload:ClubCreateRequest, reponse:Response, db: AsyncSession = Depends(get_db), redis = Depends(get_redis)) -> ClubResponse:
     """Endpoint pour créer un club.
     
@@ -74,7 +60,7 @@ async def create_club(payload:ClubCreateRequest, reponse:Response, db: AsyncSess
     return result.to_HTTP_api_base_response(reponse)
 
 
-@routeur.put("/{club_id}")
+@router.put("/{club_id}")
 async def update_club(club_id: UUID, payload: ClubUpdateRequest, reponse: Response, db: AsyncSession = Depends(get_db), redis = Depends(get_redis)) -> ClubResponse:
     """Endpoint pour mettre à jour un club.
     
@@ -90,7 +76,7 @@ async def update_club(club_id: UUID, payload: ClubUpdateRequest, reponse: Respon
     result = await club_service.update_club(club_id, payload)
     return result.to_HTTP_api_base_response(reponse)
 
-@routeur.delete("/{club_id}")
+@router.delete("/{club_id}")
 async def delete_club(club_id: UUID, reponse: Response, db: AsyncSession = Depends(get_db), redis = Depends(get_redis)) -> None:
     """Endpoint pour supprimer un club.
     
