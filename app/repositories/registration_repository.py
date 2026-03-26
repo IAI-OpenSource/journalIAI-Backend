@@ -85,8 +85,8 @@ class RegistrationRepository:
         insert(RegistrationJeton)
         .values(
           jeton=jeton,
-          first_name=reg_data.first_name,
-          last_name=reg_data.last_name,
+          first_name=reg_data.first_name.capitalize(),
+          last_name=reg_data.last_name.upper(),
           role=reg_data.role,
           sexe=reg_data.sexe,
           classe_id=reg_data.classe_id
@@ -97,6 +97,7 @@ class RegistrationRepository:
       result = await self.db.execute(stmt)
       db_reg = result.scalar_one()
       await self.db.commit()
+      await self.db.refresh(db_reg, attribute_names=["classe"])
 
       logger.info("Jeton ajoutée avec succès !")
       return CRUDResult.crud_success(db_reg, StatusCode._201_STATUS_CREATED.value)

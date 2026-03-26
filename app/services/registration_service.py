@@ -67,7 +67,7 @@ class RegistrationService:
       )
       
     return ServiceResult.service_success(
-      data=ReadRegistration(**repo_reg.data),
+      data=ReadRegistration.model_validate(repo_reg.data),
       status_code=repo_reg.status_code,
       service_name=msg.READ_REGISTRATION
     )

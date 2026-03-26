@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import logging
 from uuid import UUID
 
-from argon2 import hash_password
+from app.utils.security_utils import hasher_password
 from sqlalchemy import insert, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -44,9 +44,9 @@ class UserRepository:
       stmt1 = (
         select(RegistrationJeton)
         .where(
-          RegistrationJeton.jeton == user_data.jeton,
-          RegistrationJeton.last_name == user_data.last_name,
-          RegistrationJeton.first_name == user_data.first_name
+          RegistrationJeton.jeton == user_data.jeton.jeton,
+          RegistrationJeton.last_name == user_data.last_name.upper(),
+          RegistrationJeton.first_name == user_data.first_name.capitalize()
         )
       )
       
@@ -61,7 +61,7 @@ class UserRepository:
         )
       
       # etape 2: on récupère certaines données du jeton pour complèter avant d'inserer
-      data_to_insert = user_data.model_dump(exclude={"password"})
+      data_to_insert = user_data.model_dump(exclude={"password", "jeton"})
       data_to_insert["role"] = user_registration.role
       data_to_insert["classe_id"] = user_registration.classe_id
       data_to_insert["access_jeton_id"] = user_registration.id
@@ -69,16 +69,17 @@ class UserRepository:
       
       stmt2 = (
         insert(User)
-        .values(**data_to_insert, password_hash=hash_password(user_data.password))
+        .values(**data_to_insert, password_hash=hasher_password(user_data.password))
         .returning(User)
       )
       
       result = await self.db.execute(stmt2)
       user = result.scalar_one()
       await self.db.commit()
+      await self.db.refresh(user, attribute_names=["classe"])
 
       logger.info("Utilisateur ajoutée avec succès !")
-      return CRUDResult.crud_success(data=user, satuts_code=status._201_STATUS_CREATED.value)
+      return CRUDResult.crud_success(data=user, status_code=status._201_STATUS_CREATED.value)
       
     except IntegrityError as ie:
       return await RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, User)

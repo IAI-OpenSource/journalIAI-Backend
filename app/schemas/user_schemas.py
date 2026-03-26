@@ -5,7 +5,7 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 from uuid import UUID
 
@@ -61,12 +61,11 @@ class ReadUser(BaseModel):
             return False
         return True
 
-    class Config:
-        from_attributes=True
+    model_config = ConfigDict(from_attributes=True)
         
 ReadUser.model_rebuild()
 
 
 class UserInfos(ApiBaseResponse):
     
-    result: ReadUser = Field(description="Informations d'un utilisateur")
+    result: Optional[ReadUser] = Field(description="Informations d'un utilisateur")

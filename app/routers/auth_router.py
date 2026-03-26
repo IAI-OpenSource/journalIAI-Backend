@@ -15,11 +15,14 @@ router = APIRouter(prefix="/auth", tags=[ApiTags.AUTHENTIFICATION])
 
 ## dependence pour appeler le cache qu'on va injecter dans 
 # les routes pour créer le service du user
-def get_redis_cache()-> CacheWrapper:
-  return Depends(get_redis)
+def get_redis_cache(redis: CacheWrapper = Depends(get_redis))-> CacheWrapper:
+  return redis
 
-def get_user_service(db: Annotated[AsyncSession, Depends(get_db)]) -> UserService:
-  return UserService(db, get_redis_cache())
+def get_user_service(
+  db: Annotated[AsyncSession, Depends(get_db)],
+  cache: CacheWrapper = Depends(get_redis_cache)
+) -> UserService:
+  return UserService(db, cache)
 
 
 @router.post(
@@ -36,4 +39,15 @@ async def register(
 
   db_user = await user_service.service_create_user(user_data=user_data)
 
-  db_user.to_HTTP_api_base_response(response)
+  if db_user.is_error():
+    return UserInfos.error_response(
+      error_message=db_user.error,
+      status_code=db_user.status_code,
+      response=response
+    )
+
+  return UserInfos.success_response(
+    data=db_user.data,
+    response=response,
+    status_code=db_user.status_code
+  )

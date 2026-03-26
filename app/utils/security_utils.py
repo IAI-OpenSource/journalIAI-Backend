@@ -7,7 +7,7 @@ from argon2.exceptions import VerifyMismatchError
 ph = PasswordHasher()
 
 
-def hash_password(password: str) -> str:
+def hasher_password(password: str) -> str:
     """function pour hasher les mots de pass utilisateur dans
      base de donnée
 
@@ -18,7 +18,7 @@ def hash_password(password: str) -> str:
         str: retourne un mot de passe crypter: c'est un str
     """
 
-    return ph.hash(password)
+    return ph.hash(password.encode('utf-8'))
 
 
 

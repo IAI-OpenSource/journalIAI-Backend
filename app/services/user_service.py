@@ -91,17 +91,26 @@ class UserService:
         status_code=db_user.status_code,
         service_name=msg.USER_SERVICE
       )
-      
-    read_user = ReadUser.model_validate(db_user.data)
+    
+    try:
+      print("DEBUT VALIDATION")
+      read_user = ReadUser.model_validate(db_user.data)
+      print("ERREUR ICI")
+      await self.user_cache.set_user_in_cache(
+        user_id=read_user.id, 
+        user=read_user,
+        ttl=CacheDurartion.USER_DURATION.value
+      )
 
-    await self.user_cache.set_user_in_cache(
-      user_id=read_user.id, 
-      user=read_user,
-      ttl=CacheDurartion.USER_DURATION.value
-    )
+      return ServiceResult.service_success(
+        data=read_user,
+        status_code=db_user.status_code,
+        service_name=msg.USER_SERVICE
+      )
 
-    return ServiceResult.service_success(
-      data=read_user,
-      status_code=db_user.status_code,
-      service_name=msg.USER_SERVICE
-    )
+    except Exception as e:
+      print(f"CRASH SERVICE: {str(e)}")
+      logger.info(f"CRASH SERVICE: {str(e)}")
+      return ServiceResult.service_error(
+        message=f"Erreur de {e.__class__.__name__}: {e}",
+      )
