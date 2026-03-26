@@ -2,7 +2,6 @@ from datetime import timedelta
 from logging import getLogger
 from typing import Optional
 
-from minio import S3Error
 from minio.datatypes import Object
 
 from app.globals.cache_duration import CacheDurartion

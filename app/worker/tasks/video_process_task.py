@@ -85,7 +85,6 @@ def process_video_task(
 
     raw_object = raw_object[1]
 
-    # TODO: Ajouter la logique Redis Stream
     try:
         update_progress(WsPostProcessingInfoSchemaSteps.VERIFICATION, 10)
 
@@ -177,16 +176,11 @@ def process_video_task(
             return
 
         update_progress(WsPostProcessingInfoSchemaSteps.COMPLETED, 15)
-
-        # TODO: Ajouter la logique ajout bd et cache Redis pour marquer l'intent d'upload video
-        #  comme traité et stocker les infos de la vidéo traitée (url dans le bucket Minio,
-        #  métadonnées, etc.) pour que le frontend puisse les récupérer et afficher le post vidéo traité
-        #  à l'utilisateur
     except Exception as e:
         logger.exception(f"Exception {e.__class__.__name__} inattendue lors du traitement de la vidéo : {e}", exc_info=e)
         error_update_progress()
     finally:
-        #TODO: Marquer la tache comme processed dans le cache et supprimer tout ce qui va avec
+
         delete_file_from_bucket(raw_object.bucket_name, raw_object.object_name)
 
         task_async_loop_manager.run_async(redis_cache.close())
