@@ -17,12 +17,10 @@ from app.db.models.post import Post
 from app.db.models.post_media import PostMedia
 from app.db.session import AsyncSessionLocal
 from app.schemas.upload_schemas import WsPostProcessingInfoSchema, CreateVideoUploadIntentFullData
-from app.services.video_upload_service import VideoUploadsService
 
 from app.storage.minio_client import MinioClientFactory
 from app.storage.minio_config import BucketName
 from app.worker.tasks.async_loop_manager import task_async_loop_manager
-from app.worker.tasks.video_process_task import logger
 
 T = TypeVar("T")
 InternalResultPatern  = tuple[bool, T | str]  # (success, data) ou (success, error_message)
@@ -189,21 +187,24 @@ def generate_thumbnail(local_raw_path: str, output_dir: str, ss_time: int) -> Op
 
     cmd = [
         "ffmpeg", "-y",
-        "-ss", str(ss_time),  # <--- Se positionner à k secondes (AVANT l'input pour la vitesse)
+        "-ss", str(ss_time),
         "-i", local_raw_path,
-        "-vf",
-        "scale=w=1280:h=720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,format=webp",  # <--- Filtre magique
-        "-vframes", "1",  # <--- Ne prendre qu'une seule image
-        "-q:v", "75",  # <--- Qualité WebP (0-100), 75 est le "sweet spot"
+        # On retire 'format=webp' d'ici
+        "-vf", "scale=w=1280:h=720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2",
+        "-vframes", "1",
+        "-c:v", "libwebp",  # On spécifie explicitement le codec WebP
+        "-lossless", "0",  # 0 pour compression avec perte (plus léger)
+        "-compression_level", "4",
+        "-q:v", "75",
         thumbnail_path
     ]
 
     try:
         # Exécution synchrone (c'est rapide, quelques millisecondes)
-        subprocess.run(cmd, capture_output=True, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+        subprocess.run(cmd, capture_output=True, check=True)
         return thumbnail_path
     except subprocess.CalledProcessError as e:
-        logger.error(f"Erreur FFMPEG stderr lors de la génération du thumbnail mais on continue : {e.stderr}")
+        print(f"Erreur FFMPEG stderr lors de la génération du thumbnail mais on continue : {e.stderr}")
 
 
 def generate_hls_command(local_raw_path: str, output_dir: str, qualities: list, has_audio: bool = True) -> list[str]:
@@ -342,6 +343,8 @@ async def add_processed_things_in_db(
     minio_thumnail_url: str, file_size: int, duration: int, w: int, h:int
 ) -> InternalResultPatern[str]:
     """Enregistre le post et la video en bd"""
+    from app.services.video_upload_service import VideoUploadsService
+
     async with AsyncSessionLocal() as session:
         service = VideoUploadsService(cache, session)
 

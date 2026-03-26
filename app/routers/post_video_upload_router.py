@@ -1,20 +1,39 @@
-from typing import Annotated
+import datetime
+from uuid import UUID
 
 from fastapi import APIRouter, Response, Depends, Query, WebSocket
 from fastapi.websockets import WebSocketDisconnect
-from time import time
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.cache.helpers.base import CacheWrapper, get_redis
+from app.db.models.enums import SexeType
 from app.db.models.user import User
 from app.db.session import get_db
 from app.globals.api_tags import ApiTags
-from app.schemas.upload_schemas import VideoUploadIntentResponse, CreateVideoUploadIntent, WsPostProcessingInfoSchema, \
-    WsPostProcessingInfoSchemaSteps, VideoUploadCompleteSchema, VideoUploadCompleteResponse
+from app.schemas.upload_schemas import VideoUploadIntentResponse, CreateVideoUploadIntent, VideoUploadCompleteResponse
 from app.services.video_upload_service import VideoUploadsService
 
 router = APIRouter(prefix="/post_video_upload")
+
+async def get_mock_user():
+    user = User(
+        last_name="Adjovi",
+        username="3f70c95e8e",
+        email="akou.adjovi57@test.com",
+        last_login_at=datetime.datetime.now(),
+        classe_id=UUID("74910788-e47d-483d-b24f-750c7b24e3d6"),
+        bio=None,
+        access_jeton_id=UUID("42fc6492-4300-432f-b106-1304cebf86db"),
+        avatar_url=None,
+        first_name="Akou",
+        password_hash="hashed_password",
+        sexe=SexeType.M
+    )
+    user.id = UUID("0a58318e-3a4f-4354-bb6a-fed21a2e710b")
+
+    return user
+
 
 
 # TODO: Revoir tout ce fichier quand l'auth sera dispo et re-tester, principalement verifier si l'utilisateur peut post
@@ -25,7 +44,7 @@ router = APIRouter(prefix="/post_video_upload")
 )
 async def post_video_upload_intent(
     request_data: CreateVideoUploadIntent, response: Response, cache : CacheWrapper = Depends(get_redis),
-    bd: AsyncSession = Depends(get_db)
+    bd: AsyncSession = Depends(get_db), current_user: User = Depends(get_mock_user)
 ):
     """
     Endpoint pour générer un intent d'upload de vidéo pour un post, en fournissant les informations nécessaires
@@ -35,7 +54,7 @@ async def post_video_upload_intent(
 
     service = VideoUploadsService(cache=cache, bd=bd)
 
-    res = await service.service_process_video_upload_intent("Sevtify44", request_data)
+    res = await service.service_process_video_upload_intent(str(current_user.id), request_data)
 
     return res.to_HTTP_api_base_response(response)
 
@@ -46,7 +65,7 @@ async def post_video_upload_intent(
 async def complete_video_post(
     response: Response,
     intent_id: str = Query(..., description="L'id d'intent recupéré précedemment"),
-    cache : CacheWrapper = Depends(get_redis), bd: AsyncSession = Depends(get_db)
+    cache : CacheWrapper = Depends(get_redis), bd: AsyncSession = Depends(get_db), current_user: User = Depends(get_mock_user)
 ):
     """
     Route pour confirmé l'upload du post vidéo, vous ferrez une requete
@@ -55,7 +74,7 @@ async def complete_video_post(
 
     service = VideoUploadsService(cache=cache, bd=bd)
 
-    verification = await service.service_verify_complete_video_upload("Sevtify44", str(intent_id))
+    verification = await service.service_verify_complete_video_upload(str(current_user.id), str(intent_id))
 
     return verification.to_HTTP_api_base_response(response)
 
@@ -64,7 +83,7 @@ async def complete_video_post(
 async def ws_post_processing_info(
     websocket: WebSocket,
     intent_id: str = Query(..., description="L'id d'intent d'upload de vidéo pour lequel on veut suivre le post-traitement"),
-    cache : CacheWrapper = Depends(get_redis), bd: AsyncSession = Depends(get_db)
+    cache : CacheWrapper = Depends(get_redis), bd: AsyncSession = Depends(get_db), current_user: User = Depends(get_mock_user)
 ):
     """
     Websocket pour suivre le post-traitement d'une vidéo uploadée, vous devez vous connecter à ce
@@ -79,6 +98,6 @@ async def ws_post_processing_info(
     await websocket.accept()
 
     try:
-        await service.service_listen_video_processing_intent('Sevtify44', intent_id, websocket)
+        await service.service_listen_video_processing_intent(str(current_user.id), intent_id, websocket)
     except WebSocketDisconnect:
         pass

@@ -169,7 +169,7 @@ class VideoUploadsCache:
         )
 
         try:
-            event = await self._cache.stream_read(cache_key, last_id=last_id if last_id else "0-0", count=1, block=10000)
+            event = await self._cache.stream_read(cache_key, last_id=last_id if last_id else "0-0", count=1, block=60000)
 
             if not event:
                 return None, None
@@ -181,3 +181,24 @@ class VideoUploadsCache:
         except Exception as e:
             CacheUtils.traiter_exceptions(e, logger)
             return None, None
+
+    async def delete_upload_progress_stream(self, user_id: str, intent_id: str) -> None:
+        """
+        Supprimer le stream de suivi d'upload
+        Args:
+            user_id: L'id de l'utilisateur
+            intent_id: Le id de l'intent d'upload
+
+        Returns:
+            None
+        """
+        cache_key = CacheKeysFactory.get_cache_key(AvailableCacheKeys.FILE_UPLOAD_PROGRESS_STREAM_KEY).set_arguments(
+            user_id=user_id, intent_id=intent_id
+        )
+
+        try:
+
+            await self._cache.delete_in_cache(cache_key)
+
+        except Exception as e:
+            CacheUtils.traiter_exceptions(e, logger)

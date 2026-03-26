@@ -29,7 +29,7 @@ def generate_random_intent_id(longueur: int) -> str:
 
 def get_mock_data() -> tuple[UUID, UUID]:
     """Génére des données mock pour les tests"""
-    return UUID("9083e1e7-2b57-4e51-b655-65c6d7723bfd"), UUID("90e4f9f7-2e31-4cd7-952f-6bd86787c9fa")
+    return UUID("5f594ab3-2560-4e5b-adbe-f20e5dd8e193"), UUID("74910788-e47d-483d-b24f-750c7b24e3d6")
 
 class VideoUploadsService:
 
@@ -63,7 +63,7 @@ class VideoUploadsService:
 
 
         # TODO: Revoir ces mocks data et cette logique apres
-        full_data = CreateVideoUploadIntentFullData.model_validate(intent_data)
+        full_data = CreateVideoUploadIntentFullData.model_validate(intent_data.model_dump(), from_attributes=True)
         if full_data.club_id:
             full_data.academic_year_id, full_data.classe_id = None, None     # Sécurisation
 
@@ -212,49 +212,46 @@ class VideoUploadsService:
                         error_message=Messages.ERROR_VIDEO_UPLOAD_INTENT_NOT_FOUND
                     ).model_dump_json()
                 )
-                await ws.close()
                 return
 
             last_id = None
-            MAX_WAIT_ATEMPT = 10
+            MAX_WAIT_ATEMPT = 10        # 10 minut
             attempts = 0
+            has_finished = False
 
-            while True:
+            while attempts < MAX_WAIT_ATEMPT and not has_finished:
                 res = await self._cache.read_upload_progress_event_in_a_stream(user_id, intent_id, last_id)
 
-                if res[0] is None:
-                    logger.debug(f"Aucun nouvel événement de progression trouvé pour l'intent d'upload video avec id {intent_id} et user_id {user_id}, tentative {attempts+1}/{MAX_WAIT_ATEMPT}")
-                    if attempts >= MAX_WAIT_ATEMPT:
-                        logger.error(f"Nombre maximum de tentatives atteint pour l'intent d'upload video avec id {intent_id} et user_id {user_id}, fermeture du websocket")
-                        await ws.send_json(
-                            WsPostProcessingInfoSchema(
-                                progress=0,
-                                step=WsPostProcessingInfoSchemaSteps.UNKNOWN,
-                                timestamp=0,
-                                error_message=Messages.INTERNAL_SERVER_ERROR
-                            ).model_dump_json()
-                        )
-                        return
+                progress_data, last_id = res
 
+                if progress_data is None:
                     attempts+=1
+                    logger.debug(f"Aucun nouvel événement de progression trouvé pour l'intent d'upload video avec id {intent_id} et user_id {user_id}, tentative {attempts+1}/{MAX_WAIT_ATEMPT}")
                     continue
+
                 logger.info(f"Nouvel événement de progression trouvé pour l'intent d'upload video avec id {intent_id} et user_id {user_id}, étape: {res[0].step}, progression: {res[0].progress}%, timestamp: {res[0].timestamp}, message d'erreur: {res[0].error_message}")
 
-                progress_data = res[0]
-                last_id = res[1]
 
-                await ws.send_json(
-                    progress_data.model_dump_json()
-                )
-                logger.info(progress_data.error_message)
+                await ws.send_json(progress_data.model_dump_json())
+
                 if progress_data.step == WsPostProcessingInfoSchemaSteps.COMPLETED or progress_data.error_message is not None:
-                    logger.info(f"Traitement de l'intent d'upload video avec id {intent_id} et user_id {user_id} terminé, fermeture du websocket")
-                    await ws.close()
-                    return
+                    has_finished = True
+                    break
 
-            logger.warning(f"Sortie de la boucle d'écoute du websocket pour l'intent d'upload video avec id {intent_id} et user_id {user_id} sans fermeture du websocket, fermeture forcée du websocket")
-            await ws.close()
-            return
+            if has_finished:
+                logger.info(f"Traitement de l'intent d'upload video avec id {intent_id} et user_id {user_id} terminé, fermeture du websocket")
+                await self._cache.delete_upload_progress_stream(user_id, intent_id)   # Nettoyage du stream après la fin du suivi
+
+            else:
+                logger.error(f"Nombre maximum de tentatives atteint pour la lecture su stream d'upload video avec id {intent_id} et user_id {user_id}, fermeture du websocket")
+                await ws.send_json(
+                    WsPostProcessingInfoSchema(
+                        progress=0,
+                        step=WsPostProcessingInfoSchemaSteps.UNKNOWN,
+                        timestamp=0,
+                        error_message=Messages.INTERNAL_SERVER_ERROR
+                    ).model_dump_json()
+                )
 
         except WebSocketDisconnect:
             logger.info(f"Websocket de suivi de l'intent d'upload video avec id {intent_id} et user_id {user_id} déconnecté par le client")
@@ -270,9 +267,13 @@ class VideoUploadsService:
                         error_message=Messages.INTERNAL_SERVER_ERROR
                     ).model_dump_json()
                 )
-                await ws.close()
             except WebSocketDisconnect:
                 return
+        finally:
+            try:
+                await ws.close()
+            except WebSocketDisconnect:
+                pass
 
 
 

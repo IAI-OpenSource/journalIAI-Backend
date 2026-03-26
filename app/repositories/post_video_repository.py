@@ -1,6 +1,5 @@
 from logging import getLogger
 
-from sqlalchemy import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.enums import PostType, MediaType
@@ -37,11 +36,11 @@ class PostVideoRepository:
         try:
             post_object.post_type = PostType.VIDEO
 
-            requete = insert(Post).values(**post_object).returning(Post)
+            self.bd_session.add(post_object)
 
-            result = await self.bd_session.execute(requete)
+            await self.bd_session.flush()
 
-            post = result.scalar_one()
+            await self.bd_session.refresh(post_object)
 
             if in_transaction:
                 logger.warning("Post vidéo insert mais pas commit en Base, MODE TRANSACTION")
@@ -49,7 +48,7 @@ class PostVideoRepository:
                 await self.bd_session.commit()
                 logger.info("Commit: Post vidéo sauvegarder définitivement en Base")
 
-            return CRUDResult.crud_success(post, status_code=status.HTTP_201_CREATED)
+            return CRUDResult.crud_success(post_object, status_code=status.HTTP_201_CREATED)
         except Exception as err:
             return await RepositoriesUtils.traiter_errors_en_global(
                 exception=err, session=self.bd_session,logger=logger, model_bd=Post
@@ -70,11 +69,9 @@ class PostVideoRepository:
         """
         try:
             post_video_media.media_type = MediaType.VIDEO
-            requete = insert(PostMedia).values(**post_video_media).returning(PostMedia)
-
-            result = await self.bd_session.execute(requete)
-
-            post_media = result.scalar_one()
+            self.bd_session.add(post_video_media)
+            await self.bd_session.flush()
+            await self.bd_session.refresh(post_video_media)
 
             if in_transaction:
                 logger.warning("Media de post vidéo insert mais pas commit en Base, MODE TRANSACTION")
@@ -82,7 +79,7 @@ class PostVideoRepository:
                 await self.bd_session.commit()
                 logger.info("Commit: Media de post vidéo sauvegarder définitivement en Base")
 
-            return CRUDResult.crud_success(post_media, status_code=status.HTTP_201_CREATED)
+            return CRUDResult.crud_success(post_video_media, status_code=status.HTTP_201_CREATED)
         except Exception as err:
             return await RepositoriesUtils.traiter_errors_en_global(
                 exception=err, session=self.bd_session, logger=logger, model_bd=PostMedia
