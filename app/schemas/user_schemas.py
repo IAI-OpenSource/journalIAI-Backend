@@ -16,7 +16,7 @@ from app.schemas.registration_schemas import FindRegistration
 
 
 class CreateUser(BaseModel):
-  """schémas de validation de a création d'un utilisateur
+  """schémas de validation de a création d'un utilisateur (Création de compte)
 
   Args:
       BaseModel (_type_): Hérite de base model
@@ -29,6 +29,22 @@ class CreateUser(BaseModel):
   password: str
   jeton: FindRegistration
   
+  
+class LoginData(BaseModel):
+    """schéma de validation des données de connexion (login)
+
+    Args:
+        BaseModel (_type_): Hérite de BaseModel
+
+    Returns:
+        _type_: Retourne rien, sert juste a la validation
+    """
+    
+    email: EmailStr = Field(description="Email de connexion")
+    password: str = Field(description="Mot de passe de l'utilisateur")
+    
+    
+    
   
 class ReadUser(BaseModel):
     """Schémas de validation des infos 'un utilisateur

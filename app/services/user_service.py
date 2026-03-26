@@ -5,12 +5,12 @@ import logging
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
-
+from app.utils.security_utils import verify_password
 from app.cache.helpers.base import CacheWrapper
 from app.cache.user_cache import UserCache
 from app.globals.status_codes import StatusCode
 from app.repositories.user_repository import UserRepository
-from app.schemas.user_schemas import CreateUser, ReadUser
+from app.schemas.user_schemas import CreateUser, LoginData, ReadUser
 from app.globals.messages import Messages as msg
 from app.globals.cache_duration import CacheDurartion 
 
@@ -93,9 +93,8 @@ class UserService:
       )
     
     try:
-      print("DEBUT VALIDATION")
+      
       read_user = ReadUser.model_validate(db_user.data)
-      print("ERREUR ICI")
       await self.user_cache.set_user_in_cache(
         user_id=read_user.id, 
         user=read_user,
@@ -109,8 +108,34 @@ class UserService:
       )
 
     except Exception as e:
-      print(f"CRASH SERVICE: {str(e)}")
       logger.info(f"CRASH SERVICE: {str(e)}")
       return ServiceResult.service_error(
         message=f"Erreur de {e.__class__.__name__}: {e}",
       )
+      
+      
+  async def service_find_user_by_email(self, login_data: LoginData) -> ServiceResult[ReadUser]:
+    """Logique métier pour récupérer un utilisateur à partir de 
+      son email: Beaucoup plus spécial pour la connexion"""
+
+    db_user = await self.user_repo.get_user_by_email(login_data=login_data)
+    
+    if db_user.is_error():
+      return ServiceResult.service_error(
+        message=db_user.error,
+        status_code=db_user.status_code,
+        service_name=msg.USER_SERVICE
+      )
+      
+    if not verify_password(
+      plain_password=login_data.password,
+      hashed_password=db_user.data.password_hash ):
+      return ServiceResult.service_error(
+        message=msg.LOGIN_NOT_FOUND,
+        status_code=db_user.status_code,
+        service_name=msg.USER_SERVICE
+      )
+      
+    ## TODO: Il reste le génération du OTP a implémenter
+      
+    
