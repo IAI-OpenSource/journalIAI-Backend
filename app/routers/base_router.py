@@ -25,3 +25,5 @@ v1_api_router.include_router(router=club_router)
 # pour que le main.py puisse juste inclure ce router principal et avoir accès à tous les endpoints de l'api
 
 
+v1_api_router.include_router(router=club_router)
+v1_api_router.include_router(router=registration_router)
