@@ -15,9 +15,23 @@ class CreateVideoUploadIntent(BaseModel):
     event_id: Optional[UUID] = Field(None, description="L'ID de l'événement auquel le fichier est associé, si applicable")
     club_id: Optional[UUID] = Field(None, description="L'ID du club auquel le fichier est associé, si applicable")
     content: Optional[str] = Field(None, description="Le contenu textuel associé au post")
+    for_current_academic_year: Optional[bool] = Field(
+        description="Indique si le post doit etre limité à l'année académique en cours, si true alors"
+                    " le post ne sera visible que pendant l'année académique en cours, sinon le post sera"
+                    " visible sans limite de temps"
+    )
+    only_for_a_class: Optional[bool] = Field(
+        description="Indique si le post doit etre limité seulement aux étudiants d'une classe précise, si true "
+                    "le post sera visible uniquement par eux sinon le post sera visible pour tous les étudiants"
+                    " de l'école, QUAND CE ATTRIBUT EST A True `for_current_academic_year` LE DEVIENT AUSSI AUTOMATIQUEMENT "
+                    "DONC PLUS LA PEINE DE LE PASSER (`for_current_academic_year` SERA TOUJOURS TRUE QUAND `only_for_a_class` EST TRUE)"
+    )
 
-    class Config:
-        from_attributes = True
+class CreateVideoUploadIntentFullData(CreateVideoUploadIntent):
+    academic_year_id: Optional[UUID] = Field(None)
+    classe_id: Optional[UUID] = Field(None)
+
+
 
 class UploadURLSchema(BaseModel):
     upload_url: str = Field(description="L'url sur lequel l'Upload doit s'effectuer")
@@ -35,6 +49,8 @@ class VideoUploadCompleteSchema(BaseModel):
 
 class WsPostProcessingInfoSchemaSteps(str, Enum):
     UNKNOWN = "unknown"
+    FINALIZING = "finalizing"
+    IN_QUEUE = "in_queue"
     VERIFICATION = "verification"
     PROCESSING = "processing"
     COMPRESSING = "compressing"
@@ -51,10 +67,6 @@ class WsPostProcessingInfoSchema(BaseModel):
                     " interrompue, le message sera abstrait donc affichable aux utilisateurs, gardez juste en tete que"
                     " après çà ékpa, mission échouée"
     )
-
-class StringResponse(BaseModel):
-    message: str = Field(description="Le message de réponse relatif au résultat de l'opération, ce message là sera"
-                                     " forcément pour un succès, si c'est echec ca sera dans le champ 'error'")
 
 class VideoUploadIntentResponse(ApiBaseResponse):
 

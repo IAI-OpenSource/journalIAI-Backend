@@ -6,7 +6,7 @@ from app.cache.helpers.availables import AvailableCacheKeys
 from app.cache.helpers.base import CacheWrapper
 from app.cache.helpers.keys_factory import CacheKeysFactory
 from app.globals.cache_duration import CacheDurartion
-from app.schemas.upload_schemas import CreateVideoUploadIntent, WsPostProcessingInfoSchema
+from app.schemas.upload_schemas import WsPostProcessingInfoSchema, CreateVideoUploadIntentFullData
 
 logger = getLogger(__name__)
 
@@ -16,13 +16,13 @@ class VideoUploadsCache:
     def __init__(self, cache: CacheWrapper):
         self._cache = cache
 
-    async def save_video_upload_intent(self, user_id: str, intent_id: str, intent_data: CreateVideoUploadIntent) -> None:
+    async def save_video_upload_intent(self, user_id: str, intent_id: str, intent_data: CreateVideoUploadIntentFullData) -> None:
         """
         Enregistre un intent d'upload video dans le cache pour les utilisateurs
         Args:
             user_id: Id de l'utilisateur
             intent_id: Id de l'intent d'upload video
-            intent_data: Le données de l'intent d'upload à enregistrer, conformes au schéma CreateVideoUploadIntent
+            intent_data: Le données de l'intent d'upload à enregistrer, conformes au schéma CreateVideoUploadIntentFullData
 
         Returns:
             Rien du tout, mais l'intent d'upload est enregistré dans le cache pour une utilisation ultérieure
@@ -59,7 +59,7 @@ class VideoUploadsCache:
         except Exception as e:
             CacheUtils.traiter_exceptions(e, logger)
 
-    async def get_video_upload_intent(self, user_id: str, intent_id: str) -> Optional[CreateVideoUploadIntent]:
+    async def get_video_upload_intent(self, user_id: str, intent_id: str) -> Optional[CreateVideoUploadIntentFullData]:
         """
         Recupere l'intent d'upload video
         Args:
@@ -67,7 +67,7 @@ class VideoUploadsCache:
             intent_id: Id de l'intent d'upload video
 
         Returns:
-            Les données de l'intent d'upload video récupérées du cache, conformes au schéma CreateVideoUploadIntent,
+            Les données de l'intent d'upload video récupérées du cache, conformes au schéma CreateVideoUploadIntentFullData,
             ou None si l'intent n'existe pas ou a expiré
         """
 
@@ -76,7 +76,7 @@ class VideoUploadsCache:
         )
 
         try:
-            data = await self._cache.get_pydantic_model_from_cache(cache_key, CreateVideoUploadIntent)
+            data = await self._cache.get_pydantic_model_from_cache(cache_key, CreateVideoUploadIntentFullData)
             return data
         except Exception as e:
             CacheUtils.traiter_exceptions(e, logger)
@@ -103,13 +103,18 @@ class VideoUploadsCache:
             CacheUtils.traiter_exceptions(e, logger)
             return False
 
-    async def add_upload_event_in_a_stream(self, user_id: str, intent_id: str, data: WsPostProcessingInfoSchema) -> Optional[str]:
+    async def add_upload_event_in_a_stream(
+            self, user_id: str, intent_id: str, data: WsPostProcessingInfoSchema,
+            must_add_ttl: bool = False
+    ) -> Optional[str]:
         """
         Ajoute un evenement dans le stream redis qui gère l'avancée des uploads
         Args:
             user_id: Id de l'utilisateur
             intent_id: Id de l'intent d'upload
             data:  La donnée à envoyer
+            must_add_ttl: Indique si on doit mettre une expiration sur le stream, a utilisé seulement lors du premier
+             ajout
 
         Returns:
             La clé généré automatiquement par Redis pour l'evenement ajouté
@@ -135,6 +140,11 @@ class VideoUploadsCache:
                 cache_key,
                 ensure_compatibility(data)
             )
+
+            if must_add_ttl:
+                await self._cache.expire_in_cache(
+                    cache_key, CacheDurartion.VIDEO_UPLOAD_PROGRESS_STREAM_DURATION.value
+                )
 
             return res
         except Exception as e:

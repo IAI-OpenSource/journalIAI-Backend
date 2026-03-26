@@ -1,15 +1,19 @@
 import secrets
 from logging import getLogger
 from time import time
+from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import status, WebSocket, WebSocketDisconnect
 
 from app.cache.helpers.base import CacheWrapper
 from app.cache.uploads_cache import VideoUploadsCache
+from app.db.models.post import Post
+from app.db.models.post_media import PostMedia
 from app.globals.messages import Messages
+from app.repositories.post_video_repository import PostVideoRepository
 from app.schemas.upload_schemas import CreateVideoUploadIntent, UploadURLSchema, VideoUploadCompleteSchema, \
-    WsPostProcessingInfoSchema, WsPostProcessingInfoSchemaSteps
+    WsPostProcessingInfoSchema, WsPostProcessingInfoSchemaSteps, CreateVideoUploadIntentFullData
 from app.services import ServiceResult
 
 from app.storage.post_video_storage import PostVideoStorage
@@ -23,11 +27,16 @@ def generate_random_intent_id(longueur: int) -> str:
     """Genere un ID unique pour un intent d'upload video."""
     return secrets.token_hex(longueur)
 
+def get_mock_data() -> tuple[UUID, UUID]:
+    """Génére des données mock pour les tests"""
+    return UUID("9083e1e7-2b57-4e51-b655-65c6d7723bfd"), UUID("90e4f9f7-2e31-4cd7-952f-6bd86787c9fa")
+
 class VideoUploadsService:
 
     def __init__(self, cache: CacheWrapper, bd: AsyncSession):
         self._cache = VideoUploadsCache(cache)
-        self._bd = bd
+        self._bd = PostVideoRepository(bd)
+
 
     async def service_process_video_upload_intent(
         self, user_id: str, intent_data: CreateVideoUploadIntent
@@ -52,11 +61,78 @@ class VideoUploadsService:
 
         logger.info(f"URL d'upload générée avec succès pour l'intent d'upload video générée avec succès")
 
-        await self._cache.save_video_upload_intent(user_id, random_intent_id, intent_data)
+
+        # TODO: Revoir ces mocks data et cette logique apres
+        full_data = CreateVideoUploadIntentFullData.model_validate(intent_data)
+        if full_data.club_id:
+            full_data.academic_year_id, full_data.classe_id = None, None     # Sécurisation
+
+        elif full_data.only_for_a_class:
+            # Alors on doit mettre l'année académique et la classe
+            # On recupere la classe et lannée
+            full_data.academic_year_id, full_data.classe_id = get_mock_data()
+            full_data.club_id = None        # Sécurisation
+
+        elif full_data.for_current_academic_year:
+            full_data.academic_year_id = get_mock_data()[0]     # Mock de l'année académique courante
+            full_data.classe_id = None        # Sécurisation
+
+        else:
+            full_data.academic_year_id = None
+            full_data.classe_id = None
+
+
+
+
+
+
+
+
+        await self._cache.save_video_upload_intent(user_id, random_intent_id, full_data)
 
         data_to_return = UploadURLSchema(upload_url=upload_url, intent_id=random_intent_id)
 
         return ServiceResult.service_success(data=data_to_return)
+
+
+    async def worker_service_save_processed_video_post_in_bd(self, post_object: Post, media: PostMedia) -> ServiceResult[str]:
+        """
+        Logique métier pour sauvegarder les informations du post vidéo traité dans la base de données
+        Args:
+            post_object: Le post à save
+            media: Le média lié au post
+
+        Returns:
+            ServiceResult indiquant le succès ou l'échec de l'opération, avec un message approprié
+        """
+        async def error_return(error_message: str):
+            await self._bd.bd_session.rollback()
+            logger.error(error_message)
+            return ServiceResult.service_error(message=error_message, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        try:
+            res = await self._bd.save_post_video(post_object, in_transaction=True)
+
+            if res.is_error():
+                error = f"Erreur lors de la sauvegarde du post vidéo traité en base de données : {res.error}"
+                return await error_return(error)
+
+            media.post_id = res.data.id
+            res2 = await self._bd.save_post_media_video(media, in_transaction=True)
+
+            if res2.is_error():
+                error = f"Erreur lors de la sauvegarde du média du post traité en base de données : {res2.error}"
+                return await error_return(error)
+
+            await self._bd.bd_session.commit()
+            return ServiceResult.service_success(data="Ok")     # nsm
+
+        except Exception as e:
+            await self._bd.bd_session.rollback()
+            error = f"Exception {e.__class__.__name__} lors de la sauvegarde du post vidéo traité en base de données : {e}"
+            logger.exception(error)
+            return ServiceResult.service_error(message=error, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
     async def service_verify_complete_video_upload(self, user_id: str, intent_id: str) -> ServiceResult[VideoUploadCompleteSchema]:
         """
@@ -80,12 +156,14 @@ class VideoUploadsService:
         await self._cache.add_upload_event_in_a_stream(
             user_id=user_id, intent_id=intent_id,
             data=WsPostProcessingInfoSchema(
-               step=WsPostProcessingInfoSchemaSteps.PROCESSING,
+               step=WsPostProcessingInfoSchemaSteps.IN_QUEUE,
                progress=0,
                timestamp=time(),
                error_message=None
-           )
+           ),
+            must_add_ttl=True
         )
+
 
         celery_app.send_task(
             name=WorkersTaskNames.PROCESS_VIDEO,
@@ -93,15 +171,21 @@ class VideoUploadsService:
                 "raw_object_name": intent_file_metadata.object_name,
                 "raw_bucket_name": intent_file_metadata.bucket_name,
                 "intent_id": intent_id,
-                "user_id": user_id
+                "user_id": user_id,
+                "post_data": intent_data.model_dump_json()
+
             }
         )
+
+        await self._cache.delete_video_upload_intent(user_id, intent_id)    # Marque comme déja en cours de process
+
 
         return ServiceResult.service_success(
             data=VideoUploadCompleteSchema(
                 job_id=intent_id
             )
         )
+
 
     async def service_listen_video_processing_intent(self, user_id: str, intent_id: str, ws: WebSocket) -> None:
         """

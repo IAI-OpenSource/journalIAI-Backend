@@ -6,14 +6,16 @@ class BucketFilesUtils:
     uniques pour les fichiers vidéo bruts à uploader, en utilisant des templates de nommage
     """
 
-    _RAW_VIDEO_UPLOAD_TEMPLATE = "raw_uploads/videos/{intent_id}.{extension}"
+    _RAW_VIDEO_UPLOAD_PATH_TEMPLATE = "raw_uploads/videos/{intent_id}.{extension}"
 
-    _PROCESSED_VIDEO_UPLOAD_TEMPLATE = "processed-videos/{intent_id}"
+    _PROCESSED_VIDEO_UPLOAD_PATH_TEMPLATE = "processed-videos/{intent_id}"
+
+    _PROCESSED_VIDEO_THUMBNAIL_PATH_TEMPLATE = "videos_thumb/{intent_id}.webp"
 
     @classmethod
     def generate_object_name_for_raw_video(cls, intent_id: str, filename: str) -> str:
         """
-        Génère un nom d'objet unique pour un fichier vidéo brut à uploader dans le bucket Minio, en utilisant le nom du fichier et l'ID de l'utilisateur
+        Génère un nom d'objet unique pour un fichier vidéo brut à uploader dans le bucket Minio
         Args:
             intent_id: Id de l'intent
             filename: Le nom du fichier vidéo à uploader, juste pour retirer l'extension de la vidéo
@@ -22,15 +24,26 @@ class BucketFilesUtils:
             Un nom d'objet unique pour le fichier vidéo brut
         """
         extension = filename.split(".")[-1]
-        return cls._RAW_VIDEO_UPLOAD_TEMPLATE.format(intent_id=intent_id, extension=extension)
+        return cls._RAW_VIDEO_UPLOAD_PATH_TEMPLATE.format(intent_id=intent_id, extension=extension)
 
     @classmethod
     def generate_objects_path_for_processed_video(cls, intent_id: str) -> str:
         """
-        Genere un nom d'objet unique pour un fichier vidéo traité à uploader dans le bucket Minio, en utilisant le nom du fichier et l'ID de l'utilisateur
+        Genere un nom d'objet unique pour un fichier vidéo traité à uploader dans le bucket Minio
         Args:
             intent_id: Id de l'intent
         Returns:
             Un nom d'objet unique pour le fichier vidéo traité
         """
-        return cls._PROCESSED_VIDEO_UPLOAD_TEMPLATE.format(intent_id=intent_id)
+        return cls._PROCESSED_VIDEO_UPLOAD_PATH_TEMPLATE.format(intent_id=intent_id)
+
+    @classmethod
+    def generate_objects_path_for_video_thumbnail(cls, intent_id: str) -> str:
+        """
+        Genere un nom d'objet unique pour une minia d'un fichier vidéo traité dans le bucket Minio
+        Args:
+            intent_id: Id de l'intent
+        Returns:
+            Un nom d'objet unique pour la minia du fichier vidéo traité
+        """
+        return cls._PROCESSED_VIDEO_THUMBNAIL_PATH_TEMPLATE.format(intent_id=intent_id)
