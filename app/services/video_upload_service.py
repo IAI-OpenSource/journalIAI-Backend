@@ -103,7 +103,7 @@ class VideoUploadsService:
             )
         )
 
-    async def listen_video_processing_intent(self, user_id: str, intent_id: str, ws: WebSocket) -> None:
+    async def service_listen_video_processing_intent(self, user_id: str, intent_id: str, ws: WebSocket) -> None:
         """
         Suis l'avancée d'un intent d'upload video en écoutant les messages de progression du post-traitement de la
         vidéo dans le cache, et retourne les infos de progression à l'utilisateur via le websocket

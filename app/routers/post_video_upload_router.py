@@ -79,6 +79,6 @@ async def ws_post_processing_info(
     await websocket.accept()
 
     try:
-        await service.listen_video_processing_intent('Sevtify44', intent_id, websocket)
+        await service.service_listen_video_processing_intent('Sevtify44', intent_id, websocket)
     except WebSocketDisconnect:
         pass
