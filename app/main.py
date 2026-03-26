@@ -64,11 +64,11 @@ app.middleware("http")(log_requests)
 
 app.include_router(v1_api_router)
 
-# Route de monitoring
-# @app.api_route("/health", methods=["GET", "HEAD", "POST"], include_in_schema=False)
-# def health():
-#     """Route de monitoring"""
-#     return {"message": "running"}
+#Route de monitoring
+@app.api_route("/health", methods=["GET", "HEAD", "POST"], include_in_schema=False)
+def health():
+    """Route de monitoring"""
+    return {"message": "running"}
 
 
 @app.get("/", include_in_schema=False)
