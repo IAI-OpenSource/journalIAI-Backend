@@ -2,7 +2,6 @@ from dataclasses import dataclass
 import secrets
 from typing import Any, Dict
 import pandas as pd
-from fastapi import UploadFile
 from io import BytesIO
 
 from pydantic import ValidationError
@@ -12,9 +11,8 @@ from app.schemas.registration_schemas import CreateMultileRegistration
 
 ## methodes utilitaires
 COLUMN_MAPPING = {
-    "firstname": "prenom",
-    "lastname": "nom",
-    "role": "role",
+    "first_name": "prenom",
+    "last_name": "nom",
     "sexe": "sexe",
   }
 
@@ -40,11 +38,8 @@ def map_row(row: dict) -> dict:
 
 
 
-
 @dataclass
 class JetonUtils:
-  
-  
   
   @classmethod
   def generate_code_jeton(cls, length: int) -> str:

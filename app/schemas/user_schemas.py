@@ -5,13 +5,14 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 from uuid import UUID
 
 from app.db.models.enums import ExecutiveRoleType, SexeType, UserRole
 from app.schemas import ApiBaseResponse
 from app.schemas.classe_schemas import ReadUserClasse
+from app.schemas.registration_schemas import FindRegistration
 
 
 class CreateUser(BaseModel):
@@ -26,6 +27,7 @@ class CreateUser(BaseModel):
   email: EmailStr
   username: str = Field(description="Nom d'utilisateur")
   password: str
+  jeton: FindRegistration
   
   
 class ReadUser(BaseModel):
@@ -59,12 +61,11 @@ class ReadUser(BaseModel):
             return False
         return True
 
-    class Config:
-        from_attributes=True
+    model_config = ConfigDict(from_attributes=True)
         
 ReadUser.model_rebuild()
 
 
 class UserInfos(ApiBaseResponse):
     
-    result: ReadUser = Field(description="Informations d'un utilisateur")
+    result: Optional[ReadUser] = Field(description="Informations d'un utilisateur")
