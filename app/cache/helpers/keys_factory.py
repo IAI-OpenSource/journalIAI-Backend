@@ -16,6 +16,8 @@ class CacheKeysFactory:
         AvailableCacheKeys.POST_OBJECT: CacheKey.new_key(AvailableCacheKeys.POST_OBJECT, 1),
         AvailableCacheKeys.POST_COMMENTS: CacheKey.new_key(AvailableCacheKeys.POST_COMMENTS, 1),
         AvailableCacheKeys.CLUB_OBJECT: CacheKey.new_key(AvailableCacheKeys.CLUB_OBJECT, 1),
+        AvailableCacheKeys.EVENT_LIST:      CacheKey.new_key(AvailableCacheKeys.EVENT_LIST, 1),      # cursor + limit
+        AvailableCacheKeys.EVENT_BY_STATUS: CacheKey.new_key(AvailableCacheKeys.EVENT_BY_STATUS, 1), # status
         AvailableCacheKeys.CLUB_MEMBERS: CacheKey.new_key(AvailableCacheKeys.CLUB_MEMBERS, 1),
         AvailableCacheKeys.EVENT_OBJECT: CacheKey.new_key(AvailableCacheKeys.EVENT_OBJECT, 1),
         AvailableCacheKeys.SESSION_OBJECT: CacheKey.new_key(AvailableCacheKeys.SESSION_OBJECT, 1),
@@ -24,6 +26,8 @@ class CacheKeysFactory:
         AvailableCacheKeys.LIKE_OBJECT: CacheKey.new_key(AvailableCacheKeys.LIKE_OBJECT, 1),
         AvailableCacheKeys.POST_LIKE_COUNT: CacheKey.new_key(AvailableCacheKeys.POST_LIKE_COUNT, 1),
         AvailableCacheKeys.COMMENT_LIKE_COUNT: CacheKey.new_key(AvailableCacheKeys.COMMENT_LIKE_COUNT, 1),
+        AvailableCacheKeys.FILE_UPLOAD_INTENT_KEY: CacheKey.new_key(AvailableCacheKeys.FILE_UPLOAD_INTENT_KEY, 2),
+        AvailableCacheKeys.FILE_UPLOAD_PROGRESS_STREAM_KEY: CacheKey.new_key(AvailableCacheKeys.FILE_UPLOAD_PROGRESS_STREAM_KEY, 2),
     }
 
     @classmethod

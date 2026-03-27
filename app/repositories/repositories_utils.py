@@ -23,7 +23,6 @@ class RepositoriesUtils:
             Un objet CrudResult d'erreur
         """
         logger.exception(f"Exception {exception.__class__.__name__} : {exception}", exc_info=exception)
-        traceback.print_exc()
         await session.rollback()
         return CRUDResult.crud_error(message=Messages.INTERNAL_SERVER_ERROR, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -49,4 +48,23 @@ class RepositoriesUtils:
             return CRUDResult.crud_error(message=user_friendly_message, status_code=status.HTTP_400_BAD_REQUEST)
 
         # Falllback
+        return await RepositoriesUtils.traiter_exception_inconnue(exception, session, logger)
+
+    @classmethod
+    async def traiter_errors_en_global(cls, exception: Exception, session: AsyncSession, logger: Logger, model_bd) -> CRUDResult:
+        """
+        Traite une exception en gérant IntegrityError et Exception en meme temps
+        Args:
+            exception: L'exception à traiter
+            session: La session bd
+            logger: Le logger
+            model_bd: La classe du modèle SQLAlchemy qui a levé l'exception, utilisée pour traduire l'erreur
+
+        Returns:
+            Un objet CrudResult d'erreur
+        """
+
+        if isinstance(exception, IntegrityError):
+            return await RepositoriesUtils.traiter_integrity_error(exception, session, logger, model_bd)
+
         return await RepositoriesUtils.traiter_exception_inconnue(exception, session, logger)
