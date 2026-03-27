@@ -77,6 +77,6 @@ async def root():
 
 # Utile exclusivement pour debugger en local, ne s'execute pas si on lance le serveur via Docker normalement
 if __name__ == "__main__":
-    conf = uvicorn.Config(app, port=8004, log_level='info')
+    conf = uvicorn.Config(app, port=8000, log_level='info')
     server = uvicorn.Server(conf)
     server.run()
