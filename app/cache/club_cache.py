@@ -1,10 +1,10 @@
 from typing import Optional
 from app.cache.helpers.base import CacheWrapper
 from app.schemas.clubs_schemas import ClubResponse
-from app.cache.helpers.cache_keys import CacheKey
+from app.cache.helpers import keys_factory
 from app.cache.helpers.availables import AvailableCacheKeys
 
-CLUB_BY_ID_KEY = CacheKey.new_key(AvailableCacheKeys.CLUB_OBJECT, number_of_placeholders=1)
+CLUB_BY_ID_KEY = keys_factory.CacheKeysFactory.get_cache_key(AvailableCacheKeys.CLUB_OBJECT)
 
 class ClubCache:
     def __init__(self, redis:CacheWrapper)-> None:
@@ -21,6 +21,7 @@ class ClubCache:
         """
         cache_key = CLUB_BY_ID_KEY.set_arguments(id=club_id)
         return await self._redis.get_pydantic_model_from_cache(cache_key, ClubResponse)
+    
     
     async def set_club_in_cache(self, club_data: ClubResponse, expire_seconds: int = 3600) -> None:
         """Stocke les données d'un club dans le cache avec une clé basée sur son ID.

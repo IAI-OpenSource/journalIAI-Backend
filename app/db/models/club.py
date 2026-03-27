@@ -31,16 +31,21 @@ class Club(Base, IntegrityMapperMixin):
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4, init=False)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     slug: Mapped[str] = mapped_column(String(200), unique=True, nullable=False)
-    description: Mapped[Optional[str]] = mapped_column(nullable=True)
-    logo_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
-    cover_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+
+    # default=None obligatoire sur les champs Optional avec MappedAsDataclass,
+    # sinon ils deviennent des arguments positionnels requis du constructeur
+    description: Mapped[Optional[str]] = mapped_column(nullable=True, default=None)
+    logo_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True, default=None)
+    cover_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True, default=None)
 
     # Métadonnées
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False, init=False)
     member_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False, init=False)
 
-    # Soft delete
-    deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Soft delete — default=None + init=False : jamais passé au constructeur
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None, init=False
+    )
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), nullable=False, init=False)
@@ -49,7 +54,7 @@ class Club(Base, IntegrityMapperMixin):
         default=func.now(),
         onupdate=func.now(),
         nullable=False,
-        init = False
+        init=False
     )
 
     # Index
@@ -71,4 +76,4 @@ class Club(Base, IntegrityMapperMixin):
     ERROR_MESSAGES = {
         UQ_CLUBS_SLUG: "Ce slug de club est déjà utilisé.",
         CHK_CLUBS_MEMBER_COUNT: "Le nombre de membres ne peut pas être négatif.",
-    }
+    }   

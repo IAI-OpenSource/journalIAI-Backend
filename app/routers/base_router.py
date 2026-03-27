@@ -1,6 +1,8 @@
 from fastapi import APIRouter
 from app.routers.event_router import routeur as event_router
 
+from app.routers.club_routeur import router as club_router
+from app.routers.registration_jeton_router import router as registration_router
 
 from app.routers.post_video_upload_router import router as post_video_upload_router
 from app.routers.registration_jeton_router import router as registration_router
