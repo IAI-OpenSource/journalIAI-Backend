@@ -1,5 +1,5 @@
 
-## fichier contenant le service/logique métier de la table session
+## fichier contenant le service/logique métier de la table user
 ## vous y trouverez les appels fonctions de repository
 import logging
 from uuid import UUID
@@ -113,29 +113,5 @@ class UserService:
         message=f"Erreur de {e.__class__.__name__}: {e}",
       )
       
-      
-  async def service_find_user_by_email(self, login_data: LoginData) -> ServiceResult[ReadUser]:
-    """Logique métier pour récupérer un utilisateur à partir de 
-      son email: Beaucoup plus spécial pour la connexion"""
-
-    db_user = await self.user_repo.get_user_by_email(login_data=login_data)
     
-    if db_user.is_error():
-      return ServiceResult.service_error(
-        message=db_user.error,
-        status_code=db_user.status_code,
-        service_name=msg.USER_SERVICE
-      )
-      
-    if not verify_password(
-      plain_password=login_data.password,
-      hashed_password=db_user.data.password_hash ):
-      return ServiceResult.service_error(
-        message=msg.LOGIN_NOT_FOUND,
-        status_code=db_user.status_code,
-        service_name=msg.USER_SERVICE
-      )
-      
-    ## TODO: Il reste le génération du OTP a implémenter
-      
     

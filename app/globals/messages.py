@@ -37,3 +37,8 @@ class Messages:
     ## Message pour le cache
     CACHE_USER_NOT_FOUND = "Utilisateur non Touvé dans le cache"
     CACHE_SESSION_NOT_FOUND = "Session non trouvé dans le cache"
+    
+    
+    ## Message envoi de mail
+    MAIL_SERVICE = "Service email"
+    MAIL_ERROR = "Erreur de Connection pour l'envoi du mail"
