@@ -51,7 +51,7 @@ class EmailServiceManager:
       await self._fastapi_mail.send_message(message=fast_mail_message_type, template_name="otp_email.html")
 
       return ServiceResult.service_success(
-        data=StringMessage(message="Email envoyé avec succès"),
+        data=StringMessage(message=f"Email envoyé avec succès à {data_email_to.email_to}"),
         status_code=StatusCode._200_STATUS_SUCCESS,
         service_name=msg.MAIL_SERVICE
       )

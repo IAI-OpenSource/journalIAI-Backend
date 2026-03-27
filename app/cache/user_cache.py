@@ -3,6 +3,7 @@ from uuid import UUID
 
 from logging import getLogger
 
+from pydantic import EmailStr
 import redis
 
 from app.cache.helpers.availables import AvailableCacheKeys
@@ -38,6 +39,24 @@ class UserCache:
     cache_key = CacheKeysFactory.get_cache_key(
       AvailableCacheKeys.SESSION_OBJECT
     ).set_arguments(id=str(id))
+    
+    return cache_key
+
+  
+  def create_user_otp_cache_key(self, email: EmailStr) -> CacheKey:
+    """fonction de dépendance pour créer/formater la clé de cache pour le OTP d'un utilisateur donné.
+      Cette clé permettra de mettre en cache la donnée(code OTP) d'un utilisateur spécifique
+
+    Args:
+        email (EmailStr): email de l'utilisateur concerné
+
+    Returns:
+        CacheKey: Retourne une instance de CacheKey
+    """
+    
+    cache_key = CacheKeysFactory.get_cache_key(
+      AvailableCacheKeys.USER_OTP
+    ).set_arguments(email=str(email))
     
     return cache_key
     
@@ -98,5 +117,29 @@ class UserCache:
     
     except redis.ConnectionError as e:
       logger.exception(f"Erreur de connexion à redis {e.__class__.__name__}: {e}")
+      
+      
+  async def set_user_otp_code_in_cache(self, user_mail: EmailStr, otp: str, ttl: int):
+    """fonction pour mettre le code OTP généré d'un utilisateur en cache.
+    ce cache sera un peu comme notre db
+
+    Args:
+        user_mail (EmailStr): le email de l'utilisateur qui va servir à créer le clé du cache
+        otp (str): On prend le OTP(la donnée) à mettre en cache
+        ttl (int): On prend la durée
+    """
+    
+    try:
+      
+      cache_key = self.create_user_otp_cache_key(email=user_mail)
+      
+      await self.user_cache.save_dict_in_cache(
+        key=cache_key,
+        value={"otp": user_mail},
+        expire_seconds=ttl
+      )
+            
+    except redis.ConnectionError as e:
+      logger.exception(f"Erreur de connexion à redis {e.__class__.__name__}: {e}")     
 
 
