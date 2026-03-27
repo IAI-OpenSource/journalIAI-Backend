@@ -7,7 +7,7 @@ from app.cache.helpers.base import CacheWrapper
 from app.cache.helpers.cache_keys import CacheKey
 from app.cache.helpers.keys_factory import CacheKeysFactory
 from app.schemas.events_schemas import EventRead, EventListReponse
-from app.db.models.enums import EventStatus  # corrigé : vient de enums
+from app.db.models.enums import EventStatus
 
 logger = getLogger(__name__)
 
@@ -24,7 +24,7 @@ class EventCache:
     def create_event_cache_key(self, id: UUID) -> CacheKey:
         return CacheKeysFactory.get_cache_key(
             AvailableCacheKeys.EVENT_OBJECT
-        ).set_arguments(id=id)
+        ).set_arguments(id=str(id))
 
     def create_event_list_cache_key(self, cursor: Optional[UUID], limit: int) -> CacheKey:
         composite_id = f"{str(cursor) if cursor else 'start'}_{limit}"
@@ -47,7 +47,7 @@ class EventCache:
             await self.event_cache.save_pydantic_model_in_cache(
                 key=cache_key,
                 model_instance=event,
-                expire_seconds=ttl
+                expire_seconds=int(ttl)
             )
         except redis.ConnectionError:
             logger.exception(f"Erreur de connexion Redis lors de la mise en cache de l'événement {event_id}")
@@ -81,7 +81,7 @@ class EventCache:
     async def update_event_in_cache(self, event_id: UUID, event: EventRead, ttl: int) -> None:
         try:
             await self.delete_event_from_cache(event_id)
-            await self.set_event_in_cache(event_id, event, ttl)
+            await self.set_event_in_cache(event_id, event, int(ttl))
             logger.info(f"Événement {event_id} mis à jour dans le cache avec succès")
         except redis.ConnectionError:
             logger.exception(f"Erreur de connexion Redis lors de la mise à jour de l'événement {event_id}")
@@ -104,18 +104,14 @@ class EventCache:
     # -------------------------------------------------------------------------
 
     async def set_events_paginated_in_cache(
-        self,
-        cursor: Optional[UUID],
-        limit: int,
-        data: EventListReponse,
-        ttl: int
+        self, cursor: Optional[UUID], limit: int, data: EventListReponse, ttl: int
     ) -> None:
         try:
             cache_key = self.create_event_list_cache_key(cursor, limit)
             await self.event_cache.save_pydantic_model_in_cache(
                 key=cache_key,
                 model_instance=data,
-                expire_seconds=ttl
+                expire_seconds=int(ttl)
             )
             logger.info(f"Liste paginée (cursor={cursor}, limit={limit}) mise en cache avec succès")
         except redis.ConnectionError:
@@ -124,9 +120,7 @@ class EventCache:
             logger.exception("Erreur lors de la mise en cache de la liste paginée")
 
     async def get_events_paginated_from_cache(
-        self,
-        cursor: Optional[UUID],
-        limit: int
+        self, cursor: Optional[UUID], limit: int
     ) -> Optional[EventListReponse]:
         try:
             cache_key = self.create_event_list_cache_key(cursor, limit)
@@ -142,9 +136,7 @@ class EventCache:
             return None
 
     async def delete_events_paginated_from_cache(
-        self,
-        cursor: Optional[UUID],
-        limit: int
+        self, cursor: Optional[UUID], limit: int
     ) -> None:
         try:
             cache_key = self.create_event_list_cache_key(cursor, limit)
@@ -160,39 +152,37 @@ class EventCache:
     # -------------------------------------------------------------------------
 
     async def set_events_by_status_in_cache(
-        self,
-        status: EventStatus,
-        events: List[EventRead],
-        ttl: int
+        self, status: EventStatus, events: List[EventRead], ttl: int
     ) -> None:
         try:
             cache_key = self.create_event_status_cache_key(status)
+            # On sérialise la liste en JSON via save_list_in_cache
             await self.event_cache.save_list_in_cache(
                 key=cache_key,
-                data=[e.model_dump(mode="json") for e in events],
-                expire_seconds=ttl
+                value=[e.model_dump(mode="json") for e in events],
+                expire_seconds=int(ttl)
             )
-            logger.info(f"Événements avec statut '{status.value}' mis en cache avec succès")
+            logger.info(f"Événements statut '{status.value}' mis en cache avec succès")
         except redis.ConnectionError:
-            logger.exception(f"Erreur de connexion Redis lors de la mise en cache des événements statut {status.value}")
+            logger.exception(f"Erreur de connexion Redis lors de la mise en cache statut {status.value}")
         except Exception:
-            logger.exception(f"Erreur lors de la mise en cache des événements statut {status.value}")
+            logger.exception(f"Erreur lors de la mise en cache statut {status.value}")
 
     async def get_events_by_status_from_cache(
-        self,
-        status: EventStatus
+        self, status: EventStatus
     ) -> Optional[List[EventRead]]:
         try:
             cache_key = self.create_event_status_cache_key(status)
-            raw = await self.event_cache.get_json_from_cache(key=cache_key)
+            # On récupère la liste brute puis on reconstruit les EventRead
+            raw = await self.event_cache.get_list_from_cache(key=cache_key)
             if raw is None:
                 return None
             return [EventRead(**item) for item in raw]
         except redis.ConnectionError:
-            logger.exception(f"Erreur de connexion Redis lors de la récupération du statut {status.value}")
+            logger.exception(f"Erreur de connexion Redis lors de la récupération statut {status.value}")
             return None
         except Exception:
-            logger.exception(f"Erreur lors de la récupération des événements statut {status.value} depuis le cache")
+            logger.exception(f"Erreur lors de la récupération statut {status.value} depuis le cache")
             return None
 
     async def delete_events_by_status_from_cache(self, status: EventStatus) -> None:
@@ -201,6 +191,6 @@ class EventCache:
             await self.event_cache.delete_in_cache(key=cache_key)
             logger.info(f"Cache statut '{status.value}' supprimé avec succès")
         except redis.ConnectionError:
-            logger.exception(f"Erreur de connexion Redis lors de la suppression du cache statut {status.value}")
+            logger.exception(f"Erreur de connexion Redis lors de la suppression cache statut {status.value}")
         except Exception:
-            logger.exception(f"Erreur lors de la suppression du cache statut {status.value}")
+            logger.exception(f"Erreur lors de la suppression cache statut {status.value}")
