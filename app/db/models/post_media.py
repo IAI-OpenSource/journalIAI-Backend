@@ -52,7 +52,7 @@ class PostMedia(Base, IntegrityMapperMixin):
     is_processed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, init=False)
 
     # Soft delete
-    deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True, default=None, init=False)
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), nullable=False, init=False)

@@ -1,0 +1,10 @@
+# Ne pas envoyer ces dossiers au démon Docker lors du build
+nginx/cache/
+db_data/
+minio_data/
+.venv/
+__pycache__/
+.git/
+logs/
+.env
+# Ne pas envoyer ces fichiers au démon Docker lors du build

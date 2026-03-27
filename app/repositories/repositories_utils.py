@@ -50,3 +50,22 @@ class RepositoriesUtils:
 
         # Falllback
         return await RepositoriesUtils.traiter_exception_inconnue(exception, session, logger)
+
+    @classmethod
+    async def traiter_errors_en_global(cls, exception: Exception, session: AsyncSession, logger: Logger, model_bd) -> CRUDResult:
+        """
+        Traite une exception en gérant IntegrityError et Exception en meme temps
+        Args:
+            exception: L'exception à traiter
+            session: La session bd
+            logger: Le logger
+            model_bd: La classe du modèle SQLAlchemy qui a levé l'exception, utilisée pour traduire l'erreur
+
+        Returns:
+            Un objet CrudResult d'erreur
+        """
+
+        if isinstance(exception, IntegrityError):
+            return await RepositoriesUtils.traiter_integrity_error(exception, session, logger, model_bd)
+
+        return await RepositoriesUtils.traiter_exception_inconnue(exception, session, logger)

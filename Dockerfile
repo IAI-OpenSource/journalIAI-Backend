@@ -23,9 +23,10 @@ ENV WORKDIR=/app
 
 WORKDIR $WORKDIR
 
-# Installation de ffmpeg pour le traitement image/vidéo et libpq-dev pour PostgreSQL
+# Installation de ffmpeg, libmagic1 pour le traitement image/vidéo et libpq-dev pour PostgreSQL
 RUN apt-get update && apt-get install -y \
     ffmpeg \
+    libmagic1 \
     libpq-dev \
     curl \
     && rm -rf /var/lib/apt/lists/*
