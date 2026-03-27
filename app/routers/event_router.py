@@ -30,7 +30,7 @@ async def get_all_events(
     result = await event_service.service_find_all_event()
     return result.to_HTTP_api_base_response(reponse)
 
-
+# TODO: Corriger toute cette route (la pagination est mal faite)
 @routeur.get("/paginated/", name="Récupérer les events avec pagination", response_model=ApiPaginatedEventListReponse)
 async def get_events_paginated(
     reponse: Response,
