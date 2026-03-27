@@ -13,18 +13,19 @@ from app.schemas.post_upload_schemas import CreateMediaUploadIntentFullData, WsP
     WsPostProcessingInfoSchemaSteps
 from app.worker.tasks.async_loop_manager import task_async_loop_manager
 from app.worker.tasks.tasks_utils.video_process_task_utils import send_data_to_progress_stream, \
-    get_file_metadata_from_minio, delete_file_from_bucket
+    get_file_metadata_from_minio, delete_file_from_bucket, download_file_from_minio
+from app.worker.tasks.tasks_utils.image_process_task_utils import verify_file_is_image, \
+    get_image_metadata, process_image_with_pillow, upload_images_to_minio, add_processed_image_in_db
 from app.worker.tasks.workers_task_names import WorkersTaskNames
-from PIL import Image
-import io
 from app.storage.bucket_files_utils import BucketFilesUtils
-from app.storage.minio_config import BucketName
 
 logger = getLogger(__name__)
+#TODO: Refactor après
 
+#TODO: Ajouter le BlurHash
 
 @shared_task(name=WorkersTaskNames.PROCESS_IMAGE)
-def process_image(
+def process_image_task(
     raw_bucket_name: str, raw_object_name: str, user_id: str, intent_id: str, post_data: str
 ):
     """
@@ -84,8 +85,81 @@ def process_image(
     raw_object = raw_object[1]
 
     try:
+        update_progress(WsPostProcessingInfoSchemaSteps.VERIFICATION, 10)
 
-        pass
+        down_res = download_file_from_minio(raw_object.bucket_name, raw_object.object_name, local_raw_path)
+
+        if not down_res[0]:
+            logger.error(down_res[1])
+            error_update_progress()
+            return
+
+        update_progress(WsPostProcessingInfoSchemaSteps.VERIFICATION, 10)
+
+        file_verification = verify_file_is_image(local_raw_path)
+        if not file_verification[0]:
+            logger.error(file_verification[1])
+            error_update_progress(error_message=file_verification[1])
+            return
+
+        image_metadata_res = get_image_metadata(local_raw_path)
+        if not image_metadata_res[0]:
+            logger.error(image_metadata_res[1])
+            error_update_progress()
+            return
+
+        image_metadata = image_metadata_res[1]
+        logger.info(f"Métadonnées de l'image : {image_metadata}")
+
+        update_progress(WsPostProcessingInfoSchemaSteps.COMPRESSING, 20)
+
+        # TODO: Changez la génération des qualités (on va faire pplutot un truc
+        #  Génération de 3 tailles (Small, Medium, Large) en WebP)
+        process_res = process_image_with_pillow(local_raw_path, local_processed_dir)
+        if not process_res[0]:
+            logger.error(process_res[1])
+            error_update_progress()
+            return
+
+        processed_images_paths = process_res[1]
+        logger.info(f"Images traitées créées : {list(processed_images_paths.keys())}")
+
+        update_progress(WsPostProcessingInfoSchemaSteps.CREATING, 40)
+
+        # TODO: Ramenez le thumbnail vers le bucket public
+        upload_res = task_async_loop_manager.run_async(
+            upload_images_to_minio(local_processed_dir, final_bucket_objects_path)
+        )
+
+        if not upload_res[0]:
+            logger.error(upload_res[1])
+            error_update_progress()
+            return
+
+        minio_urls = upload_res[1]
+        logger.info(f"Images uploadées vers MinIO : {list(minio_urls.keys())}")
+
+        update_progress(WsPostProcessingInfoSchemaSteps.FINALIZING, 15)
+
+        db_add_res = task_async_loop_manager.run_async(
+            add_processed_image_in_db(
+                cache=redis_cache,
+                user_id=user_id,
+                post_data=post_data,
+                minio_urls=minio_urls,
+                file_size=image_metadata['file_size'],
+                width=image_metadata['width'],
+                height=image_metadata['height'],
+            )
+        )
+
+        if not db_add_res[0]:
+            logger.error(db_add_res[1])
+            error_update_progress()
+            return
+
+        update_progress(WsPostProcessingInfoSchemaSteps.COMPLETED, 15)
+
     except Exception as e:
         logger.exception(f"Exception {e.__class__.__name__} inattendue lors du traitement de la photo : {e}",
                          exc_info=e)

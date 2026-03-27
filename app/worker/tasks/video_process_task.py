@@ -25,6 +25,8 @@ logger = getLogger(__name__)
 
 # TODO: refactor tout ce spaghethi après
 
+#TODO: Ajouter le BlurHash
+
 @shared_task(name=WorkersTaskNames.PROCESS_VIDEO)
 def process_video_task(
         raw_bucket_name: str, raw_object_name: str, user_id: str, intent_id: str, post_data : str

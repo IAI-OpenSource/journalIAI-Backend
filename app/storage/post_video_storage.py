@@ -105,6 +105,35 @@ class PostUploadStorage:
             )
             return None
 
+    @staticmethod
+    def get_image_upload_intent_file_info(intent_id: str, filename: str) -> Optional[Object]:
+        """
+        Verifie si le fichier image de l'intent est bien existant et le retourne
+        Args:
+            intent_id: Id de l'intent
+            filename: Le nom du fichier
+        Returns:
+            Les métadonnées du fichier s'il existe
+        """
+        try:
+            bucket_object_key = BucketFilesUtils.generate_object_path_for_raw_image(
+                intent_id=intent_id,
+                filename=filename
+            )
+
+            minio_client = MinioClientFactory.get_backend_client()
+
+            file_metadata = minio_client.stat_object(BucketName.POSTS_RAW_UPLOADS.value, bucket_object_key)
+
+            return file_metadata
+
+        except Exception as e:
+            logger.exception(
+                f"Exception {e.__class__.__name__} lors de la récupération d'un intent d'upload video : {e}",
+                exc_info=e
+            )
+            return None
+
 
 
 

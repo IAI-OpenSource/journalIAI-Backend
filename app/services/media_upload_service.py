@@ -12,7 +12,7 @@ from app.db.models.post import Post
 from app.db.models.post_media import PostMedia
 from app.db.models.user import User
 from app.globals.messages import Messages
-from app.repositories.post_video_repository import PostVideoRepository
+from app.repositories.post_video_repository import PostRepository
 from app.schemas.post_upload_schemas import CreateMediaUploadIntent, UploadURLSchema, MediaUploadCompleteSchema, \
     WsPostProcessingInfoSchema, WsPostProcessingInfoSchemaSteps, CreateMediaUploadIntentFullData
 from app.services import ServiceResult
@@ -36,7 +36,7 @@ class MediaUploadsService:
 
     def __init__(self, cache: CacheWrapper, bd: AsyncSession):
         self._cache = MediaUploadsCache(cache)
-        self._bd = PostVideoRepository(bd)
+        self._bd = PostRepository(bd)
 
 
     async def service_process_media_upload_intent(
@@ -93,9 +93,9 @@ class MediaUploadsService:
         return ServiceResult.service_success(data=data_to_return)
 
 
-    async def worker_service_save_processed_video_post_in_bd(self, post_object: Post, media: PostMedia) -> ServiceResult[str]:
+    async def worker_service_save_processed_media_post_in_bd(self, post_object: Post, media: PostMedia) -> ServiceResult[str]:
         """
-        Logique métier pour sauvegarder les informations du post vidéo traité dans la base de données
+        Logique métier pour sauvegarder les informations du post média traité dans la base de données
         Args:
             post_object: Le post à save
             media: Le média lié au post
@@ -109,14 +109,14 @@ class MediaUploadsService:
             return ServiceResult.service_error(message=error_message, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         try:
-            res = await self._bd.save_post_video(post_object, in_transaction=True)
+            res = await self._bd.save_post(post_object, in_transaction=True)
 
             if res.is_error():
-                error = f"Erreur lors de la sauvegarde du post vidéo traité en base de données : {res.error}"
+                error = f"Erreur lors de la sauvegarde du post traité en base de données : {res.error}"
                 return await error_return(error)
 
             media.post_id = res.data.id
-            res2 = await self._bd.save_post_media_video(media, in_transaction=True)
+            res2 = await self._bd.save_post_media(media, in_transaction=True)
 
             if res2.is_error():
                 error = f"Erreur lors de la sauvegarde du média du post traité en base de données : {res2.error}"
@@ -127,7 +127,7 @@ class MediaUploadsService:
 
         except Exception as e:
             await self._bd.bd_session.rollback()
-            error = f"Exception {e.__class__.__name__} lors de la sauvegarde du post vidéo traité en base de données : {e}"
+            error = f"Exception {e.__class__.__name__} lors de la sauvegarde du post traité en base de données : {e}"
             logger.exception(error)
             return ServiceResult.service_error(message=error, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -149,7 +149,11 @@ class MediaUploadsService:
         if not intent_data:
             return ServiceResult.service_error(message=Messages.ERROR_MEDIA_UPLOAD_INTENT_NOT_FOUND, status_code=status.HTTP_404_NOT_FOUND)
 
-        intent_file_metadata = PostUploadStorage.get_video_upload_intent_file_info(intent_id, intent_data.file_name)
+        if intent_data.is_video:
+            intent_file_metadata = PostUploadStorage.get_video_upload_intent_file_info(intent_id, intent_data.file_name)
+        else:
+            intent_file_metadata = PostUploadStorage.get_image_upload_intent_file_info(intent_id, intent_data.file_name)
+
 
         if not intent_file_metadata:
             return ServiceResult.service_error(message=Messages.ERROR_MEDIA_UPLOAD_INTENT_NOT_FOUND, status_code=status.HTTP_404_NOT_FOUND)
@@ -223,13 +227,14 @@ class MediaUploadsService:
             while attempts < MAX_WAIT_ATEMPT and not has_finished:
                 res = await self._cache.read_upload_progress_event_in_a_stream(user_id_str, intent_id, last_id)
 
-                progress_data, last_id = res
+                progress_data = res[0]
 
                 if progress_data is None:
                     attempts+=1
                     logger.debug(f"Aucun nouvel événement de progression trouvé pour l'intent d'upload média avec id {intent_id} et user_id {user_id_str}, tentative {attempts+1}/{MAX_WAIT_ATEMPT}")
                     continue
 
+                last_id = res[1]
                 logger.info(f"Nouvel événement de progression trouvé pour l'intent d'upload média avec id {intent_id} et user_id {user_id_str}, étape: {res[0].step}, progression: {res[0].progress}%, timestamp: {res[0].timestamp}, message d'erreur: {res[0].error_message}")
 
 

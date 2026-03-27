@@ -98,6 +98,6 @@ async def ws_post_processing_info(
     await websocket.accept()
 
     try:
-        await service.service_listen_media_processing_intent(str(current_user.id), intent_id, websocket)
+        await service.service_listen_media_processing_intent(current_user, intent_id, websocket)
     except WebSocketDisconnect:
         pass

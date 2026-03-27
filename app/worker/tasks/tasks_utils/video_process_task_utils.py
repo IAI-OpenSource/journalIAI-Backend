@@ -373,7 +373,7 @@ async def add_processed_things_in_db(
 
         definitive_post_media.is_processed = True
 
-        res = await service.worker_service_save_processed_video_post_in_bd(definitive_post, definitive_post_media)
+        res = await service.worker_service_save_processed_media_post_in_bd(definitive_post, definitive_post_media)
         if res.is_error():
             return False, res.error
 

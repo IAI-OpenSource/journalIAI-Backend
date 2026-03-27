@@ -8,11 +8,12 @@ from uuid import UUID
 from app.db.models.enums import MediaType
 from app.schemas import ApiBaseResponse
 
+#TODO: REndre la doc beaucoup plus claire et enlever quelques petites incohérences
 class CreateMediaUploadIntent(BaseModel):
     """Schéma de validation pour un intent d'upload de fichier, contenant les informations nécessaires pour initier un upload de fichier, comme le nom du fichier, son type et sa taille"""
 
     file_name: str = Field(description="Le nom du fichier à uploader, incluant son extension")
-    file_size: int = Field(description="La taille du fichier à uploader en octets, le fichier ne doit pas depasser 500Mo sinon Errrooor")
+    file_size: int = Field(description="La taille du fichier à uploader en octets, le fichier ne doit pas depasser 100Mo sinon Errrooor")
     event_id: Optional[UUID] = Field(None, description="L'ID de l'événement auquel le fichier est associé, si applicable")
     club_id: Optional[UUID] = Field(None, description="L'ID du club auquel le fichier est associé, si applicable")
     content: Optional[str] = Field(None, description="Le contenu textuel associé au post")
