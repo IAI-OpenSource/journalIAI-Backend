@@ -11,12 +11,12 @@ import magic
 from minio.datatypes import Object
 
 from app.cache.helpers.base import CacheWrapper
-from app.cache.uploads_cache import VideoUploadsCache
+from app.cache.uploads_cache import MediaUploadsCache
 from app.db.models.enums import PostType, MediaType
 from app.db.models.post import Post
 from app.db.models.post_media import PostMedia
 from app.db.session import AsyncSessionLocal
-from app.schemas.upload_schemas import WsPostProcessingInfoSchema, CreateVideoUploadIntentFullData
+from app.schemas.post_upload_schemas import WsPostProcessingInfoSchema, CreateMediaUploadIntentFullData
 
 from app.storage.minio_client import MinioClientFactory
 from app.storage.minio_config import BucketName
@@ -318,7 +318,7 @@ async def upload_hls_to_minio(local_dir: str, remote_path: str) -> InternalResul
         return False, f"Erreur ({err.__class__.__name__}) lors de l'upload du dossier HLS vers le bucket Minio : {err}"
 
 
-async def send_data_to_progress_stream(cache: VideoUploadsCache, user_id: str, intent_id: str, data: WsPostProcessingInfoSchema) -> None:
+async def send_data_to_progress_stream(cache: MediaUploadsCache, user_id: str, intent_id: str, data: WsPostProcessingInfoSchema) -> None:
     """
     Envoie une mise à jour de progression du post-traitement de la vidéo dans le stream Redis dédié à cet effet
     Args:
@@ -339,14 +339,14 @@ async def send_data_to_progress_stream(cache: VideoUploadsCache, user_id: str, i
 
 
 async def add_processed_things_in_db(
-    cache: CacheWrapper, user_id: str, post_data: CreateVideoUploadIntentFullData, minio_video_url: str,
+    cache: CacheWrapper, user_id: str, post_data: CreateMediaUploadIntentFullData, minio_video_url: str,
     minio_thumnail_url: str, file_size: int, duration: int, w: int, h:int
 ) -> InternalResultPatern[str]:
     """Enregistre le post et la video en bd"""
-    from app.services.video_upload_service import VideoUploadsService
+    from app.services.media_upload_service import MediaUploadsService
 
     async with AsyncSessionLocal() as session:
-        service = VideoUploadsService(cache, session)
+        service = MediaUploadsService(cache, session)
 
         definitive_post = Post(
             author_id=UUID(user_id),

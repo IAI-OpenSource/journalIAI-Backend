@@ -7,16 +7,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import status, WebSocket, WebSocketDisconnect
 
 from app.cache.helpers.base import CacheWrapper
-from app.cache.uploads_cache import VideoUploadsCache
+from app.cache.uploads_cache import MediaUploadsCache
 from app.db.models.post import Post
 from app.db.models.post_media import PostMedia
+from app.db.models.user import User
 from app.globals.messages import Messages
 from app.repositories.post_video_repository import PostVideoRepository
-from app.schemas.upload_schemas import CreateVideoUploadIntent, UploadURLSchema, VideoUploadCompleteSchema, \
-    WsPostProcessingInfoSchema, WsPostProcessingInfoSchemaSteps, CreateVideoUploadIntentFullData
+from app.schemas.post_upload_schemas import CreateMediaUploadIntent, UploadURLSchema, MediaUploadCompleteSchema, \
+    WsPostProcessingInfoSchema, WsPostProcessingInfoSchemaSteps, CreateMediaUploadIntentFullData
 from app.services import ServiceResult
 
-from app.storage.post_video_storage import PostVideoStorage
+from app.storage.post_video_storage import PostUploadStorage
 from app.worker.celery_app import celery_app
 from app.worker.tasks.workers_task_names import WorkersTaskNames
 
@@ -24,46 +25,50 @@ logger = getLogger(__name__)
 
 
 def generate_random_intent_id(longueur: int) -> str:
-    """Genere un ID unique pour un intent d'upload video."""
+    """Genere un ID unique pour un intent d'upload média."""
     return secrets.token_hex(longueur)
 
 def get_mock_data() -> tuple[UUID, UUID]:
     """Génére des données mock pour les tests"""
     return UUID("5f594ab3-2560-4e5b-adbe-f20e5dd8e193"), UUID("74910788-e47d-483d-b24f-750c7b24e3d6")
 
-class VideoUploadsService:
+class MediaUploadsService:
 
     def __init__(self, cache: CacheWrapper, bd: AsyncSession):
-        self._cache = VideoUploadsCache(cache)
+        self._cache = MediaUploadsCache(cache)
         self._bd = PostVideoRepository(bd)
 
 
-    async def service_process_video_upload_intent(
-        self, user_id: str, intent_data: CreateVideoUploadIntent
+    async def service_process_media_upload_intent(
+        self, current_user: User, intent_data: CreateMediaUploadIntent
     ) -> ServiceResult[UploadURLSchema]:
         """
-        Logique métier pour process un intent d'upload video
+        Logique métier pour process un intent d'upload média
         Args:
-            user_id: Id de l'utilisateur
-            intent_data: Le données de l'intent d'upload à enregistrer, conformes au schéma CreateVideoUploadIntent
+            current_user: L'utilisateur courant
+            intent_data: Le données de l'intent d'upload à enregistrer, conformes au schéma CreateMediaUploadIntent
 
         Returns:
             ServiceResult indiquant le succès ou l'échec de l'opération, avec un message approprié
         """
         random_intent_id = generate_random_intent_id(16)
 
-        upload_url = PostVideoStorage.get_video_upload_intent_presigned_upload_url(random_intent_id,
-                                                                                   intent_data.file_name)
+        if intent_data.is_video:
+            upload_url = PostUploadStorage.get_video_upload_intent_presigned_upload_url(random_intent_id,
+                                                                                    intent_data.file_name)
+        else:
+            upload_url = PostUploadStorage.get_image_upload_intent_presigned_upload_url(random_intent_id,
+                                                                                    intent_data.file_name)
 
         if not upload_url:
-            logger.error("Erreur lors de la génération de l'URL d'upload pour l'intent d'upload video")
+            logger.error("Erreur lors de la génération de l'URL d'upload pour l'intent d'upload")
             return ServiceResult.service_error(message=Messages.ERROR_UPLOAD_URL_GENERATION, status_code=500)
 
-        logger.info(f"URL d'upload générée avec succès pour l'intent d'upload video générée avec succès")
+        logger.info(f"URL d'upload générée avec succès pour l'intent d'upload")
 
 
         # TODO: Revoir ces mocks data et cette logique apres
-        full_data = CreateVideoUploadIntentFullData.model_validate(intent_data.model_dump(), from_attributes=True)
+        full_data = CreateMediaUploadIntentFullData.model_validate(intent_data.model_dump(), from_attributes=True)
         if full_data.club_id:
             full_data.academic_year_id, full_data.classe_id = None, None     # Sécurisation
 
@@ -81,14 +86,7 @@ class VideoUploadsService:
             full_data.academic_year_id = None
             full_data.classe_id = None
 
-
-
-
-
-
-
-
-        await self._cache.save_video_upload_intent(user_id, random_intent_id, full_data)
+        await self._cache.save_media_upload_intent(str(current_user.id), random_intent_id, full_data)
 
         data_to_return = UploadURLSchema(upload_url=upload_url, intent_id=random_intent_id)
 
@@ -134,27 +132,30 @@ class VideoUploadsService:
             return ServiceResult.service_error(message=error, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-    async def service_verify_complete_video_upload(self, user_id: str, intent_id: str) -> ServiceResult[VideoUploadCompleteSchema]:
+    async def service_verify_complete_media_upload(self, current_user: User, intent_id: str) -> ServiceResult[MediaUploadCompleteSchema]:
         """
-        Logique métier pour finaliser un upload de vidéo et lancer une tache de traitement dans le worker
+        Logique métier pour finaliser un upload de média et lancer une tache de traitement dans le worker
         Args:
-            user_id: Id de l'utilisateur
-            intent_id: Id de l'intent d'upload video
+            current_user: L'utilisateur courant
+            intent_id: Id de l'intent d'upload media
         Returns:
             ServiceResult indiquant le succès ou l'échec de l'opération, avec un message approprié
         """
-        intent_data = await self._cache.get_video_upload_intent(user_id, intent_id)
+
+        user_id_str = str(current_user.id)
+
+        intent_data = await self._cache.get_media_upload_intent(user_id_str, intent_id)
 
         if not intent_data:
-            return ServiceResult.service_error(message=Messages.ERROR_VIDEO_UPLOAD_INTENT_NOT_FOUND, status_code=status.HTTP_404_NOT_FOUND)
+            return ServiceResult.service_error(message=Messages.ERROR_MEDIA_UPLOAD_INTENT_NOT_FOUND, status_code=status.HTTP_404_NOT_FOUND)
 
-        intent_file_metadata = PostVideoStorage.get_video_upload_intent_file_info(intent_id, intent_data.file_name)
+        intent_file_metadata = PostUploadStorage.get_video_upload_intent_file_info(intent_id, intent_data.file_name)
 
         if not intent_file_metadata:
-            return ServiceResult.service_error(message=Messages.ERROR_VIDEO_UPLOAD_INTENT_NOT_FOUND, status_code=status.HTTP_404_NOT_FOUND)
+            return ServiceResult.service_error(message=Messages.ERROR_MEDIA_UPLOAD_INTENT_NOT_FOUND, status_code=status.HTTP_404_NOT_FOUND)
 
         await self._cache.add_upload_event_in_a_stream(
-            user_id=user_id, intent_id=intent_id,
+            user_id=user_id_str, intent_id=intent_id,
             data=WsPostProcessingInfoSchema(
                step=WsPostProcessingInfoSchemaSteps.IN_QUEUE,
                progress=0,
@@ -164,52 +165,52 @@ class VideoUploadsService:
             must_add_ttl=True
         )
 
-
         celery_app.send_task(
-            name=WorkersTaskNames.PROCESS_VIDEO,
+            name=WorkersTaskNames.PROCESS_VIDEO if intent_data.is_video else WorkersTaskNames.PROCESS_IMAGE,
             kwargs={
                 "raw_object_name": intent_file_metadata.object_name,
                 "raw_bucket_name": intent_file_metadata.bucket_name,
                 "intent_id": intent_id,
-                "user_id": user_id,
+                "user_id": user_id_str,
                 "post_data": intent_data.model_dump_json()
 
             }
         )
 
-        await self._cache.delete_video_upload_intent(user_id, intent_id)    # Marque comme déja en cours de process
+        await self._cache.delete_media_upload_intent(user_id_str, intent_id)  # Marque comme déja en cours de process
 
 
         return ServiceResult.service_success(
-            data=VideoUploadCompleteSchema(
+            data=MediaUploadCompleteSchema(
                 job_id=intent_id
             )
         )
 
 
-    async def service_listen_video_processing_intent(self, user_id: str, intent_id: str, ws: WebSocket) -> None:
+    async def service_listen_media_processing_intent(self, current_user: User, intent_id: str, ws: WebSocket) -> None:
         """
-        Suis l'avancée d'un intent d'upload video en écoutant les messages de progression du post-traitement de la
-        vidéo dans le cache, et retourne les infos de progression à l'utilisateur via le websocket
+        Suis l'avancée d'un intent d'upload de média en écoutant les messages de progression du post-traitement du
+        média dans le cache, et retourne les infos de progression à l'utilisateur via le websocket
         Args:
-            user_id: Id de l'utilisateur
-            intent_id: Id de l'intent d'upload video
+            current_user: L'utilisateur courant
+            intent_id: Id de l'intent d'upload média
             ws: Websocket de suivi
 
         Returns:
             Jsp encore
         """
-        verification = await self._cache.verify_a_upload_is_in_processing(user_id, intent_id)
+        user_id_str = str(current_user.id)
+        verification = await self._cache.verify_a_upload_is_in_processing(user_id_str, intent_id)
 
         try:
             if not verification:
-                logger.info(f"Aucun upload en cours de post-traitement trouvé pour l'intent d'upload video avec id {intent_id} et user_id {user_id}")
+                logger.info(f"Aucun upload en cours de post-traitement trouvé pour l'intent d'upload média avec id {intent_id} et user_id {user_id_str}")
                 await ws.send_text(
                     WsPostProcessingInfoSchema(
                         progress=0,
                         step=WsPostProcessingInfoSchemaSteps.UNKNOWN,
                         timestamp=0,
-                        error_message=Messages.ERROR_VIDEO_UPLOAD_INTENT_NOT_FOUND
+                        error_message=Messages.ERROR_MEDIA_UPLOAD_INTENT_NOT_FOUND
                     ).model_dump_json()
                 )
                 return
@@ -220,16 +221,16 @@ class VideoUploadsService:
             has_finished = False
 
             while attempts < MAX_WAIT_ATEMPT and not has_finished:
-                res = await self._cache.read_upload_progress_event_in_a_stream(user_id, intent_id, last_id)
+                res = await self._cache.read_upload_progress_event_in_a_stream(user_id_str, intent_id, last_id)
 
                 progress_data, last_id = res
 
                 if progress_data is None:
                     attempts+=1
-                    logger.debug(f"Aucun nouvel événement de progression trouvé pour l'intent d'upload video avec id {intent_id} et user_id {user_id}, tentative {attempts+1}/{MAX_WAIT_ATEMPT}")
+                    logger.debug(f"Aucun nouvel événement de progression trouvé pour l'intent d'upload média avec id {intent_id} et user_id {user_id_str}, tentative {attempts+1}/{MAX_WAIT_ATEMPT}")
                     continue
 
-                logger.info(f"Nouvel événement de progression trouvé pour l'intent d'upload video avec id {intent_id} et user_id {user_id}, étape: {res[0].step}, progression: {res[0].progress}%, timestamp: {res[0].timestamp}, message d'erreur: {res[0].error_message}")
+                logger.info(f"Nouvel événement de progression trouvé pour l'intent d'upload média avec id {intent_id} et user_id {user_id_str}, étape: {res[0].step}, progression: {res[0].progress}%, timestamp: {res[0].timestamp}, message d'erreur: {res[0].error_message}")
 
 
                 await ws.send_json(progress_data.model_dump_json())
@@ -239,11 +240,11 @@ class VideoUploadsService:
                     break
 
             if has_finished:
-                logger.info(f"Traitement de l'intent d'upload video avec id {intent_id} et user_id {user_id} terminé, fermeture du websocket")
-                await self._cache.delete_upload_progress_stream(user_id, intent_id)   # Nettoyage du stream après la fin du suivi
+                logger.info(f"Traitement de l'intent d'upload média avec id {intent_id} et user_id {user_id_str} terminé, fermeture du websocket")
+                await self._cache.delete_upload_progress_stream(user_id_str, intent_id)   # Nettoyage du stream après la fin du suivi
 
             else:
-                logger.error(f"Nombre maximum de tentatives atteint pour la lecture su stream d'upload video avec id {intent_id} et user_id {user_id}, fermeture du websocket")
+                logger.error(f"Nombre maximum de tentatives atteint pour la lecture su stream d'upload média avec id {intent_id} et user_id {user_id_str}, fermeture du websocket")
                 await ws.send_json(
                     WsPostProcessingInfoSchema(
                         progress=0,
@@ -254,10 +255,10 @@ class VideoUploadsService:
                 )
 
         except WebSocketDisconnect:
-            logger.info(f"Websocket de suivi de l'intent d'upload video avec id {intent_id} et user_id {user_id} déconnecté par le client")
+            logger.info(f"Websocket de suivi de l'intent d'upload média avec id {intent_id} et user_id {user_id_str} déconnecté par le client")
             raise
         except Exception as e:
-            logger.exception(f"Exception {e.__class__.__name__} lors de l'écoute du websocket de suivi de l'intent d'upload video avec id {intent_id} et user_id {user_id} : {e}", exc_info=e)
+            logger.exception(f"Exception {e.__class__.__name__} lors de l'écoute du websocket de suivi de l'intent d'upload média avec id {intent_id} et user_id {user_id_str} : {e}", exc_info=e)
             try:
                 await ws.send_json(
                     WsPostProcessingInfoSchema(

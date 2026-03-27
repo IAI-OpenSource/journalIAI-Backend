@@ -11,12 +11,12 @@ from app.storage.minio_config import BucketName
 
 logger = getLogger(__name__)
 
-class PostVideoStorage:
+class PostUploadStorage:
 
     @staticmethod
     def get_video_upload_intent_presigned_upload_url(intent_id: str, filename: str) -> Optional[str]:
         """
-        Crée une url présignée d'upload
+        Crée une url présignée d'upload pour un intent d'upload video.
         Args:
             intent_id: Id de l'intent
             filename: Le nom du fichier
@@ -34,13 +34,45 @@ class PostVideoStorage:
             upload_url = minio_client.presigned_put_object(
                 BucketName.POSTS_RAW_UPLOADS.value,
                 bucket_object_key,
-                timedelta(seconds=CacheDurartion.VIDEO_UPLOAD_INTENT_DURATION.value)
+                timedelta(seconds=CacheDurartion.UPLOAD_INTENT_DURATION.value)
             )
             return upload_url
 
         except Exception as e:
             logger.exception(
                 f"Exception {e.__class__.__name__} lors de la génération de l'URL d'upload pour un intent d'upload video : {e}",
+                exc_info=e
+            )
+            return None
+
+    @staticmethod
+    def get_image_upload_intent_presigned_upload_url(intent_id: str, filename: str) -> Optional[str]:
+        """
+        Crée une url présignée d'upload pour un intent d'upload image.
+        Args:
+            intent_id: Id de l'intent
+            filename: Le nom du fichier
+        Returns:
+            L'url d'upload, None est cas d'erreur
+        """
+        try:
+            bucket_object_key = BucketFilesUtils.generate_object_path_for_raw_image(
+                intent_id=intent_id,
+                filename=filename
+            )
+
+            minio_client = MinioClientFactory.get_public_client()
+
+            upload_url = minio_client.presigned_put_object(
+                BucketName.POSTS_RAW_UPLOADS.value,
+                bucket_object_key,
+                timedelta(seconds=CacheDurartion.UPLOAD_INTENT_DURATION.value)
+            )
+            return upload_url
+
+        except Exception as e:
+            logger.exception(
+                f"Exception {e.__class__.__name__} lors de la génération de l'URL d'upload pour un intent d'upload image : {e}",
                 exc_info=e
             )
             return None

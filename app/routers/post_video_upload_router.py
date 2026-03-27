@@ -11,8 +11,8 @@ from app.db.models.enums import SexeType
 from app.db.models.user import User
 from app.db.session import get_db
 from app.globals.api_tags import ApiTags
-from app.schemas.upload_schemas import VideoUploadIntentResponse, CreateVideoUploadIntent, VideoUploadCompleteResponse
-from app.services.video_upload_service import VideoUploadsService
+from app.schemas.post_upload_schemas import PostMediaUploadIntentResponse, CreateMediaUploadIntent, PostMediaUploadCompleteResponse
+from app.services.media_upload_service import MediaUploadsService
 
 router = APIRouter(prefix="/post_video_upload")
 
@@ -39,28 +39,28 @@ async def get_mock_user():
 # TODO: Revoir tout ce fichier quand l'auth sera dispo et re-tester, principalement verifier si l'utilisateur peut post
 
 @router.post(
-    path="/intent", name="Générer un intent d'upload de vidéo pour un post",
-    response_model=VideoUploadIntentResponse, tags=[ApiTags.POSTS, ApiTags.UPLOADS]
+    path="/intent", name="Générer un intent d'upload de média pour un post",
+    response_model=PostMediaUploadIntentResponse, tags=[ApiTags.POSTS, ApiTags.UPLOADS]
 )
-async def post_video_upload_intent(
-    request_data: CreateVideoUploadIntent, response: Response, cache : CacheWrapper = Depends(get_redis),
+async def post_unique_media_upload_intent(
+    request_data: CreateMediaUploadIntent, response: Response, cache : CacheWrapper = Depends(get_redis),
     bd: AsyncSession = Depends(get_db), current_user: User = Depends(get_mock_user)
 ):
     """
-    Endpoint pour générer un intent d'upload de vidéo pour un post, en fournissant les informations nécessaires
-    pour initier un upload de vidéo. L'endpoint valide les données d'entrée, génère une URL d'upload
-    pré-signée, c'est sur cette Url que vous allez upload le fichier vidéo du post
+    Endpoint pour générer un intent d'upload de média pour un post, en fournissant les informations nécessaires
+    pour initier un upload de média. L'endpoint valide les données d'entrée, génère une URL d'upload
+    pré-signée, c'est sur cette Url que vous allez upload le fichier média du post
     """
 
-    service = VideoUploadsService(cache=cache, bd=bd)
+    service = MediaUploadsService(cache=cache, bd=bd)
 
-    res = await service.service_process_video_upload_intent(str(current_user.id), request_data)
+    res = await service.service_process_media_upload_intent(current_user, request_data)
 
     return res.to_HTTP_api_base_response(response)
 
 @router.post(
-    path="/complete_video_post", name="Finaliser un post vidéo",
-    tags=[ApiTags.POSTS, ApiTags.UPLOADS], response_model=VideoUploadCompleteResponse
+    path="/complete_video_post", name="Finaliser un post unique de média",
+    tags=[ApiTags.POSTS, ApiTags.UPLOADS], response_model=PostMediaUploadCompleteResponse
 )
 async def complete_video_post(
     response: Response,
@@ -68,36 +68,36 @@ async def complete_video_post(
     cache : CacheWrapper = Depends(get_redis), bd: AsyncSession = Depends(get_db), current_user: User = Depends(get_mock_user)
 ):
     """
-    Route pour confirmé l'upload du post vidéo, vous ferrez une requete
-    sur cette route après avoir uploadé totalement le fichier
+    Route pour confirmé l'upload du post média, vous ferrez une requete
+    sur cette route après avoir uploadé totalement le fichier sur l'url délivré précedemment
     """
 
-    service = VideoUploadsService(cache=cache, bd=bd)
+    service = MediaUploadsService(cache=cache, bd=bd)
 
-    verification = await service.service_verify_complete_video_upload(str(current_user.id), str(intent_id))
+    verification = await service.service_verify_complete_media_upload(current_user, intent_id)
 
     return verification.to_HTTP_api_base_response(response)
 
 
-@router.websocket(path="/ws/post_processing_info", name="Websocket de suivi du post-traitement d'une vidéo uploadée")
+@router.websocket(path="/ws/post_processing_info", name="Websocket de suivi du post-traitement d'une média uploadée")
 async def ws_post_processing_info(
     websocket: WebSocket,
-    intent_id: str = Query(..., description="L'id d'intent d'upload de vidéo pour lequel on veut suivre le post-traitement"),
+    intent_id: str = Query(..., description="L'id d'intent d'upload de média pour lequel on veut suivre le post-traitement"),
     cache : CacheWrapper = Depends(get_redis), bd: AsyncSession = Depends(get_db), current_user: User = Depends(get_mock_user)
 ):
     """
-    Websocket pour suivre le post-traitement d'une vidéo uploadée, vous devez vous connecter à ce
-    websocket après avoir confirmé l'upload de la vidéo via l'endpoint /complete_video_post, et fournir
-    l'id d'intent d'upload de vidéo pour lequel vous voulez suivre le post-traitement, vous recevrez des
-    messages de suivi indiquant l'étape actuelle du post-traitement (verification ou processing), le pourcentage de
-    progression et un timestamp, en cas d'échec vous recevrez un message d'erreur dans le champ 'error_message'
+    Websocket pour suivre le post-traitement d'un média uploadée, vous devez vous connecter à ce
+    websocket après avoir confirmé l'upload de la média via l'endpoint `je mets çà après`, et fournir
+    l'id d'intent d'upload de média pour lequel vous voulez suivre le post-traitement, vous recevrez des
+    messages de suivi indiquant l'étape actuelle du post-traitement (verification, processing..), le pourcentage de
+    progression et un timestamp, en cas d'échec vous recevrez un message d'erreur dans le champ `error_message`
     et le suivi sera terminé
     """
-    service = VideoUploadsService(cache=cache, bd=bd)
+    service = MediaUploadsService(cache=cache, bd=bd)
 
     await websocket.accept()
 
     try:
-        await service.service_listen_video_processing_intent(str(current_user.id), intent_id, websocket)
+        await service.service_listen_media_processing_intent(str(current_user.id), intent_id, websocket)
     except WebSocketDisconnect:
         pass

@@ -7,10 +7,10 @@ from uuid import uuid4
 from celery import shared_task
 
 from app.cache.helpers.base import cache_manager
-from app.cache.uploads_cache import VideoUploadsCache
+from app.cache.uploads_cache import MediaUploadsCache
 from app.globals.messages import Messages
-from app.schemas.upload_schemas import WsPostProcessingInfoSchema, WsPostProcessingInfoSchemaSteps, \
-     CreateVideoUploadIntentFullData
+from app.schemas.post_upload_schemas import WsPostProcessingInfoSchema, WsPostProcessingInfoSchemaSteps, \
+     CreateMediaUploadIntentFullData
 from app.storage.bucket_files_utils import BucketFilesUtils
 from app.storage.minio_config import BucketName
 from app.worker.tasks.async_loop_manager import task_async_loop_manager
@@ -44,7 +44,7 @@ def process_video_task(
         est uploadé dans le bucket Minio et lié à l'intent d'upload video grâce à l'id de l'intent fourni en argument
     """
 
-    post_data: CreateVideoUploadIntentFullData = CreateVideoUploadIntentFullData.model_validate_json(post_data)
+    post_data: CreateMediaUploadIntentFullData = CreateMediaUploadIntentFullData.model_validate_json(post_data)
     local_raw_path = f"/tmp/{uuid4()}_raw"
     local_processed_dir = f"/tmp/{uuid4()}_processed_files"
     os.makedirs(local_processed_dir, exist_ok=True)
@@ -52,7 +52,7 @@ def process_video_task(
     final_bucket_thumbnail_path = BucketFilesUtils.generate_objects_path_for_video_thumbnail(intent_id)
     local_thumbnail_path = None
     redis_cache = cache_manager.get_redis_connection_from_pool()
-    upload_cache = VideoUploadsCache(redis_cache)
+    upload_cache = MediaUploadsCache(redis_cache)
     global_progress_pourcentage = 0
 
     progression = WsPostProcessingInfoSchema(

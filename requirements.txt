@@ -16,3 +16,4 @@ redis[asyncio,hiredis]
 alembic-postgresql-enum
 minio
 python-magic
+Pillow

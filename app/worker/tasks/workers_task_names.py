@@ -11,3 +11,5 @@ class WorkersTaskNames:
     SAVE_AUDIT_LOG: str = "audit_log.create"
 
     PROCESS_VIDEO: str = "uploads.process_video"
+
+    PROCESS_IMAGE: str = "uploads.process_image"

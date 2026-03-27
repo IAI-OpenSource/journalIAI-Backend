@@ -6,5 +6,5 @@ class CacheDurartion(int, enum):
 
   USER_DURATION = 1500 # 25 min
   SESSION_DURATION = 1200 # 20 min
-  VIDEO_UPLOAD_INTENT_DURATION = 60 * 60 * 24 # Une Journée
-  VIDEO_UPLOAD_PROGRESS_STREAM_DURATION = 60 * 60 * 2 # Deux heures, je supposes que le traitement ne deppassera pas 2h
+  UPLOAD_INTENT_DURATION = 60 * 60 * 24 # Une Journée
+  UPLOAD_PROGRESS_STREAM_DURATION = 60 * 60 * 2 # Deux heures, je supposes que le traitement ne deppassera pas 2h

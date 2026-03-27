@@ -5,9 +5,10 @@ from pydantic import BaseModel, Field
 
 from uuid import UUID
 
+from app.db.models.enums import MediaType
 from app.schemas import ApiBaseResponse
 
-class CreateVideoUploadIntent(BaseModel):
+class CreateMediaUploadIntent(BaseModel):
     """Schéma de validation pour un intent d'upload de fichier, contenant les informations nécessaires pour initier un upload de fichier, comme le nom du fichier, son type et sa taille"""
 
     file_name: str = Field(description="Le nom du fichier à uploader, incluant son extension")
@@ -26,8 +27,13 @@ class CreateVideoUploadIntent(BaseModel):
                     " de l'école, QUAND CE ATTRIBUT EST A True `for_current_academic_year` LE DEVIENT AUSSI AUTOMATIQUEMENT "
                     "DONC PLUS LA PEINE DE LE PASSER (`for_current_academic_year` SERA TOUJOURS TRUE QUAND `only_for_a_class` EST TRUE)"
     )
+    media_type: MediaType = Field(description="Le type de média du fichier à uploader")
 
-class CreateVideoUploadIntentFullData(CreateVideoUploadIntent):
+    @property
+    def is_video(self) -> bool:
+        return self.media_type == MediaType.VIDEO
+
+class CreateMediaUploadIntentFullData(CreateMediaUploadIntent):
     academic_year_id: Optional[UUID] = Field(None)
     classe_id: Optional[UUID] = Field(None)
 
@@ -40,11 +46,11 @@ class UploadURLSchema(BaseModel):
                     "vous allez faire beaucoup de choses avec🤣"
     )
 
-class VideoUploadCompleteSchema(BaseModel):
+class MediaUploadCompleteSchema(BaseModel):
     job_id: str = Field(
-        description="L'id du job de post-traitement qui a été lancé pour traiter la vidéo uploadée, vous "
-                    "pouvez utiliser cet id pour suivre l'état de traitement de la vidéo via le websocket"
-                    " de suivi PS: C'est intent_id juste renommé"
+        description="L'id du job de post-traitement qui a été lancé pour traiter le média uploadée, vous "
+                    "pouvez utiliser cet id pour suivre l'état de traitement du post via le websocket"
+                    " de suivi. PS: C'est intent_id juste renommé"
     )
 
 class WsPostProcessingInfoSchemaSteps(str, Enum):
@@ -68,10 +74,10 @@ class WsPostProcessingInfoSchema(BaseModel):
                     " après çà ékpa, mission échouée"
     )
 
-class VideoUploadIntentResponse(ApiBaseResponse):
+class PostMediaUploadIntentResponse(ApiBaseResponse):
 
     result: Optional[UploadURLSchema]
 
-class VideoUploadCompleteResponse(ApiBaseResponse):
+class PostMediaUploadCompleteResponse(ApiBaseResponse):
 
-    result: Optional[VideoUploadCompleteSchema]
+    result: Optional[MediaUploadCompleteSchema]
