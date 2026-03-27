@@ -39,7 +39,8 @@ async def get_events_paginated(
     cursor: Annotated[Optional[UUID], Query(description="L'identifiant du dernier event récupéré (Optionnel)")] = None,
     limit: Annotated[int, Query(description="Le nombre maximum d'events à récupérer, par défaut à 10", gt=0, le=100)] = 10
 ) -> Any:
-    """Endpoint pour récupérer les events avec pagination par curseur."""
+    """Endpoint pour récupérer les events avec pagination par curseur. Le client peut fournir un `cursor`
+     (ID du dernier event récupéré) et une `limit` pour contrôler le nombre d'events retournés. Si aucun cursor n'est fourni, la pagination commence depuis le début de la liste."""
     event_service = EventService(db, redis)
     result = await event_service.service_get_events_paginated(cursor=cursor, limit=limit)
     return result.to_HTTP_api_base_response(reponse)
