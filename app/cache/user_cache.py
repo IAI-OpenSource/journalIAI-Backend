@@ -135,7 +135,7 @@ class UserCache:
       
       await self.user_cache.save_dict_in_cache(
         key=cache_key,
-        value={"otp": user_mail},
+        value={"otp": otp},
         expire_seconds=ttl
       )
             
