@@ -22,20 +22,13 @@ async def get_all_events(
     db: AsyncSession = Depends(get_db),
     redis=Depends(get_redis)
 ) -> Any:
-    """Endpoint pour récupérer tous les events.
-
-    Args:
-        db (AsyncSession): La session de base de données, injectée par FastAPI.
-
-    Returns:
-        EventRead: La liste de tous les events.
-    """
+    """Endpoint pour récupérer tous les events."""
     event_service = EventService(db, redis)
     result = await event_service.service_find_all_event()
     return result.to_HTTP_api_base_response(reponse)
 
 
-@routeur.get("/paginated/", name="Récupérer les events avec pagination",response_model=ApiEventListReponse)
+@routeur.get("/paginated/", name="Récupérer les events avec pagination",response_model=ApiEventListReponse,description="cursor (Optional[UUID]): L'identifiant du dernier event récupéré.limit (int): Le nombre maximum d'events à récupérer.")
 async def get_events_paginated(
     reponse: Response,
     db: AsyncSession = Depends(get_db),
@@ -43,16 +36,7 @@ async def get_events_paginated(
     cursor: Optional[UUID] = None,
     limit: int = 10
 ) -> Any:
-    """Endpoint pour récupérer les events avec pagination par curseur.
-
-    Args:
-        cursor (Optional[UUID]): L'identifiant du dernier event récupéré.
-        limit (int): Le nombre maximum d'events à récupérer.
-        db (AsyncSession): La session de base de données, injectée par FastAPI.
-
-    Returns:
-        EventListReponse: La liste des events avec le curseur suivant.
-    """
+    """Endpoint pour récupérer les events avec pagination par curseur."""
     event_service = EventService(db, redis)
     result = await event_service.service_get_events_paginated(cursor=cursor, limit=limit)
     return result.to_HTTP_api_base_response(reponse)
@@ -65,15 +49,7 @@ async def get_events_by_statut(
     db: AsyncSession = Depends(get_db),
     redis=Depends(get_redis)
 ) -> Any:
-    """Endpoint pour récupérer les events par statut.
-
-    Args:
-        statut (EventStatus): Le statut des events à récupérer.
-        db (AsyncSession): La session de base de données, injectée par FastAPI.
-
-    Returns:
-        EventRead: La liste des events correspondant au statut.
-    """
+    """Endpoint pour récupérer les events par statut."""
     event_service = EventService(db, redis)
     result = await event_service.service_find_event_by_statut(statut=statut)
     return result.to_HTTP_api_base_response(reponse)
@@ -86,15 +62,7 @@ async def get_event_by_id(
     db: AsyncSession = Depends(get_db),
     redis=Depends(get_redis)
 ) -> Any:
-    """Endpoint pour récupérer un event par son ID.
-
-    Args:
-        event_id (UUID): L'identifiant de l'event à récupérer.
-        db (AsyncSession): La session de base de données, injectée par FastAPI.
-
-    Returns:
-        EventRead: Les données de l'event ou une erreur si l'event n'est pas trouvé.
-    """
+    """Endpoint pour récupérer un event par son ID.    """
     event_service = EventService(db, redis)
     result = await event_service.service_find_event_by_id(event_id=event_id)
     return result.to_HTTP_api_base_response(reponse)
@@ -107,15 +75,7 @@ async def create_event(
     db: AsyncSession = Depends(get_db),
     redis=Depends(get_redis)
 ) -> Any:
-    """Endpoint pour créer un event.
-
-    Args:
-        payload (EventCreate): Les données de l'event à créer.
-        db (AsyncSession): La session de base de données, injectée par FastAPI.
-
-    Returns:
-        EventRead: Les données de l'event créé.
-    """
+    """Endpoint pour créer un event."""
     event_service = EventService(db, redis)
     result = await event_service.service_create_event(event_data=payload)
     return result.to_HTTP_api_base_response(reponse)
@@ -129,16 +89,7 @@ async def update_event(
     db: AsyncSession = Depends(get_db),
     redis=Depends(get_redis)
 ) -> Any:
-    """Endpoint pour mettre à jour un event.
-
-    Args:
-        event_id (UUID): L'identifiant de l'event à mettre à jour.
-        payload (EventUpdate): Les données de l'event à mettre à jour.
-        db (AsyncSession): La session de base de données, injectée par FastAPI.
-
-    Returns:
-        EventRead: Les données de l'event mis à jour.
-    """
+    """Endpoint pour mettre à jour un event."""
     event_service = EventService(db, redis)
     result = await event_service.service_update_event(event_id=event_id, event_data=payload)
     return result.to_HTTP_api_base_response(reponse)
@@ -151,15 +102,7 @@ async def delete_event(
     db: AsyncSession = Depends(get_db),
     redis=Depends(get_redis)
 ) -> Any:
-    """Endpoint pour supprimer un event (soft delete).
-
-    Args:
-        event_id (UUID): L'identifiant de l'event à supprimer.
-        db (AsyncSession): La session de base de données, injectée par FastAPI.
-
-    Returns:
-        None: Une réponse vide avec un code de statut indiquant le résultat.
-    """
+    """Endpoint pour supprimer un event (soft delete)."""
     event_service = EventService(db, redis)
     result = await event_service.service_delete_event(event_id=event_id)
     return result.to_HTTP_api_base_response(reponse)
