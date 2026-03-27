@@ -34,6 +34,8 @@ class AvailableCacheKeys(str, Enum):
 
     # Clés de cache pour les événements
     EVENT_OBJECT = BaseCacheEntity.EVENT  # Clé pour un événement spécifique
+    EVENT_LIST = BaseCacheEntity.EVENT + ":list"               # pagination
+    EVENT_BY_STATUS = BaseCacheEntity.EVENT + ":status"        # filtrage par statut
 
 
     # Clés de cache pour les sessions

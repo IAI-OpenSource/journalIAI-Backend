@@ -21,6 +21,18 @@ class Messages:
     LOGOUT_SUCCESSFUL = "Déconnexion réussie."
     PROFILE_UPDATED_SUCCESSFULLY = "Profil mis à jour avec succès."
     INVALID_SESSION = "Session invalide"
+
+    EVENT_SERVICE = "Service Events"
+    EVENT_NOT_FOUND = "Event non trouvé."
+    DELETED_EVENT = "Event est supprimé"
+    EVENTS_NOT_FOUND = "Aucun event trouver" #Si il y a aucun event en cours 
+    EVENT_DELETE_FAILED = "Erreur lors de la suppression de l'événement"
+    EVENT_PAGINATION_ERROR = "Erreur validation events paginés"
+    EVENT_DELETE_SUCCESS = "Event supprimé avec succès"
+    EVENT_UPDATE_SUCCES = "Event mis a jour avec succès"
+    EVENT_CREATE_SUCCES = "Event créé avec succès"
+    EVENT_ALREADY_EXISTS = 'Evenement deja existant'
+
     ERROR_UPLOAD_URL_GENERATION = "Erreur lors de la génération de l'URL d'upload"
     VIDEO_UPLOAD_INTENT_SAVED = "Intent d'upload video enregistré avec succès"
     ERROR_MEDIA_UPLOAD_INTENT_NOT_FOUND = "Intent d'upload média expirée ou inexistant"

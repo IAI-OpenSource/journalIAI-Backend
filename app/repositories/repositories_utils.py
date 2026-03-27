@@ -23,7 +23,6 @@ class RepositoriesUtils:
             Un objet CrudResult d'erreur
         """
         logger.exception(f"Exception {exception.__class__.__name__} : {exception}", exc_info=exception)
-        traceback.print_exc()
         await session.rollback()
         return CRUDResult.crud_error(message=Messages.INTERNAL_SERVER_ERROR, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
