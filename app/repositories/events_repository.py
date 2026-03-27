@@ -4,8 +4,8 @@ from sqlalchemy import select, update, insert
 from app.db.models.event import Event
 from app.db.models.enums import EventStatus  # corrigé : vient de enums
 from app.repositories.repositories_utils import RepositoriesUtils
-from app.schemas.events_schemas import EventCreate, EventUpdate, ApiEventListReponse, EventInfo
-from typing import List, Optional
+from app.schemas.events_schemas import EventCreate, EventUpdate
+from typing import List, Optional, Any, Sequence
 from uuid import UUID
 from datetime import datetime, timezone
 from . import CRUDResult
@@ -208,7 +208,7 @@ class EventRepository:
         except Exception as e:
             return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
 
-    async def get_events_paginated(self, cursor: Optional[UUID] = None, limit: int = 10) -> CRUDResult[List[Event]]:
+    async def get_events_paginated(self, cursor: Optional[UUID] = None, limit: int = 10) -> CRUDResult[dict[str, Sequence[Any] | None]]:
         """
         Récupère les événements avec pagination basée sur un curseur.
 
