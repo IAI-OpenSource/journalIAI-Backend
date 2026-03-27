@@ -11,6 +11,7 @@ from uuid import UUID
 from sqlalchemy import insert, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 
 from app.db.models.registration_jeton import RegistrationJeton
 from app.globals.status_codes import StatusCode
@@ -18,6 +19,7 @@ from app.repositories.repositories_utils import RepositoriesUtils
 from app.schemas.registration_schemas import CreateRegistration, FindRegistration
 from . import CRUDResult
 from app.globals.messages import Messages as msg
+from app.utils.jetons_utils import JetonUtils
 
 
 logger = logging.getLogger(__name__)
@@ -27,6 +29,40 @@ logger = logging.getLogger(__name__)
 class RegistrationRepository:
   
   db: AsyncSession
+  
+  
+  async def multiple_registration(self, users: list[dict]) -> CRUDResult[str]:
+    """function repository pour inserer plusieurs etudiants dans 
+      la table de registration token
+
+    Args:
+        users (list[dict]): on prends la liste des etudiants lu depuis 
+        le fichier excel
+
+    Returns:
+        CRUDResult[str]: on return un simple message de succés
+    """
+
+    try:
+      
+      stmt = (
+        insert(RegistrationJeton).values(users)
+      )
+      
+      await self.db.execute(stmt)
+      print(f"DEBUG: Tentative de commit de {len(users)} étudiants...")
+      await self.db.commit()
+      print("DEBUG: Commit terminé !")
+
+      logger.info("Plusieurs jetons ajoutée avec succès !")
+      return CRUDResult.crud_success("Plusieurs jetons ajoutée avec succès !", StatusCode._201_STATUS_CREATED.value)
+      
+    except IntegrityError as ie:
+      return await RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, RegistrationJeton)
+
+    except Exception as e:
+      return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
+
 
 
   async def insert_registration(self, reg_data: CreateRegistration) -> CRUDResult[RegistrationJeton]:
@@ -42,17 +78,28 @@ class RegistrationRepository:
     
     try:
       
+      ## génération du jeton
+      jeton = JetonUtils.generate_code_jeton(8)
+      
       stmt = (
         insert(RegistrationJeton)
-        .values(**reg_data.model_dump())
+        .values(
+          jeton=jeton,
+          first_name=reg_data.first_name.capitalize(),
+          last_name=reg_data.last_name.upper(),
+          role=reg_data.role,
+          sexe=reg_data.sexe,
+          classe_id=reg_data.classe_id
+        )
         .returning(RegistrationJeton)
       )
       
       result = await self.db.execute(stmt)
       db_reg = result.scalar_one()
       await self.db.commit()
+      await self.db.refresh(db_reg, attribute_names=["classe"])
 
-      logger.info("Session ajoutée avec succès !")
+      logger.info("Jeton ajoutée avec succès !")
       return CRUDResult.crud_success(db_reg, StatusCode._201_STATUS_CREATED.value)
       
     except IntegrityError as ie:
@@ -76,11 +123,9 @@ class RegistrationRepository:
       
       stmt = (
         select(RegistrationJeton)
+        .options(joinedload(RegistrationJeton.classe))
         .where(
           RegistrationJeton.jeton == find_reg_data.jeton,
-          RegistrationJeton.first_name == find_reg_data.first_name,
-          RegistrationJeton.last_name == find_reg_data.last_name,
-          RegistrationJeton.classe == find_reg_data.classe
         )
       )
       result = await self.db.execute(stmt)

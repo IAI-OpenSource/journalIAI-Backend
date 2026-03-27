@@ -1,8 +1,9 @@
 from datetime import timedelta
 from json import dumps, loads, JSONDecodeError
-from typing import Optional, AsyncGenerator, Any, AsyncIterator
+from typing import Optional, Any, AsyncIterator, AsyncGenerator, List, Tuple, Dict
 
 from pydantic import BaseModel, ValidationError
+from redis.asyncio.client import PubSub
 
 from app.cache.helpers.cache_keys import CacheKey
 from app.core.config import REDIS_URL
@@ -26,7 +27,9 @@ class CacheWrapper:
         return cle.key.value.format(**cle.args)
 
     @staticmethod
-    def _serialize(value: Any) -> str:
+    def _serialize(value: Any) -> Optional[str]:
+        if value is None:
+            return None
         if isinstance(value, BaseModel):
             return value.model_dump_json()
         if isinstance(value, (str, int, float)):
@@ -35,6 +38,24 @@ class CacheWrapper:
             return dumps(value)
         except TypeError:
             raise ValueError(f"Type de valeur non sérialisable pour le cache: {type(value)}")
+
+    @staticmethod
+    def _extract_and_decode_stream_messages(streams: dict) -> List[Tuple[str, Dict[str, Any]]]:
+        if not streams:
+            return []
+
+        return [
+            (
+                msg_id.decode() if isinstance(msg_id, bytes) else msg_id,
+                {
+                    k.decode() if isinstance(k, bytes) else k:
+                        v.decode() if isinstance(v, bytes) else v
+                    for k, v in data.items()
+                }
+            )
+            for _, messages in streams
+            for msg_id, data in messages
+        ]
 
     @staticmethod
     def _deserialize(value: str) -> Any:
@@ -245,7 +266,6 @@ class CacheWrapper:
                 raise ValueError(f"Erreur de désérialisation pour la clé {key}: la valeur récupérée n'est pas une liste")
         return None
 
-
     async def exists_in_cache(self, key: CacheKey) -> bool:
         """
         Vérifie si une clé de cache existe dans Redis
@@ -299,6 +319,7 @@ class CacheWrapper:
 
         return await self._connection.incr(self._format_cache_key(key), amount)
 
+
     async def decr_in_cache(self, key: CacheKey, amount: int = 1) -> int:
         """
         Décrémente une valeur numérique dans le cache de manière atomique
@@ -314,6 +335,154 @@ class CacheWrapper:
 
         return await self._connection.decr(self._format_cache_key(key), amount)
 
+
+    async def pub_sub_publish_message(self, channel: CacheKey, message: Any) -> int:
+        """
+        Publie un message sur un canal PubSub spécifique .
+        Args:
+            channel: La clé représentant le canal, définie dans CacheKey.
+            message: Le message à publier (sera sérialisé automatiquement).
+        Returns:
+            Le nombre d'abonnés ayant reçu le message.
+        """
+        serialized_msg = self._serialize(message)
+        return await self._connection.publish(self._format_cache_key(channel), serialized_msg)
+
+    def get_pubsub_instance(self) -> PubSub:
+        """
+        Retourne une instance PubSub pour s'abonner (subscribe) aux canaux.
+        Attention : Cette méthode n'est pas async, mais l'objet retourné s'utilise de manière asynchrone.
+        Returns:
+            Une instance PubSub configurée sur la connexion actuelle.
+        """
+        return self._connection.pubsub()
+
+    async def pub_sub_channel_listener(self, channel: CacheKey) -> AsyncGenerator[Any, None]:
+        """
+        Souscrit à un channel et écoute les messages, cette methode est async generator donc elle yield les messages reçus sur le channel de manière asynchrone.
+        Args:
+            channel: La clé représentant le canal, définie dans CacheKey.
+        Yields:
+            Les messages reçus sur le canal
+        """
+        pubsub = self._connection.pubsub()
+        await pubsub.subscribe(self._format_cache_key(channel))
+
+        try:
+            async for message in pubsub.listen():
+                if message["type"] != "message":
+                    continue
+
+                raw_data = message["data"]
+
+                if isinstance(raw_data, bytes):
+                    raw_data = raw_data.decode()
+
+                yield raw_data
+        finally:
+            await pubsub.unsubscribe(self._format_cache_key(channel))
+            await pubsub.close()
+
+
+    async def stream_add(self, key: CacheKey, fields: dict, maxlen: Optional[int] = 10000) -> str:
+        """
+        Ajoute une entrée dans un flux (Stream) Redis.
+        Args:
+            key: La clé du stream, définie dans CacheKey.
+            fields: Dictionnaire de données à insérer (les valeurs seront sérialisées).
+            maxlen: Limite la taille du stream (optimisation mémoire). Utilise l'approximation (~).
+        Returns:
+            L'ID généré par Redis pour le message (ex: '1518951480106-0').
+        """
+        # Redis attend des strings/bytes pour les champs du stream. On sécurise ça.
+        serialized_fields = {str(k): self._serialize(v) for k, v in fields.items()}
+
+        return await self._connection.xadd(
+            self._format_cache_key(key),
+            serialized_fields,
+            maxlen=maxlen,
+            approximate=True if maxlen else False
+        )
+
+    async def stream_read(self, key: CacheKey, count: int = 10, last_id: str = "0-0",
+                          block: Optional[int] = None) -> list:
+        """
+        Lit les messages d'un flux depuis un ID spécifique.
+        Args:
+            key: La clé du stream.
+            count: Nombre maximum de messages à lire.
+            last_id: L'ID à partir duquel lire (ex: '$' pour les nouveaux, '0-0' pour le début).
+            block: Temps en millisecondes pour bloquer si le stream est vide (None = non-bloquant).
+        Returns:
+            Liste des messages sous la forme d'un tableau de tuples.
+        """
+        stream_name = self._format_cache_key(key)
+        # xread prend un dictionnaire {stream_name: last_id}
+        stream_res = await self._connection.xread({stream_name: last_id}, count=count, block=block)
+
+        return self._extract_and_decode_stream_messages(stream_res)
+
+    async def stream_create_group(self, key: CacheKey, group_name: str, start_id: str = "$",
+                                  mkstream: bool = True) -> None:
+        """
+        Crée un groupe de consommateurs pour un stream (Idéal pour répartir la charge type Celery).
+        Args:
+            key: La clé du stream.
+            group_name: Nom du groupe de consommateurs.
+            start_id: '$' pour les messages futurs, '0' pour tout l'historique.
+            mkstream: Si True, crée le stream s'il n'existe pas encore.
+        Returns:
+            Que dalle.
+        """
+        try:
+            await self._connection.xgroup_create(
+                self._format_cache_key(key),
+                group_name,
+                id=start_id,
+                mkstream=mkstream
+            )
+        except Exception as e:
+            # Gère silencieusement l'erreur classique "BUSYGROUP Consumer Group name already exists"
+            if "BUSYGROUP" not in str(e):
+                raise
+
+    async def stream_read_group(self, key: CacheKey, group_name: str, consumer_name: str, count: int = 10,
+                                block: Optional[int] = None) -> list:
+        """
+        Lit les messages en tant que consommateur d'un groupe spécifique.
+        Args:
+            key: La clé du stream.
+            group_name: Le nom du groupe.
+            consumer_name: Le nom unique de ce worker/consommateur.
+            count: Nombre de messages à récupérer.
+            block: Bloque X ms en attendant de nouveaux messages (ex: 5000 pour 5s).
+        Returns:
+            Liste des messages récupérés par ce consommateur.
+        """
+        stream_name = self._format_cache_key(key)
+        # Le caractère '>' signifie : "donne moi les messages jamais assignés à un consommateur du groupe"
+        return await self._connection.xreadgroup(
+            group_name,
+            consumer_name,
+            {stream_name: ">"},
+            count=count,
+            block=block
+        )
+
+    async def stream_ack(self, key: CacheKey, group_name: str, *message_ids: str) -> int:
+        """
+        Acquitte (Acknowledge) un ou plusieurs messages lus dans un groupe.
+        Crucial pour ne pas les re-traiter.
+        Args:
+            key: La clé du stream.
+            group_name: Le nom du groupe.
+            message_ids: Les IDs Redis des messages traités avec succès.
+        Returns:
+            Le nombre de messages acquittés.
+        """
+        if not message_ids:
+            return 0
+        return await self._connection.xack(self._format_cache_key(key), group_name, *message_ids)
     async def close(self) -> None:
         """
         Ferme la connexion Redis associée à ce CacheWrapper

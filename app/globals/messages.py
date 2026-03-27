@@ -33,6 +33,10 @@ class Messages:
     EVENT_CREATE_SUCCES = "Event créé avec succès"
     EVENT_ALREADY_EXISTS = 'Evenement deja existant'
 
+    ERROR_UPLOAD_URL_GENERATION = "Erreur lors de la génération de l'URL d'upload"
+    VIDEO_UPLOAD_INTENT_SAVED = "Intent d'upload video enregistré avec succès"
+    ERROR_MEDIA_UPLOAD_INTENT_NOT_FOUND = "Intent d'upload média expirée ou inexistant"
+    
     # Messages des noms des services 
     INSERT_SESSSION = "Service: Insertion Session"
     DELETE_SESSION = "Service: Suppression Session"
@@ -40,6 +44,7 @@ class Messages:
     UNKNOWN_SERVICE = "Service Inconnu"
     REGISTRATION_JETON = "Régistration de jeton"
     READ_REGISTRATION = "Lecture régistration jeton"
+    UNAUTHORIZED_JETON = "Ce Jeton est invalide"
     USER_SERVICE = "Service Utilisateur"
     
     

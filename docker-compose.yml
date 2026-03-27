@@ -43,6 +43,11 @@ services:
       environment:
         MINIO_ROOT_USER: ${MINIO_ROOT_USER}
         MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+        MINIO_BROWSER_REDIRECT_URL: ${MINIO_BROWSER_REDIRECT_URL}
+        MINIO_SERVER_URL: ${MINIO_SERVER_URL}
+      extra_hosts:
+        - "media.iai-journal.test:host-gateway"   # résout vers la machine host → Nginx → minio:9000
+        - "console.iai-journal.test:host-gateway" # idem pour la console
       ports:
         - "${MINIO_API_PORT}:9000"
         - "${MINIO_CONSOLE_PORT}:9001"
@@ -56,7 +61,16 @@ services:
         retries: 10
         start_period: 60s
       restart: unless-stopped
-
+  minio-init:
+    build: .
+    container_name: journal_IAI_minio_init
+    volumes:
+      - .:/app
+    command: python -m app.storage.minio_config
+    depends_on:
+      minio:
+        condition: service_healthy
+    restart: "no"
   # Backend FastAPI
   api:
     build: .
@@ -68,7 +82,7 @@ services:
       - "${API_PORT:-8000}:8000"      # Expose le port 8000 de l'API sur le port défini dans .env ou 8000 par défaut
     healthcheck:
       test: [ "CMD-SHELL", "curl -f http://localhost:8000/health || exit 1" ]
-      interval: 10s
+      interval: 30s
       timeout: 5s
       retries: 3
       start_period: ${START_PERIOD:-5}s
@@ -80,6 +94,8 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
 
   # Reverse Proxy Nginx
   nginx:
@@ -94,7 +110,7 @@ services:
     healthcheck:
       test: [ "CMD-SHELL",
     "wget -qO- --header='Host: api.iai-journal.test' http://nginx/health || exit 1" ]
-      interval: 10s
+      interval: 30s
       timeout: 5s
       retries: 3
       start_period: 3s
@@ -108,10 +124,22 @@ services:
   worker:
     build: .
     container_name: journal_IAI_worker
-    command: celery -A app.worker.celery_app worker --loglevel=info
+    command: celery -A app.worker.celery_app worker --loglevel=info --concurrency=2 --max-tasks-per-child=10
+     # --concurrency=2 : Limite à 2 tâches simultanées pour éviter de surcharger le serveur
+     # --max-tasks-per-child=10 : Redémarre le worker après 10 tâches pour libérer la mémoire (utile si certaines tâches sont gourmandes en RAM)
     volumes:
       - .:/app
     restart: unless-stopped
+    deploy:
+      resources:
+        # Limitation des ressources pour éviter que le worker ne consomme tout le CPU/RAM du serveur, surtout lors de traitements lourds
+        # A ajuster selon les capacités réelles du serveur qu'on utilisera et les besoins du worker
+        limits:
+          cpus: '1.5'          # Maximum 1.5 coeurs CPU (sur les X du serveur)
+          memory: 1G           # Maximum 1 Go de RAM
+        reservations:
+          cpus: '0.5'          # Réserver au moins 0.5 coeur
+          memory: 256M         # Réserver au moins 256 Mo
     depends_on:
       db:
         condition: service_healthy

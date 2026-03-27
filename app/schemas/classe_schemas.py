@@ -24,4 +24,7 @@ class ReadUserClasse(BaseModel):
   id: UUID 
   classe_prefix: ClasseType 
   classe_suffix: str 
+  
+  class Config:
+    from_attributes=True
 
