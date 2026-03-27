@@ -17,3 +17,5 @@ alembic-postgresql-enum
 minio
 python-magic
 Pillow
+pandas
+openpyxl

@@ -32,6 +32,7 @@ class Messages:
     UNKNOWN_SERVICE = "Service Inconnu"
     REGISTRATION_JETON = "Régistration de jeton"
     READ_REGISTRATION = "Lecture régistration jeton"
+    UNAUTHORIZED_JETON = "Ce Jeton est invalide"
     USER_SERVICE = "Service Utilisateur"
     
     

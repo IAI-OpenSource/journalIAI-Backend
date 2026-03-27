@@ -13,3 +13,6 @@ class WorkersTaskNames:
     PROCESS_VIDEO: str = "uploads.process_video"
 
     PROCESS_IMAGE: str = "uploads.process_image"
+
+    IMPORT_DATA_FROM_EXCEL: str = "regstration.import_from_excel"
+

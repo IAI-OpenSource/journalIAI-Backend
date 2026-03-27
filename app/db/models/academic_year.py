@@ -68,3 +68,5 @@ class AcademicYear(Base, IntegrityMapperMixin):
         CHK_ACADEMIC_YEAR_DATES: "La date de fin doit être postérieure à la date de début.",
         UQ_ACADEMIC_YEAR_LIBELLE: "Le libellé de l'année académique doit être unique."
     }
+
+

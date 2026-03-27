@@ -25,7 +25,7 @@ class RepositoriesUtils:
         logger.exception(f"Exception {exception.__class__.__name__} : {exception}", exc_info=exception)
         traceback.print_exc()
         await session.rollback()
-        return CRUDResult.crud_error(Messages.INTERNAL_SERVER_ERROR, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return CRUDResult.crud_error(message=Messages.INTERNAL_SERVER_ERROR, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @classmethod
     async def traiter_integrity_error(cls, exception: IntegrityError, session: AsyncSession, logger: Logger, model_class) -> CRUDResult:
@@ -46,7 +46,7 @@ class RepositoriesUtils:
 
         if user_friendly_message:
             await session.rollback()
-            return CRUDResult.crud_error(user_friendly_message, status.HTTP_400_BAD_REQUEST)
+            return CRUDResult.crud_error(message=user_friendly_message, status_code=status.HTTP_400_BAD_REQUEST)
 
         # Falllback
         return await RepositoriesUtils.traiter_exception_inconnue(exception, session, logger)
