@@ -59,8 +59,8 @@ class AcademicYear(Base, IntegrityMapperMixin):
     )
 
     # Relationships
-    classes: Mapped[List["Classe"]] = relationship("Classe", back_populates="academic_year", cascade="all, delete-orphan")
-    posts: Mapped[List["Post"]] = relationship("Post", back_populates="academic_year", cascade="all, delete-orphan")
+    classes: Mapped[List["Classe"]] = relationship("Classe", back_populates="academic_year", cascade="all, delete-orphan", init=False)
+    posts: Mapped[List["Post"]] = relationship("Post", back_populates="academic_year", cascade="all, delete-orphan", init=False)
 
     # Messages d'erreur
     ERROR_MESSAGES = {

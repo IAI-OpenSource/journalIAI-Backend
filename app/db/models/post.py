@@ -67,12 +67,12 @@ class Post(Base, IntegrityMapperMixin):
     is_published: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False, init=False)
 
     # Soft delete
-    deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True, init=False)
 
     # Timestamps (CRUCIAL pour cursor pagination)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), nullable=False, init=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), onupdate=func.now(), nullable=False, init=False)
-    published_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    published_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True, default=func.now(), init=False)
 
     __table_args__ = (
         Index(IDX_POSTS_FEED_PAGINATION, "created_at", "id", postgresql_where=(deleted_at == None) & (is_published == True)),
@@ -90,12 +90,12 @@ class Post(Base, IntegrityMapperMixin):
     # Relationships
     author: Mapped["User"] = relationship("User", foreign_keys=[author_id], back_populates="posts", uselist=False, init=False)
     club: Mapped[Optional["Club"]] = relationship("Club", foreign_keys=[club_id], back_populates="posts", uselist=False, init=False)
-    event: Mapped[Optional["Event"]] = relationship("Event", foreign_keys=[event_id], back_populates="posts", uselist=False)
+    event: Mapped[Optional["Event"]] = relationship("Event", foreign_keys=[event_id], back_populates="posts", uselist=False, init=False)
     comments: Mapped[list["Comment"]] = relationship("Comment", back_populates="post", cascade="all, delete-orphan", uselist=True, init=False)
     media: Mapped[list["PostMedia"]] = relationship("PostMedia", back_populates="post", cascade="all, delete-orphan", uselist=True, init=False)
     likes: Mapped[list["Like"]] = relationship("Like", foreign_keys="Like.post_id", back_populates="post", cascade="all, delete-orphan", uselist=True, init=False)
     academic_year: Mapped["AcademicYear"] = relationship("AcademicYear", back_populates="posts", uselist=False, init=False)
-    classe: Mapped[Optional["Classe"]] = relationship("Classe", foreign_keys=[target_classe_id], back_populates="posts", uselist=False, init=False)
+    classe: Mapped[Optional["Classe"]] = relationship("Classe", back_populates="posts", foreign_keys=[target_classe_id], uselist=False, init=False)
     views: Mapped[list["PostViews"]] = relationship("PostViews", back_populates="post", cascade="all, delete-orphan", uselist=True, init=False)
 
     # Messages d'erreur d'intégrité spécifiques au modèle Post
