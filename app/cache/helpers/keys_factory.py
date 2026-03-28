@@ -11,6 +11,7 @@ class CacheKeysFactory:
     # clés de cache et d'assurer leur unicité dans le système de cache
 
     __cache_keys_mapping: dict[AvailableCacheKeys, CacheKey] = {
+        AvailableCacheKeys.USER_OTP: CacheKey.new_key(AvailableCacheKeys.USER_OTP, 1),
         AvailableCacheKeys.USER_OBJECT: CacheKey.new_key(AvailableCacheKeys.USER_OBJECT, 1),
         AvailableCacheKeys.USER_POSTS: CacheKey.new_key(AvailableCacheKeys.USER_POSTS, 1),
         AvailableCacheKeys.POST_OBJECT: CacheKey.new_key(AvailableCacheKeys.POST_OBJECT, 1),

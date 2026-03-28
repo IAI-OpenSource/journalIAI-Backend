@@ -1,16 +1,16 @@
 
-## fichier contenant le service/logique métier de la table session
+## fichier contenant le service/logique métier de la table user
 ## vous y trouverez les appels fonctions de repository
 import logging
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
-
+from app.utils.security_utils import verify_password
 from app.cache.helpers.base import CacheWrapper
 from app.cache.user_cache import UserCache
 from app.globals.status_codes import StatusCode
 from app.repositories.user_repository import UserRepository
-from app.schemas.user_schemas import CreateUser, ReadUser
+from app.schemas.user_schemas import CreateUser, LoginData, ReadUser
 from app.globals.messages import Messages as msg
 from app.globals.cache_duration import CacheDurartion 
 
@@ -93,9 +93,8 @@ class UserService:
       )
     
     try:
-      print("DEBUT VALIDATION")
+      
       read_user = ReadUser.model_validate(db_user.data)
-      print("ERREUR ICI")
       await self.user_cache.set_user_in_cache(
         user_id=read_user.id, 
         user=read_user,
@@ -109,8 +108,10 @@ class UserService:
       )
 
     except Exception as e:
-      print(f"CRASH SERVICE: {str(e)}")
       logger.info(f"CRASH SERVICE: {str(e)}")
       return ServiceResult.service_error(
         message=f"Erreur de {e.__class__.__name__}: {e}",
       )
+      
+    
+    

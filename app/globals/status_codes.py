@@ -9,5 +9,7 @@ class StatusCode(int, enum):
   _404_STATUS_NOT_FOUND = 404
   _400_STATUS_BAD_REQUEST = 400
   _403_STATUS_FORBIDEN = 403
+  _421_STATUS_UNAVAILABLE = 421
   
+
   
