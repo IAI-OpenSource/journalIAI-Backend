@@ -41,7 +41,7 @@ class EmailServiceManager:
         subject="", 
         recipients=[data_email_to.email_to],
         template_body={
-          "otp": data_email_to.otp,
+          "otp_code": data_email_to.otp,
           "last_name": data_email_to.last_name,
           "first_name": data_email_to.first_name,
         },
