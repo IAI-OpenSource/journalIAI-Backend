@@ -11,6 +11,10 @@ class Messages:
 
     # Messages spécifiques
     USER_NOT_FOUND = "Utilisateur non trouvé."
+    CLUB_NOT_FOUND = "Club non trouvé."
+    CLUB_ALREADY_EXISTS = "Le club existe déjà."
+    CLUB_DELETED_SUCCESSFULLY = "Club supprimé avec succès."
+    CLUB_UPDATED_SUCCESSFULLY = "Club mis à jour avec succès."
     INVALID_CREDENTIALS = "Identifiants invalides."
     DELETED_USER = "Compte Utilisateur est supprimé"
     USER_ALREADY_EXISTS = "Un utilisateur avec cet email existe déjà."
@@ -48,6 +52,7 @@ class Messages:
     READ_REGISTRATION = "Lecture régistration jeton"
     UNAUTHORIZED_JETON = "Ce Jeton est invalide"
     USER_SERVICE = "Service Utilisateur"
+    CLUB_SERVICE = "Service Club"
     
     
     ## Message pour le cache
