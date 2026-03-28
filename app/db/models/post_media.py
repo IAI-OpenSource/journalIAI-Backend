@@ -36,9 +36,9 @@ class PostMedia(Base, IntegrityMapperMixin):
 
     # Détails du média
     media_type: Mapped[MediaType] = mapped_column(SQLEnum(MediaType), nullable=False)
-    media_url: Mapped[str] = mapped_column(String(255), nullable=False)
+    media_url: Mapped[str] = mapped_column(String(500), nullable=False)
     blur_hash: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    stored_bucket_name: Mapped[str] = mapped_column(String(500), nullable=False)
+    stored_bucket_name: Mapped[str] = mapped_column(String(255), nullable=False)
     thumbnail_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
 
     # Métadonnées
