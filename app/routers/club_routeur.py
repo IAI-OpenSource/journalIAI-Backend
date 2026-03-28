@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, Response
 from app.cache.helpers.base import get_redis
 from app.globals.api_tags import ApiTags
+from app.schemas import ApiBaseResponse
 from app.services.club_service import ClubService
 from app.schemas.clubs_schemas import ClubCreateRequest, ClubResponse, ClubUpdateRequest, ClubsListResponse
 from app.db.session import get_db
@@ -10,7 +11,7 @@ from uuid import UUID
 router = APIRouter(prefix="/clubs", tags=[ApiTags.CLUB])
 
 @router.get("/{club_id}")
-async def get_club_by_id(club_id: UUID, reponse: Response , db: AsyncSession = Depends(get_db), redis = Depends(get_redis)) -> ClubResponse:
+async def get_club_by_id(club_id: UUID, reponse: Response , db: AsyncSession = Depends(get_db), redis = Depends(get_redis)) -> ApiBaseResponse[ClubResponse]:
     """Endpoint pour récupérer un club par son ID.
     """
     club_service = ClubService(db, redis)
@@ -19,7 +20,7 @@ async def get_club_by_id(club_id: UUID, reponse: Response , db: AsyncSession = D
     
     
 @router.get("/slug/{slug}")
-async def get_club_by_slug(slug: str, reponse: Response , db: AsyncSession = Depends(get_db), redis = Depends(get_redis)) -> ClubResponse:
+async def get_club_by_slug(slug: str, reponse: Response , db: AsyncSession = Depends(get_db), redis = Depends(get_redis)) -> ApiBaseResponse[ClubResponse]:
     """Endpoint pour récupérer un club par son slug.
     """
     club_service = ClubService(db, redis)
@@ -27,7 +28,7 @@ async def get_club_by_slug(slug: str, reponse: Response , db: AsyncSession = Dep
     return result.to_HTTP_api_base_response(reponse)
 
 @router.get("/")
-async def get_all_clubs(reponse: Response , db: AsyncSession = Depends(get_db), redis = Depends(get_redis), page:int = 1, page_size: int = 20, is_active: bool = False, ) -> ClubsListResponse:
+async def get_all_clubs(reponse: Response , db: AsyncSession = Depends(get_db), redis = Depends(get_redis), page:int = 1, page_size: int = 20, is_active: bool = False, ) -> ApiBaseResponse[ClubsListResponse]:
     """Endpoint pour lister tous les clubs.
     
     Args:
@@ -44,8 +45,8 @@ async def get_all_clubs(reponse: Response , db: AsyncSession = Depends(get_db), 
     return result.to_HTTP_api_base_response(reponse)
 
 
-@router.post("/")
-async def create_club(payload:ClubCreateRequest, reponse:Response, db: AsyncSession = Depends(get_db), redis = Depends(get_redis)) -> ClubResponse:
+@router.post("/", response_model=ApiBaseResponse[ClubResponse], status_code=201, )
+async def create_club(payload:ClubCreateRequest, reponse:Response, db: AsyncSession = Depends(get_db), redis = Depends(get_redis)) -> ApiBaseResponse[ClubResponse]:
     """Endpoint pour créer un club.
     
     Args:
@@ -61,7 +62,7 @@ async def create_club(payload:ClubCreateRequest, reponse:Response, db: AsyncSess
 
 
 @router.put("/{club_id}")
-async def update_club(club_id: UUID, payload: ClubUpdateRequest, reponse: Response, db: AsyncSession = Depends(get_db), redis = Depends(get_redis)) -> ClubResponse:
+async def update_club(club_id: UUID, payload: ClubUpdateRequest, reponse: Response, db: AsyncSession = Depends(get_db), redis = Depends(get_redis)) -> ApiBaseResponse[ClubResponse]:
     """Endpoint pour mettre à jour un club.
     
     Args:
@@ -76,8 +77,8 @@ async def update_club(club_id: UUID, payload: ClubUpdateRequest, reponse: Respon
     result = await club_service.update_club(club_id, payload)
     return result.to_HTTP_api_base_response(reponse)
 
-@router.delete("/{club_id}")
-async def delete_club(club_id: UUID, reponse: Response, db: AsyncSession = Depends(get_db), redis = Depends(get_redis)) -> None:
+@router.delete("/{club_id}", response_model=ApiBaseResponse[None], status_code=200)
+async def delete_club(club_id: UUID, reponse: Response, db: AsyncSession = Depends(get_db), redis = Depends(get_redis)) -> ApiBaseResponse[None]:
     """Endpoint pour supprimer un club.
     
     Args:
@@ -89,4 +90,4 @@ async def delete_club(club_id: UUID, reponse: Response, db: AsyncSession = Depen
     """
     club_service = ClubService(db, redis)
     result = await club_service.delete_club(club_id)
-    return result.to_HTTP_api_base_response(reponse)
+    return None

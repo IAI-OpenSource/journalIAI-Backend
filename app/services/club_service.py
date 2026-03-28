@@ -136,7 +136,7 @@ class ClubService:
         except Exception:
             logger.warning(f"Cache WRITE ERROR after create — {payload.slug}")
  
-        return ServiceResult.service_success(club_response, status.CREATED, msg.CLUB_SERVICE)
+        return ServiceResult.service_success(club_response, status._201_STATUS_CREATED, msg.CLUB_SERVICE)
 
 
     async def update_club(self, club_id: UUID, payload: ClubUpdateRequest) -> ServiceResult[ClubResponse]:

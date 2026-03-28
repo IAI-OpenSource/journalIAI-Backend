@@ -7,7 +7,6 @@ from app.routers.registration_jeton_router import router as registration_router
 from app.routers.post_video_upload_router import router as post_video_upload_router
 from app.routers.registration_jeton_router import router as registration_router
 from app.routers.auth_router import router as authentification_router
-from app.routers.club_routeur import routeur as club_router
 
 v1_api_router = APIRouter(prefix="/v1")
 
