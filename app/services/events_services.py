@@ -7,11 +7,13 @@ from app.repositories.events_repository import EventRepository
 from app.cache.event_cache import EventCache
 from app.cache.helpers.base import CacheWrapper
 from app.globals.cache_duration import CacheDurartion
-from app.schemas.events_schemas import EventCreate, EventInfo, EventUpdate, ApiEventListReponse, EventListReponse, EventRead
+from app.schemas.events_schemas import EventCreate, EventUpdate, PaginatedEventListReponse, EventRead, \
+    SimpleEventListResponse
 from app.db.models.enums import EventStatus  # corrigé : vient de enums
 from app.globals.messages import Messages as msg
 
 from . import ServiceResult
+from ..schemas.global_schemas import StringMessage
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +79,7 @@ class EventService:
 
         return ServiceResult.service_success(validated, status_code=200)
 
-    async def service_find_event_by_statut(self, statut: EventStatus) -> ServiceResult[ApiEventListReponse]:
+    async def service_find_event_by_statut(self, statut: EventStatus) -> ServiceResult[SimpleEventListResponse]:
         """Récupère les events par statut — cache en priorité."""
 
         # 1. Vérifier le cache
@@ -86,11 +88,10 @@ class EventService:
             logger.info(f"Events statut '{statut.value}' trouvés en cache")
 
             try:
-                validated_cache = ApiEventListReponse.model_validate(cached)
+                validated_cache = PaginatedEventListReponse(events=cached)
                 return ServiceResult.service_success(validated_cache, status_code=200)
             except Exception as e:
                 logger.warning(f"Cache corrompu pour la pagination: {e}. On force la lecture DB.")
-            return ServiceResult.service_success(data=response, status_code=200)
 
         # 2. Sinon, aller en base
         events = await self.event_repo.get_events_by_status(status=statut)
@@ -106,17 +107,17 @@ class EventService:
        
 
         validated = [EventRead.model_validate(e) for e in events.data]
-        response = EventListReponse(events=validated, next_cursor=None)
+        response = SimpleEventListResponse(events=validated)
         
 
         # 3. Mettre en cache
         await self.event_cache.set_events_by_status_in_cache(statut, validated, int(CacheDurartion.EVENT_DURATION))
 
-        return ServiceResult.service_success(data=response or [], status_code=200)
+        return ServiceResult.service_success(data=response, status_code=200)
 
    
 
-    async def service_find_all_event(self) -> ServiceResult[ApiEventListReponse]:
+    async def service_find_all_event(self) -> ServiceResult[PaginatedEventListReponse]:
         """Récupère tous les events."""
 
         events = await self.event_repo.get_event()
@@ -130,13 +131,13 @@ class EventService:
             )
         
         validated = [EventRead.model_validate(e) for e in events.data]
-        response = EventListReponse(events=validated, next_cursor=None)
+        response = PaginatedEventListReponse(events=validated, next_cursor=None)
 
-        return ServiceResult.service_success(data=response or [], status_code=200, service_name=msg.EVENT_SERVICE)
+        return ServiceResult.service_success(data=response, status_code=200, service_name=msg.EVENT_SERVICE)
 
     async def service_get_events_paginated(
         self, cursor: Optional[UUID] = None, limit: int = 10
-    ) -> ServiceResult[ApiEventListReponse]:
+    ) -> ServiceResult[PaginatedEventListReponse]:
 
         # 1. Vérifier le cache
         cached = await self.event_cache.get_events_paginated_from_cache(cursor, limit)
@@ -150,7 +151,7 @@ class EventService:
         if events.is_error():
             logger.error(f"Erreur pagination: {events.error}")
             return ServiceResult.service_error(
-                message=events.error,
+                message=msg.INTERNAL_SERVER_ERROR,
                 status_code=events.status_code,
                 service_name=msg.EVENT_SERVICE
             )
@@ -161,13 +162,13 @@ class EventService:
         except Exception as e:
             logger.error(f"{msg.EVENT_PAGINATION_ERROR}: {e}")
             return ServiceResult.service_error(
-                message=str(e),
+                message=msg.INTERNAL_SERVER_ERROR,
                 status_code=500,
                 service_name=msg.EVENT_SERVICE
             )
 
-        # 3. Construire uniquement EventListReponse — pas ApiEventListReponse
-        list_response = EventListReponse(
+        # 3. Construire uniquement PaginatedEventListReponse — pas ApiPaginatedEventListReponse
+        list_response = PaginatedEventListReponse(
             events=validated_events,
             next_cursor=paginated_data["next_cursor"]
         )
@@ -205,7 +206,7 @@ class EventService:
         except Exception as e:
             logger.error(f"Erreur de validation Pydantic: {str(e)}")
             return ServiceResult.service_error(
-                message="Erreur lors de la transformation des données", 
+                message=msg.INTERNAL_SERVER_ERROR,
                 status_code=500, 
                 service_name=msg.EVENT_SERVICE
             )
@@ -225,7 +226,7 @@ class EventService:
             service_name=msg.EVENT_SERVICE
         )
 
-    async def service_update_event(self, event_id: UUID, event_data: EventUpdate) -> ServiceResult[EventInfo]:
+    async def service_update_event(self, event_id: UUID, event_data: EventUpdate) -> ServiceResult[EventRead]:
         """Met à jour un event et invalide tous ses caches."""
 
         existing = await self.event_repo.get_event_by_id(event_id=event_id)
@@ -248,11 +249,12 @@ class EventService:
 
         # Invalider tous les caches liés
         await self._invalidate_all_caches(event_id, status=existing.data.status)
+        created_event = EventRead.model_validate(updated.data)
 
         logger.info(f"{msg.EVENT_UPDATE_SUCCES}: {event_id}")
-        return ServiceResult.service_success(data=updated.data, status_code=200, service_name=msg.EVENT_SERVICE)
+        return ServiceResult.service_success(data=created_event, status_code=200, service_name=msg.EVENT_SERVICE)
 
-    async def service_delete_event(self, event_id: UUID) -> ServiceResult:
+    async def service_delete_event(self, event_id: UUID) -> ServiceResult[StringMessage]:
         """Supprime (soft delete) un event et invalide tous ses caches."""
 
         existing = await self.event_repo.get_event_by_id(event_id=event_id)
@@ -278,7 +280,7 @@ class EventService:
 
         logger.info(f"{msg.EVENT_DELETE_SUCCESS}: {event_id}")
         return ServiceResult.service_success(
-            data={"message": msg.EVENT_DELETE_SUCCESS, "id": str(event_id)},
+            data=StringMessage(message=msg.EVENT_DELETE_SUCCESS),
             status_code=200,  # corrigé : 204 ne renvoie pas de body, on met 200
             service_name=msg.EVENT_SERVICE
         )

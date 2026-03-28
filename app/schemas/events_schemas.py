@@ -22,6 +22,7 @@ class EventBase(BaseModel):
     start_date: datetime = Field(..., description="Date et heure de début de l'événement")  # corrigé : ... obligatoire
     end_date: Optional[datetime] = Field(None, description="Date et heure de fin de l'événement")
     organizer_club_id: Optional[UUID] = Field(None, description="Identifiant du club organisateur")
+    status: Optional[EventStatus] = Field(default=EventStatus.DRAFT, description="Statut actuel de l'événement, par défautv `DRAFT`")
     parent_event_id: Optional[UUID] = Field(None, description="Identifiant de l'événement parent")
 
 
@@ -52,7 +53,6 @@ class EventUpdate(BaseModel):
     start_date: Optional[datetime] = Field(None, description="Date et heure de début de l'événement")
     end_date: Optional[datetime] = Field(None, description="Date et heure de fin de l'événement")
     organizer_club_id: Optional[UUID] = Field(None, description="Identifiant du club organisateur")
-    status: Optional[EventStatus] = Field(None, description="Statut actuel de l'événement")  # corrigé : None par défaut pas DRAFT
     parent_event_id: Optional[UUID] = Field(None, description="Identifiant de l'événement parent")
 
 
@@ -98,13 +98,14 @@ class EventSummary(BaseModel):
 class EventInfo(ApiBaseResponse):
     result: Optional[EventRead] = Field(None, description="Informations de l'événement")
 
-class EventCarte(ApiBaseResponse):
-    result: EventSummary = Field(..., description="Informations de l'événement pour carte")
+class SimpleEventListResponse(BaseModel):
+    events: List[EventRead] = Field(..., description="Liste des événements")
 
-
-class EventListReponse(BaseModel):
-    events: List[EventRead]  # corrigé : List[EventRead] pas List[EventInfo]
+class PaginatedEventListReponse(SimpleEventListResponse):
     next_cursor: Optional[UUID] = None  # corrigé : UUID pas str, cohérent avec la pagination
 
+class ApiPaginatedEventListReponse(ApiBaseResponse):
+    result: Optional[PaginatedEventListReponse] = None
+
 class ApiEventListReponse(ApiBaseResponse):
-    result: Optional[EventListReponse] = None
+    result: Optional[SimpleEventListResponse] = None

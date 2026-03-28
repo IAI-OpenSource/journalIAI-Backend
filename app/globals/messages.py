@@ -21,6 +21,7 @@ class Messages:
     LOGOUT_SUCCESSFUL = "Déconnexion réussie."
     PROFILE_UPDATED_SUCCESSFULLY = "Profil mis à jour avec succès."
     INVALID_SESSION = "Session invalide"
+    DELETE_FAILED = "Erreur lors de la suppression"
     LOGIN_NOT_FOUND = "Utilisateur ou Mot de passe incorrect"
 
     EVENT_SERVICE = "Service Events"
