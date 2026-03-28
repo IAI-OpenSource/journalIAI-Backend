@@ -19,3 +19,4 @@ python-magic
 Pillow
 pandas
 openpyxl
+fastapi-mail

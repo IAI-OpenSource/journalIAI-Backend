@@ -1,6 +1,6 @@
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, EmailStr, Field
 
 from app.schemas import ApiBaseResponse
 
@@ -21,4 +21,15 @@ class GlobalStringMessage(ApiBaseResponse):
 
   result: Optional[StringMessage]
 
+
+class SendOTPEmail(BaseModel):
+  """schéma de validation de l'envoi du OTP a un utilisateur
+
+  Args:
+      BaseModel (_type_): _description_
+  """
   
+  email_to: EmailStr = Field(description="Le email du destinataire/l'étudiant")
+  otp: str = Field(description="Le code OTP généré pour l'utilisateur")
+  last_name: str
+  first_name: str

@@ -22,6 +22,8 @@ class Messages:
     PROFILE_UPDATED_SUCCESSFULLY = "Profil mis à jour avec succès."
     INVALID_SESSION = "Session invalide"
     DELETE_FAILED = "Erreur lors de la suppression"
+    LOGIN_NOT_FOUND = "Utilisateur ou Mot de passe incorrect"
+
     EVENT_SERVICE = "Service Events"
     EVENT_NOT_FOUND = "Event non trouvé."
     DELETED_EVENT = "Event est supprimé"
@@ -51,3 +53,8 @@ class Messages:
     ## Message pour le cache
     CACHE_USER_NOT_FOUND = "Utilisateur non Touvé dans le cache"
     CACHE_SESSION_NOT_FOUND = "Session non trouvé dans le cache"
+    
+    
+    ## Message envoi de mail
+    MAIL_SERVICE = "Service email"
+    MAIL_ERROR = "Erreur de Connection pour l'envoi du mail"

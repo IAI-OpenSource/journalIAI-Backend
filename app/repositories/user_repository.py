@@ -13,7 +13,7 @@ from sqlalchemy.orm import joinedload
 
 from app.db.models.registration_jeton import RegistrationJeton
 from app.db.models.user import User
-from app.schemas.user_schemas import CreateUser
+from app.schemas.user_schemas import CreateUser, LoginData
 from . import CRUDResult
 from app.globals.messages import Messages as msg
 from app.globals.status_codes import StatusCode as status
@@ -112,7 +112,41 @@ class UserRepository:
         logger.info("Utilisateur non Trouvé")
         return CRUDResult.crud_error(msg.USER_NOT_FOUND, status_code=status._404_STATUS_NOT_FOUND.value)
       
-      logger.info("Session récupérer avec succès !")
+      logger.info("Utilisateur récupérer avec succès !")
+      return CRUDResult.crud_success(user)
+      
+    except IntegrityError as ie:
+      return await RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, User)
+
+    except Exception as e:
+      return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
+
+
+  async def get_user_by_email(self, login_data: LoginData) -> CRUDResult[User]:
+    """function dao pour trouver un utilisateur a partir de son email
+
+    Args:
+        login_data (LoginData): les infos de l'utilisateur
+
+    Returns:
+        CRUDResult[Session]: _description_
+    """
+    
+    try:
+      
+      stmt = (
+        select(User)
+        .options(joinedload(User.classe))
+        .where(User.email == login_data.email)
+      )
+      result = await self.db.execute(stmt)
+      user = result.scalar_one_or_none()
+      
+      if user is None:
+        logger.info(msg.LOGIN_NOT_FOUND)
+        return CRUDResult.crud_error(msg.LOGIN_NOT_FOUND, status_code=status._404_STATUS_NOT_FOUND.value)
+      
+      logger.info("Utilisateur récupérer avec succès !")
       return CRUDResult.crud_success(user)
       
     except IntegrityError as ie:

@@ -73,7 +73,7 @@ class RegistrationService:
     )
     
     
-  async def service_imports_reg_data(self, file_base: str, classe_id: UUID) -> ServiceResult[str]:
+  async def service_imports_reg_data(self, file_base: str, classe_id: UUID) -> ServiceResult[StringMessage]:
     """Logique métier pour générer plusieurs jeton en meme temps
       (à partir d'un fichier excel)"""
 
@@ -94,7 +94,7 @@ class RegistrationService:
 
       if result.is_success():
         return ServiceResult.service_success(
-          data=StringMessage(result.data),
+          data=StringMessage(message=result.data),
           status_code=result.status_code,
           service_name=msg.REGISTRATION_JETON
         )

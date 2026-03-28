@@ -13,6 +13,7 @@ class BaseCacheEntity:
     NOTIFICATION = "entity:notification:{id}"
     FEED = "feed:user:{id}"
     LIKE = "entity:like:{id}"
+    OTP = "entity:otp:{email}"
 
 class AvailableCacheKeys(str, Enum):
     """Definis toutes les clés de cache utilisées dans l'application, organisées par entité et par type de données"""
@@ -56,3 +57,5 @@ class AvailableCacheKeys(str, Enum):
 
     FILE_UPLOAD_PROGRESS_STREAM_KEY = "upload_progress_stream:{user_id}:{intent_id}" # Clé pour le stream sur l'anvancement du traitemenr d'un upload
 
+    ## Clés pour le OTP
+    USER_OTP = BaseCacheEntity.OTP 
