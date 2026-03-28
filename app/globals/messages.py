@@ -50,12 +50,16 @@ class Messages:
 
     UNAUTHORIZED_JETON = "Ce Jeton est invalide"
     USER_SERVICE = "Service Utilisateur"
+    CLUB_SERVICE = "Service : Clubs"
     
     
     ## Message pour le cache
     CACHE_USER_NOT_FOUND = "Utilisateur non Touvé dans le cache"
     CACHE_SESSION_NOT_FOUND = "Session non trouvé dans le cache"
+<<<<<<< HEAD
     READ_REGISTRATION = "Lecture régistration jeton"
 
     CLUB_SERVICE = "Service : Clubs"
 
+=======
+>>>>>>> origin/feature/clubs-events

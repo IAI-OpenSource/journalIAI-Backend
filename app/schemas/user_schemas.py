@@ -10,6 +10,11 @@ from pydantic import BaseModel, EmailStr, Field
 from uuid import UUID
 
 from app.db.models.enums import ClasseType, ExecutiveRoleType, UserRole
+<<<<<<< HEAD
+=======
+from app.schemas import ApiBaseResponse
+from app.db.models.enums import ExecutiveRoleType, SexeType, UserRole
+>>>>>>> origin/feature/clubs-events
 from app.schemas import ApiBaseResponse
 
 

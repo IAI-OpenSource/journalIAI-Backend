@@ -149,8 +149,11 @@ class ClubRepository:
             await self.db.commit()
             await self.db.refresh(club)
             return CRUDResult.crud_success(club, 200)
+<<<<<<< HEAD
         except IntegrityError as e :
             return await RepositoriesUtils.traiter_integrity_error(e, self.db, logger, Club)
+=======
+>>>>>>> origin/feature/clubs-events
         except Exception as e :
             await self.db.rollback()
             return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)

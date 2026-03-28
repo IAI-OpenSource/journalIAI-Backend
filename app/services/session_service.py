@@ -84,6 +84,15 @@ class SessionService:
         service_name=msg.READ_SESSION
       )
       
+<<<<<<< HEAD
+=======
+    
+    await self.session_cache.set_session_in_cache(
+      session_id=session_read.id, 
+      session=session_read,
+      ttl=CacheDurartion.SESSION_DURATION.value
+    )  
+>>>>>>> origin/feature/clubs-events
     
     return ServiceResult.service_success(session.data)
 

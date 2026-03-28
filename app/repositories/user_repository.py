@@ -9,6 +9,13 @@ from uuid import UUID
 from sqlalchemy import insert, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+<<<<<<< HEAD
+=======
+
+from app.db.models.user import User
+from app.schemas.user_schemas import CreateUser, ReadUser
+from sqlalchemy.orm import joinedload
+>>>>>>> origin/feature/clubs-events
 
 from app.db.models.user import User
 from app.schemas.user_schemas import CreateUser, ReadUser
@@ -86,4 +93,8 @@ class UserRepository:
       return RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, User)
 
     except Exception as e:
+<<<<<<< HEAD
       return RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
+=======
+      return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
+>>>>>>> origin/feature/clubs-events
