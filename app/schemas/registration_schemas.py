@@ -20,11 +20,11 @@ class CreateRegistration(BaseModel):
       BaseModel (_type_): Hérite de bas model
   """
 
-  first_name: str = Field("Prenom de l'utilisateur")
-  last_name: str = Field("Nom de l'etudiant")
-  role: UserRole = Field("role de l'utilisateur")
+  first_name: str = Field(description="Prenom de l'utilisateur")
+  last_name: str = Field(description="Nom de l'etudiant")
+  role: UserRole = Field(description="role de l'utilisateur")
   sexe: SexeType 
-  classe_id: UUID = Field("ID de la Classe de l'utilisateur")
+  classe_id: UUID = Field(description="ID de la Classe de l'utilisateur")
 
 
 class CreateMultileRegistration(BaseModel):
