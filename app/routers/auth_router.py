@@ -75,4 +75,4 @@ async def login_request_otp(
 
   auth_service_result = await auth_service.service_find_user_by_email(login_data=login_data)
 
-  return auth_service_result.to_HTTP_api_base_response(response=response)
+  return auth_service_result.to_HTTP_api_base_response(reponse=response)

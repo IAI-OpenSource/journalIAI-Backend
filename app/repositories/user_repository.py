@@ -6,7 +6,7 @@ import logging
 from uuid import UUID
 
 from app.utils.security_utils import hasher_password
-from sqlalchemy import insert, select
+from sqlalchemy import func, insert, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
@@ -45,8 +45,8 @@ class UserRepository:
         select(RegistrationJeton)
         .where(
           RegistrationJeton.jeton == user_data.jeton.jeton,
-          RegistrationJeton.last_name == user_data.last_name.upper(),
-          RegistrationJeton.first_name == user_data.first_name.capitalize()
+          func.lower(RegistrationJeton.last_name) == func.lower(user_data.last_name),
+          func.lower(RegistrationJeton.first_name) == func.lower(user_data.first_name)
         )
       )
       
@@ -73,8 +73,8 @@ class UserRepository:
         .returning(User)
       )
       
-      result = await self.db.execute(stmt2)
-      user = result.scalar_one()
+      result_2 = await self.db.execute(stmt2)
+      user = result_2.scalars().one()
       await self.db.commit()
       await self.db.refresh(user, attribute_names=["classe"])
 
