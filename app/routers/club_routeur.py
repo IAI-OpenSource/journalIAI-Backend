@@ -90,4 +90,4 @@ async def delete_club(club_id: UUID, reponse: Response, db: AsyncSession = Depen
     """
     club_service = ClubService(db, redis)
     result = await club_service.delete_club(club_id)
-    return None
+    return result.to_HTTP_api_base_response(reponse)

@@ -209,6 +209,6 @@ class ClubService:
             logger.warning(f"Cache DELETE ERROR after soft delete — club {club_id}")
  
         return ServiceResult.service_success(
-            msg.CLUB_DELETED_SUCCESSFULLY, status._200_STATUS_SUCCESS, msg.CLUB_SERVICE
+            None, status._200_STATUS_SUCCESS, msg.CLUB_SERVICE
         )
  

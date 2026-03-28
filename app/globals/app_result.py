@@ -1,56 +1,53 @@
 from abc import ABC
 from typing import TypeVar, Generic, Optional
 
-# Définition d'une variable de type (TypeVar)
-# 'T' représentera le type de la donnée en cas de succès
 T = TypeVar("T")
+
+# Sentinel pour distinguer "data=None volontaire" (ex: delete 200)
+# de "aucun argument fourni" — on ne peut pas utiliser None pour les deux cas
+_MISSING = object()
+
 
 class GlobalAppResult(Generic[T], ABC):
     """
-    Classe Générique + Abstraite pour typer les réponses d'opérations dans tout le systeme.
+    Classe Générique + Abstraite pour typer les réponses d'opérations dans tout le système.
 
     Elle encapsule soit une donnée de succès (data), soit un message d'erreur (error).
+    data=None est autorisé sur un succès (ex: DELETE sans corps de réponse).
     """
 
-    def __init__(self, data: Optional[T] = None, error: Optional[str] = None):
-        if data is not None and error is not None:
+    def __init__(self, data: Optional[T] = _MISSING, error: Optional[str] = None):
+        if data is not _MISSING and error is not None:
             raise ValueError(
                 "Une réponse ne peut pas contenir à la fois des données et une erreur."
             )
-        if data is None and error is None:
+        if data is _MISSING and error is None:
             raise ValueError(
-                "Une réponse doit contenir soit des données, soit une erreur."
+                "Une réponse doit contenir soit des données (même None), soit une erreur."
             )
 
-        self._data: Optional[T] = data
+        # _is_success est True dès qu'on a fourni data= explicitement,
+        # même si sa valeur est None (cas DELETE / 204)
+        self._is_success: bool = data is not _MISSING
+        self._data: Optional[T] = None if data is _MISSING else data
         self._error: Optional[str] = error
 
     def is_success(self) -> bool:
-        """
-        Verifie si la réponse est une reponse de succès.
-        Returns:
-            bool: True si c'est une reponse de succès, False sinon.
-        """
-        return self._data is not None
+        """Retourne True si la réponse est un succès (data fourni explicitement)."""
+        return self._is_success
 
     def is_error(self) -> bool:
-        """
-        Verifie si la réponse est une reponse d'erreur.
-        Returns:
-            bool: True si c'est une reponse d'erreur, False sinon.
-        """
+        """Retourne True si la réponse est une erreur."""
         return self._error is not None
 
     @property
-    def data(self) -> T:
+    def data(self) -> Optional[T]:
         """
-        Retourne les données de succès. Lève une exception si c'est une erreur.
-        Returns:
-            T: Les données de succès.
+        Retourne les données de succès (peut être None pour un succès sans corps).
         Raises:
-            RuntimeError: Si la réponse est une erreur et que l'on tente d'accéder aux données.
+            RuntimeError: Si la réponse est une erreur.
         """
-        if self._data is None:
+        if not self._is_success:
             raise RuntimeError(
                 "Tentative d'accéder aux données sur une réponse d'erreur."
             )
@@ -59,11 +56,9 @@ class GlobalAppResult(Generic[T], ABC):
     @property
     def error(self) -> str:
         """
-        Retourne le message d'erreur. Lève une exception si c'est un succès.
-        Returns:
-            str: Le message d'erreur.
+        Retourne le message d'erreur.
         Raises:
-            RuntimeError: Si la réponse est un succès et que l'on tente d'accéder à l'erreur
+            RuntimeError: Si la réponse est un succès.
         """
         if self._error is None:
             raise RuntimeError(
