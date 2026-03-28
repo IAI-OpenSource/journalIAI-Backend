@@ -12,7 +12,6 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models.enums import UserRole
 from app.repositories.registration_repository import RegistrationRepository
 from app.schemas.global_schemas import GlobalStringMessage, StringMessage
 from app.schemas.registration_schemas import CreateMultileRegistration, CreateRegistration, FindRegistration, ReadRegistration
@@ -67,13 +66,13 @@ class RegistrationService:
       )
       
     return ServiceResult.service_success(
-      data=ReadRegistration.model_validate(repo_reg.data),
+      data=ReadRegistration(**repo_reg.data),
       status_code=repo_reg.status_code,
       service_name=msg.READ_REGISTRATION
     )
     
     
-  async def service_imports_reg_data(self, file_base: str, classe_id: UUID) -> ServiceResult[StringMessage]:
+  async def service_imports_reg_data(self, file_base: str, classe_id: UUID) -> ServiceResult[str]:
     """Logique métier pour générer plusieurs jeton en meme temps
       (à partir d'un fichier excel)"""
 
@@ -86,7 +85,6 @@ class RegistrationService:
 
     for row in valide_data:
       row["classe_id"] = classe_id
-      row["role"] = UserRole.STUDENT.value
       row["jeton"] = JetonUtils.generate_code_jeton(8)
         
     if valide_data:
@@ -94,7 +92,7 @@ class RegistrationService:
 
       if result.is_success():
         return ServiceResult.service_success(
-          data=StringMessage(message=result.data),
+          data=StringMessage(result.data),
           status_code=result.status_code,
           service_name=msg.REGISTRATION_JETON
         )
