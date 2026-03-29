@@ -20,3 +20,4 @@ Pillow
 pandas
 openpyxl
 fastapi-mail
+blurhash-python

@@ -3,127 +3,52 @@ import concurrent.futures
 import json
 import os
 import subprocess
+from logging import getLogger
 from pathlib import Path
-from typing import Any, Optional, TypeVar
-from uuid import UUID
+from typing import Any, Optional
 
-import magic
-from minio.datatypes import Object
-
-from app.cache.helpers.base import CacheWrapper
-from app.cache.uploads_cache import MediaUploadsCache
-from app.db.models.enums import PostType, MediaType
-from app.db.models.post import Post
-from app.db.models.post_media import PostMedia
-from app.db.session import AsyncSessionLocal
-from app.schemas.post_upload_schemas import WsPostProcessingInfoSchema, CreateMediaUploadIntentFullData
-
+from app.globals.messages import Messages
 from app.storage.minio_client import MinioClientFactory
 from app.storage.minio_config import BucketName
 from app.worker.tasks.async_loop_manager import task_async_loop_manager
+from app.worker.tasks.base.processing_result import ProcessingResult
 
-T = TypeVar("T")
-InternalResultPatern  = tuple[bool, T | str]  # (success, data) ou (success, error_message)
+logger = getLogger(__name__)
 
-
-def verify_file_is_video(file_path : str) -> InternalResultPatern[None]:
+def process_video_file_with_ffmpeg(ffmpeg_cmd: list[str]) -> ProcessingResult:
     """
-    Vérifie si le fichier à traiter est bien une vidéo en utilisant la bibliothèque python-magic
+    Exécute une commande FFmpeg pour traiter une vidéo.
+    
     Args:
-        file_path: Le chemin du fichier à vérifier
-
+        ffmpeg_cmd: Commande FFmpeg à exécuter (liste d'arguments).
+        
     Returns:
-        True si le fichier est une vidéo, False sinon
+        ProcessingResult(True) en succès, ProcessingResult(False, error) sinon.
     """
-
-    # Analyse par buffer du fichier pour déterminer son type MIME
-    with open(file_path, "rb") as file:
-        buffer_type = magic.from_buffer(file.read(2048), mime=True)
-        if buffer_type and buffer_type.startswith("video/"):
-            return True, None
-        return False, f"Le fichier n'est pas une vidéo valide, type MIME détecté : {buffer_type}, veuillez envoyer un fichier vidéo valide"
-
-
-def download_file_from_minio(bucket_name: str, file_path_in_bucket : str, file_destination_path: str) -> InternalResultPatern[str]:
-    """
-    Télécharge un fichier depuis le bucket Minio et le stocke localement pour traitement
-    Args:
-        bucket_name: Le nom du bucket Minio
-        file_path_in_bucket: Le chemin du fichier dans le bucket Minio
-        file_destination_path: Le chemin local où stocker le fichier téléchargé pour traitement
-
-    Returns:
-        Le chemin local du fichier téléchargé
-    """
-    try:
-        minio_client = MinioClientFactory.get_backend_client()
-
-        minio_client.fget_object(bucket_name, file_path_in_bucket, file_destination_path)
-        return True, file_destination_path
-    except Exception as e:
-        return False, f"Erreur ({e.__class__.__name__}) lors du téléchargement du fichier depuis le bucket Minio : {e}"
-
-
-def get_file_metadata_from_minio(bucket_name: str, file_path_in_bucket : str) -> InternalResultPatern[Object]:
-    try:
-        minio_client = MinioClientFactory.get_backend_client()
-
-        res = minio_client.stat_object(bucket_name, file_path_in_bucket)
-        return True, res
-    except Exception as e:
-        return False, f"Erreur ({e.__class__.__name__}) lors du StatObject du fichier depuis le bucket Minio : {e}"
-
-
-def upload_processed_file_to_bucket(
-        bucket_name: str, file_path_in_bucket: str, file_local_path: str, c_type: str
-) -> InternalResultPatern[str]:
-    """
-    Upload un fichier traité depuis le stockage local vers le bucket Minio
-    Args:
-        bucket_name: Le nom du bucket Minio
-        file_path_in_bucket: Le chemin du fichier dans le bucket Minio où stocker le fichier traité
-        file_local_path: Le chemin local du fichier traité à uploader
-        c_type: Le content_type du fichier à upload
-
-    Returns:
-        Que dalle, c'est une fonction pour uploader un fichier traité vers le bucket Minio, le résultat de l'upload
-        est que le fichier traité est stocké dans le bucket Minio à l'emplacement spécifié par file_path_in_bucket
-    """
-    try:
-        minio_client = MinioClientFactory.get_backend_client()
-
-        res = minio_client.fput_object(bucket_name, file_path_in_bucket, file_local_path, content_type=c_type)
-
-        return True, res.object_name
-    except Exception as e:
-        return False, f"Erreur ({e.__class__.__name__}) lors de l'upload du fichier traité vers le bucket Minio : {e}"
-
-
-def delete_file_from_bucket(bucket_name: str, file_path_in_bucket: str) -> InternalResultPatern[None]:
-    """Tout est dans le nom de la fonction"""
-    try:
-        minio_client = MinioClientFactory.get_backend_client()
-
-        minio_client.remove_object(bucket_name, file_path_in_bucket)
-        return True, None
-    except Exception as e:
-        return False, f"Erreur ({e.__class__.__name__}) lors de la suppression du fichier depuis le bucket Minio : {e}"
-
-
-def process_video_file_with_ffmpeg(ffmpeg_cmd: list[str]) -> InternalResultPatern[None]:
-    """Tout est dans le nom"""
     try:
         subprocess.run(ffmpeg_cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
-        return True, None
+        return ProcessingResult.ok_response(None)
     except subprocess.CalledProcessError as e:
-        return False, f"Erreur FFMPEG stderr lors du traitement de la vidéo avec ffmpeg : {e.stderr}"
+        logger.error(f"Erreur FFMPEG lors du traitement de la vidéo: {e.stderr}")
+        return ProcessingResult.error_response(Messages.INTERNAL_SERVER_ERROR)
     except Exception as e:
-        return False, f"Erreur ({e.__class__.__name__}) lors du traitement de la vidéo avec ffmpeg : {e}"
+        error_msg = f"Erreur ({e.__class__.__name__}) lors du traitement FFMPEG: {e}"
+        logger.error(error_msg)
+        return ProcessingResult.error_response(Messages.INTERNAL_SERVER_ERROR)
 
 
-def get_video_metadata(local_path: str) -> InternalResultPatern[dict[str, Any]]:
-    """Récupère la résolution et le bitrate de la vidéo source via ffprobe."""
-
+def get_video_metadata(local_path: str) -> ProcessingResult[dict[str, Any]]:
+    """
+    Récupère les métadonnées d'une vidéo via ffprobe.
+    
+    Extrait la résolution, la durée, le bitrate et la présence d'audio.
+    
+    Args:
+        local_path: Chemin local du fichier vidéo.
+        
+    Returns:
+        ProcessingResult avec dict contenant width, height, bitrate, duration, has_audio.
+    """
     try:
         cmd = [
             "ffprobe", "-v", "quiet", "-print_format", "json",
@@ -141,7 +66,7 @@ def get_video_metadata(local_path: str) -> InternalResultPatern[dict[str, Any]]:
         # La durée peut être dans format ou dans le stream (on prend format par sécurité)
         duration = float(data['format'].get('duration', 0))
 
-        to_return = {
+        metadata = {
             "width": int(video_stream['width']),
             "height": int(video_stream['height']),
             "bitrate": int(data['format'].get('bit_rate', 0)),
@@ -149,13 +74,18 @@ def get_video_metadata(local_path: str) -> InternalResultPatern[dict[str, Any]]:
             "has_audio": has_audio
         }
 
-        return True, to_return
-    except (StopIteration, KeyError):
-        return False, "Impossible de trouver un flux vidéo valide dans le fichier."
+        return ProcessingResult.ok_response(metadata)
+    except (StopIteration, KeyError) as e:
+        logger.error(f"Format vidéo invalide: {e}")
+        return ProcessingResult.error_response("Impossible de trouver un flux vidéo valide dans le fichier, fichier vidéo Invalide")
     except subprocess.CalledProcessError as e:
-        return False, f"Erreur FFPROBE stderr lors de l'obtention des qualités de la vidéo avec ffprobe : {e.stderr}"
+        logger.error(f"Erreur FFPROBE: {e.stderr}")
+        return ProcessingResult.error_response("Erreur lors de l'extraction des métadonnées vidéo, fichier vidéo Invalide")
     except Exception as e:
-        return False, f"Erreur ({e.__class__.__name__}) lors de l'obtention des qualités de la vidéo avec ffprobe : {e}"
+        logger.exception(f"Erreur lors de l'extraction des métadonnées vidéo: {e}")
+        return ProcessingResult.error_response(
+            f"Erreur lors de l'extraction des métadonnées vidéo, , fichier vidéo Invalide"
+        )
 
 
 def get_target_qualities(height: int) -> list[dict]:
@@ -270,111 +200,63 @@ def generate_hls_command(local_raw_path: str, output_dir: str, qualities: list, 
     return cmd
 
 
-async def upload_hls_to_minio(local_dir: str, remote_path: str) -> InternalResultPatern[None]:
-    """Upload le dossier HLS (fMP4) complet en parallèle vers MinIO."""
+async def upload_hls_to_minio(local_dir: str, remote_path: str) -> ProcessingResult[None]:
+    """
+    Upload le dossier HLS (fMP4) complet en parallèle vers MinIO.
+    
+    Args:
+        local_dir: Répertoire local contenant les fichiers HLS.
+        remote_path: Chemin de base dans MinIO pour les uploads.
+        
+    Returns:
+        ProcessingResult(True) en succès, ProcessingResult(False, error) sinon.
+    """
     try:
         if not os.path.exists(local_dir) or not os.listdir(local_dir):
-            return False, "Le dossier local est vide ou inexistant. FFmpeg a probablement échoué."
+            return ProcessingResult.error_response(
+                "Le dossier local est vide ou inexistant. FFmpeg a probablement échoué.")
 
         files = []
         for p in Path(local_dir).rglob('*'):
             if p.is_file():
-                # 1. Détermination du Content-Type (Crucial pour m4s)
+                # Détermination du Content-Type (Crucial pour m4s)
                 if p.suffix == ".m3u8":
                     content_type = "application/x-mpegURL"
                 elif p.suffix == ".m4s":
                     content_type = "video/iso.segment"
                 elif p.suffix == ".mp4":
-                    content_type = "video/mp4"  # Gère init.mp4 et download_720p.mp4
+                    content_type = "video/mp4"
                 elif p.suffix == ".webp":
                     continue        # Sautes mouton, je geres çà séparemment
                 else:
                     content_type = "application/octet-stream"
 
                 rel_path = p.relative_to(local_dir)
-                # On prépare (Source locale, Destination distante, Type MIME)
                 files.append((str(p), f"{remote_path}/{rel_path}", content_type))
 
         minio_client = MinioClientFactory.get_backend_client()
 
-        # 2. Utilisation de l'executor pour les appels bloquants de minio-py
-        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+        # Upload en parallèle avec un executor
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
             tasks = [
                 task_async_loop_manager.get_loop().run_in_executor(
                     executor,
                     minio_client.fput_object,
                     BucketName.POSTS_PERMANENT_CONTENT.value,
-                    r_path,  # Destination dans le bucket
-                    l_path,  # Fichier source sur le disque
+                    r_path,
+                    l_path,
                     cont_type
                 )
                 for l_path, r_path, cont_type in files
             ]
             await asyncio.gather(*tasks)
 
-        return True, None
+        return ProcessingResult.ok_response(None)
 
     except Exception as err:
-        return False, f"Erreur ({err.__class__.__name__}) lors de l'upload du dossier HLS vers le bucket Minio : {err}"
+        error_msg = f"Erreur ({err.__class__.__name__}) lors de l'upload HLS vers MinIO: {err}"
+        logger.exception(error_msg)
+        return ProcessingResult.error_response(Messages.INTERNAL_SERVER_ERROR)
 
 
-async def send_data_to_progress_stream(cache: MediaUploadsCache, user_id: str, intent_id: str, data: WsPostProcessingInfoSchema) -> None:
-    """
-    Envoie une mise à jour de progression du post-traitement de la vidéo dans le stream Redis dédié à cet effet
-    Args:
-        data: La donnée de progression à envoyer, contenant les informations sur l'étape actuelle du post-traitement,
-        le pourcentage de progression, un timestamp, et éventuellement un message d'erreur en cas de problème
 
-        user_id: Id de l'utilisateur à qui appartient l'intent d'upload video pour lequel on envoie la mise à jour de progression
-
-        intent_id: Id de l'intent d'upload video
-
-        cache: Le cache Redis pour accéder au stream de progression des uploads
-
-    Returns:
-        Que dalle, c'est une fonction pour envoyer une mise à jour de progression dans le stream Redis, le résultat de cette fonction
-        est que la mise à jour de progression est ajoutée dans le stream Redis pour que le frontend puisse la récupérer et afficher l'avancée du post-traitement à l'utilisateur
-    """
-    await cache.add_upload_event_in_a_stream(user_id, intent_id, data)
-
-
-async def add_processed_things_in_db(
-    cache: CacheWrapper, user_id: str, post_data: CreateMediaUploadIntentFullData, minio_video_url: str,
-    minio_thumnail_url: str, file_size: int, duration: int, w: int, h:int
-) -> InternalResultPatern[str]:
-    """Enregistre le post et la video en bd"""
-    from app.services.media_upload_service import MediaUploadsService
-
-    async with AsyncSessionLocal() as session:
-        service = MediaUploadsService(cache, session)
-
-        definitive_post = Post(
-            author_id=UUID(user_id),
-            event_id=post_data.event_id,
-            club_id=post_data.club_id,
-            academic_year_id=post_data.academic_year_id,
-            target_classe_id=post_data.classe_id,
-            content=post_data.content
-        )
-
-        definitive_post.post_type = PostType.VIDEO
-
-
-        definitive_post_media = PostMedia(
-            post_id=definitive_post.id,
-            media_type=MediaType.VIDEO,
-            media_url=minio_video_url,
-            thumbnail_url=minio_thumnail_url,
-            file_size=file_size,
-            duration=duration,
-            width=w,
-            height=h,
-        )
-
-        definitive_post_media.is_processed = True
-
-        res = await service.worker_service_save_processed_media_post_in_bd(definitive_post, definitive_post_media)
-        if res.is_error():
-            return False, res.error
-
-        return True, res.data

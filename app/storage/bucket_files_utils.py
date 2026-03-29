@@ -16,6 +16,8 @@ class BucketFilesUtils:
 
     _PROCESSED_VIDEO_THUMBNAIL_PATH_TEMPLATE: str = "videos_thumb/{intent_id}.webp"
 
+    _PROCESSED_IMAGES_THUMBNAIL_PATH_TEMPLATE: str = "images_thumb/{intent_id}.webp"
+
     @classmethod
     def generate_object_name_for_raw_video(cls, intent_id: str, filename: str) -> str:
         """
@@ -76,3 +78,14 @@ class BucketFilesUtils:
             Un nom d'objet unique pour la minia du fichier vidéo traité
         """
         return cls._PROCESSED_VIDEO_THUMBNAIL_PATH_TEMPLATE.format(intent_id=intent_id)
+
+    @classmethod
+    def generate_objects_path_for_image_thumbnail(cls, intent_id: str) -> str:
+        """
+        Genere un nom d'objet unique pour une minia d'un fichier image traité dans le bucket Minio
+        Args:
+            intent_id: Id de l'intent
+        Returns:
+            Un nom d'objet unique pour la minia du fichier image traité
+        """
+        return cls._PROCESSED_IMAGES_THUMBNAIL_PATH_TEMPLATE.format(intent_id=intent_id)

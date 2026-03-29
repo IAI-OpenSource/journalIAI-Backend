@@ -1,194 +1,222 @@
-import os
-import shutil
+"""Tâche Celery pour le traitement des vidéos."""
 from logging import getLogger
-from time import time
-from uuid import uuid4
 
 from celery import shared_task
 
 from app.cache.helpers.base import cache_manager
 from app.cache.uploads_cache import MediaUploadsCache
-from app.globals.messages import Messages
-from app.schemas.post_upload_schemas import WsPostProcessingInfoSchema, WsPostProcessingInfoSchemaSteps, \
-     CreateMediaUploadIntentFullData
+from app.db.models.enums import MediaType, PostType
+from app.schemas.post_upload_schemas import CreateMediaUploadIntentFullData
 from app.storage.bucket_files_utils import BucketFilesUtils
 from app.storage.minio_config import BucketName
 from app.worker.tasks.async_loop_manager import task_async_loop_manager
-from app.worker.tasks.tasks_utils.video_process_task_utils import verify_file_is_video, download_file_from_minio, \
-    get_file_metadata_from_minio, upload_processed_file_to_bucket, delete_file_from_bucket, \
-    process_video_file_with_ffmpeg, get_video_metadata, get_target_qualities, generate_thumbnail, generate_hls_command, \
-    upload_hls_to_minio, send_data_to_progress_stream, add_processed_things_in_db
+from app.worker.tasks.base.processing_context import ProcessingContext
+from app.worker.tasks.base.processing_step import ProcessingStep
+from app.worker.tasks.handlers.cleanup_handler import CleanupHandler
+from app.worker.tasks.handlers.progress_handler import ProgressHandler
+from app.worker.tasks.minio.minio_operations import MinIOManager
+from app.worker.tasks.tasks_utils.common_media_utils import create_post_and_media, generate_blurhash_str
+from app.worker.tasks.tasks_utils.video_process_task_utils import (
+    generate_hls_command,
+    generate_thumbnail,
+    get_target_qualities,
+    get_video_metadata,
+    process_video_file_with_ffmpeg,
+    upload_hls_to_minio,
+)
 from app.worker.tasks.workers_task_names import WorkersTaskNames
+from app.worker.tasks.validation.file_validator import FileValidator
 
 logger = getLogger(__name__)
 
 
-# TODO: refactor tout ce spaghethi après
-
-#TODO: Ajouter le BlurHash
-
 @shared_task(name=WorkersTaskNames.PROCESS_VIDEO)
 def process_video_task(
-        raw_bucket_name: str, raw_object_name: str, user_id: str, intent_id: str, post_data : str
+    raw_bucket_name: str, raw_object_name: str, user_id: str, intent_id: str, post_data: str
 ) -> None:
     """
-    Tâche pour traiter un fichier video, Normalise une vidéo brute en MP4 standard (720p, H.264/AAC).
+    Tâche pour traiter un fichier vidéo.
+    
+    Normalise une vidéo brute en HLS (fMP4) avec multiple qualités et génère une miniature.
+    
     Args:
-        raw_bucket_name: Le bucket du fichier brut dans MinIo
-        raw_object_name: Le fichier video dans MinIo
-        user_id: L'id de l'utilisateur à qui appartient le fichier video à traiter, utilisé pour faire le lien entre le fichier traité et l'utilisateur
-        intent_id: L'id de l'intent d'upload video associé à ce fichier,
-         utilisé pour faire le lien entre le fichier traité et l'intent d'upload qui a été créé pour ce fichier
-        post_data: Un Json String contenant les données du post à ajouter
-
-    Returns:
-        Que dalle, c'est une tâche pour traiter une vidéo, le résultat du traitement (la vidéo normalisée)
-        est uploadé dans le bucket Minio et lié à l'intent d'upload video grâce à l'id de l'intent fourni en argument
+        raw_bucket_name: Bucket MinIO du fichier brut.
+        raw_object_name: Nom du fichier brut dans MinIO.
+        user_id: ID de l'utilisateur propriétaire.
+        intent_id: ID de l'intent d'upload vidéo.
+        post_data: JSON string contenant les données du post.
     """
 
-    post_data: CreateMediaUploadIntentFullData = CreateMediaUploadIntentFullData.model_validate_json(post_data)
-    local_raw_path = f"/tmp/{uuid4()}_raw"
-    local_processed_dir = f"/tmp/{uuid4()}_processed_files"
-    os.makedirs(local_processed_dir, exist_ok=True)
-    final_bucket_objects_path = BucketFilesUtils.generate_objects_path_for_processed_video(intent_id)
-    final_bucket_thumbnail_path = BucketFilesUtils.generate_objects_path_for_video_thumbnail(intent_id)
-    local_thumbnail_path = None
+    def send_error_to_user(error: str) -> None:
+        task_async_loop_manager.run_async(progress_handler.error(error))
+
+    post_data_obj: CreateMediaUploadIntentFullData = CreateMediaUploadIntentFullData.model_validate_json(post_data)
     redis_cache = cache_manager.get_redis_connection_from_pool()
     upload_cache = MediaUploadsCache(redis_cache)
-    global_progress_pourcentage = 0
-
-    progression = WsPostProcessingInfoSchema(
-        step=WsPostProcessingInfoSchemaSteps.UNKNOWN, progress=global_progress_pourcentage, timestamp=time(), error_message=None
+    
+    # Contexte et handlers
+    context = ProcessingContext(
+        raw_bucket_name=raw_bucket_name,
+        raw_object_name=raw_object_name,
+        user_id=user_id,
+        intent_id=intent_id,
+        post_data=post_data_obj,
+        cache=redis_cache,
+        upload_cache=upload_cache,
     )
+    
+    progress_handler = ProgressHandler(context)
+    cleanup_handler = CleanupHandler()
 
-    def update_progress(step: WsPostProcessingInfoSchemaSteps, progress_increment: int, error_message: str = None):
-        nonlocal global_progress_pourcentage
-        nonlocal progression
+    # Enregistrer les chemins pour nettoyage
+    cleanup_handler.register_file(context.local_raw_path)
+    cleanup_handler.register_directory(context.local_processed_dir)
 
-        if not error_message:
-            global_progress_pourcentage += progress_increment
-
-        progression.progress = min(global_progress_pourcentage, 100)
-        progression.step = step
-        progression.error_message = error_message
-        progression.timestamp = time()
-
-        task_async_loop_manager.run_async(send_data_to_progress_stream(upload_cache, user_id, intent_id, progression))
-
-    def error_update_progress(error_message: str = None):
-        nonlocal progression
-        update_progress(progression.step, 0, error_message or Messages.INTERNAL_SERVER_ERROR)
-
-    raw_object = get_file_metadata_from_minio(raw_bucket_name, raw_object_name)
-
-    if not raw_object[0]:
-        logger.error(raw_object[1])
+    raw_object_result = MinIOManager.get_file_metadata(raw_bucket_name, raw_object_name)
+    if raw_object_result.is_error():
+        send_error_to_user(raw_object_result.error)
         return
 
-    raw_object = raw_object[1]
+    raw_object = raw_object_result.data
 
     try:
-        update_progress(WsPostProcessingInfoSchemaSteps.VERIFICATION, 10)
-
-        down_res = download_file_from_minio(raw_object.bucket_name, raw_object.object_name, local_raw_path)
-
-        if not down_res[0]:
-            logger.error(down_res[1])
-            error_update_progress()
-            return
-
-        update_progress(WsPostProcessingInfoSchemaSteps.VERIFICATION, 10)
-
-        file_verification = verify_file_is_video(local_raw_path)
-        if not file_verification[0]:
-            logger.error(file_verification[1])
-            error_update_progress(error_message=file_verification[1])
-            return
-
-        video_metadat_res = get_video_metadata(local_raw_path)
-        if not video_metadat_res[0]:
-            logger.error(video_metadat_res[1])
-            error_update_progress()
-            return
-
-        update_progress(WsPostProcessingInfoSchemaSteps.COMPRESSING, 10)
-
-        qualities = get_target_qualities(video_metadat_res[1]['height'])
-
-        logger.info(f"Qualities utilisées : {qualities}")
-        process_command = generate_hls_command(
-            local_raw_path=local_raw_path,
-            qualities=qualities,
-            output_dir=local_processed_dir,
-            has_audio=video_metadat_res[1]['has_audio']
+        # Récupérer métadonnées MinIO
+        task_async_loop_manager.run_async(
+            progress_handler.update_step(ProcessingStep.VERIFICATION, 10)
         )
 
-        video_processed = process_video_file_with_ffmpeg(process_command)
 
-        if not video_processed[0]:
-            logger.error(video_processed[1])
-            error_update_progress()
+        # Télécharger le fichier
+        download_result = MinIOManager.download_file(
+            raw_object.bucket_name, raw_object.object_name, context.local_raw_path
+        )
+
+        if download_result.is_error():
+            send_error_to_user(download_result.error)
             return
+
+        task_async_loop_manager.run_async(
+            progress_handler.update_step(ProcessingStep.VERIFICATION, 10)
+        )
+
+        # Valider le fichier
+        validation_result = FileValidator.validate_video(context.local_raw_path)
+
+        if validation_result.is_error():
+            send_error_to_user(validation_result.error)
+            return
+
+        # Extraire métadonnées vidéo
+        metadata_result = get_video_metadata(context.local_raw_path)
+        if metadata_result.is_error():
+            send_error_to_user(metadata_result.error)
+            return
+
+        video_metadata = metadata_result.data
+        logger.info(f"Métadonnées vidéo: {video_metadata}")
+
+        task_async_loop_manager.run_async(
+            progress_handler.update_step(ProcessingStep.COMPRESSING, 20)
+        )
+
+        # Traiter la vidéo
+        qualities = get_target_qualities(video_metadata['height'])
+        logger.info(f"Qualités utilisées: {qualities}")
+
+        hls_command = generate_hls_command(
+            local_raw_path=context.local_raw_path,
+            qualities=qualities,
+            output_dir=context.local_processed_dir,
+            has_audio=video_metadata['has_audio']
+        )
+
+        process_result = process_video_file_with_ffmpeg(hls_command)
+
+        if process_result.is_error():
+            send_error_to_user(process_result.error)
+            return
+
+        # Générer miniature
         try:
-            local_thumbnail_path = generate_thumbnail(
-                local_raw_path, local_processed_dir,
-                ss_time=max(int(video_metadat_res[1]['duration'] * 0.1), 1)  # On prend une frame à 10% de la vidéo, fallback 1 seconde
+            thumbnail_path = generate_thumbnail(
+                context.local_raw_path,
+                context.local_processed_dir,
+                ss_time=max(int(video_metadata['duration'] * 0.1), 1)
             )
+            if thumbnail_path:
+                cleanup_handler.register_file(thumbnail_path)
         except Exception as e:
-            logger.error(f"Erreur {e.__class__.__name__} lors de la génération du thumbnail mais on continue : {e}")
+            logger.warning(f"Génération miniature échouée mais on continue: {e}")
+            thumbnail_path = None
 
-        update_progress(WsPostProcessingInfoSchemaSteps.CREATING, 40)
+        task_async_loop_manager.run_async(
+            progress_handler.update_step(ProcessingStep.CREATING, 40)
+        )
 
-        upload_res = task_async_loop_manager.run_async(
-            upload_hls_to_minio(local_processed_dir, final_bucket_objects_path))
+        # Upload HLS vers MinIO
+        final_bucket_objects_path = BucketFilesUtils.generate_objects_path_for_processed_video(intent_id)
+        upload_result = task_async_loop_manager.run_async(
+            upload_hls_to_minio(context.local_processed_dir, final_bucket_objects_path)
+        )
 
-        if not upload_res[0]:
-            logger.error(upload_res[1])
-            error_update_progress()
+        if upload_result.is_error():
+            send_error_to_user(upload_result.error)
             return
 
-        # Upload de la miniature
-        if local_thumbnail_path:
-            upload_processed_file_to_bucket(
+        # Upload miniature
+        final_bucket_thumbnail_path = None
+
+        if thumbnail_path:
+            final_bucket_thumbnail_path = BucketFilesUtils.generate_objects_path_for_video_thumbnail(intent_id)
+            res = MinIOManager.upload_file(
                 BucketName.USER_IDENTITY_ASSETS.value,
                 final_bucket_thumbnail_path,
-                local_thumbnail_path,
-                c_type="image/webp"
+                thumbnail_path,
+                content_type="image/webp"
             )
+            if res.is_error():
+                logger.error(f"Erreur upload miniature mais lets go on continue: {res.error}")
+                final_bucket_thumbnail_path = None
 
+        task_async_loop_manager.run_async(
+            progress_handler.update_step(ProcessingStep.FINALIZING, 15)
+        )
 
-        update_progress(WsPostProcessingInfoSchemaSteps.FINALIZING, 15)
-
-        db_add_res = task_async_loop_manager.run_async(
-            add_processed_things_in_db(
+        # Enregistrer en BD
+        db_result = task_async_loop_manager.run_async(
+            create_post_and_media(
                 cache=redis_cache,
-                file_size=raw_object.size,
-                duration=video_metadat_res[1]['duration'],
                 user_id=user_id,
-                post_data=post_data,
-                minio_video_url=final_bucket_objects_path,
-                minio_thumnail_url=final_bucket_thumbnail_path,
-                h=video_metadat_res[1]['height'],
-                w=video_metadat_res[1]['width'],
+                post_data=post_data_obj,
+                post_type=PostType.VIDEO,
+                media_type=MediaType.VIDEO,
+                media_url=final_bucket_objects_path,
+                thumbnail_url=final_bucket_thumbnail_path,
+                file_size=raw_object.size,
+                width=video_metadata['width'],
+                height=video_metadata['height'],
+                duration=int(video_metadata['duration']),
+                blur_hash=generate_blurhash_str(thumbnail_path)
             )
         )
-        if not db_add_res[0]:
-            logger.error(db_add_res[1])
-            error_update_progress()
+
+        if db_result.is_error():
+            logger.error(db_result.error)
+            task_async_loop_manager.run_async(progress_handler.error(db_result.error))
             return
 
-        update_progress(WsPostProcessingInfoSchemaSteps.COMPLETED, 15)
+        task_async_loop_manager.run_async(progress_handler.complete())
+
     except Exception as e:
-        logger.exception(f"Exception {e.__class__.__name__} inattendue lors du traitement de la vidéo : {e}", exc_info=e)
-        error_update_progress()
+        logger.exception(f"Exception {e.__class__.__name__} inattendue lors du traitement vidéo: {e}")
+        task_async_loop_manager.run_async(progress_handler.error())
     finally:
-
-        delete_file_from_bucket(raw_object.bucket_name, raw_object.object_name)
-
+        # Supprimer le fichier brut
+        MinIOManager.delete_file(raw_object.bucket_name, raw_object.object_name)
+        
+        # Nettoyage
         task_async_loop_manager.run_async(redis_cache.close())
-        if os.path.exists(local_raw_path):
-            os.remove(local_raw_path)
-        if os.path.exists(local_processed_dir):
-            shutil.rmtree(local_processed_dir)
+        task_async_loop_manager.run_async(cleanup_handler.cleanup_all())
+
 
 

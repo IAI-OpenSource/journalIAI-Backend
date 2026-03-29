@@ -130,16 +130,11 @@ services:
     volumes:
       - .:/app
     restart: unless-stopped
-    deploy:
-      resources:
-        # Limitation des ressources pour éviter que le worker ne consomme tout le CPU/RAM du serveur, surtout lors de traitements lourds
-        # A ajuster selon les capacités réelles du serveur qu'on utilisera et les besoins du worker
-        limits:
-          cpus: '1.5'          # Maximum 1.5 coeurs CPU (sur les X du serveur)
-          memory: 1G           # Maximum 1 Go de RAM
-        reservations:
-          cpus: '0.5'          # Réserver au moins 0.5 coeur
-          memory: 256M         # Réserver au moins 256 Mo
+    # Limitation des ressources pour éviter que le worker ne consomme tout le CPU/RAM du serveur, surtout lors de traitements lourds
+    # A ajuster selon les capacités réelles du serveur qu'on utilisera et les besoins du worker
+    mem_limit: 1g             # Maximum 1 Go de RAM
+    cpus: 1.5                 # Maximum 1.5 coeurs CPU (sur les X du serveur)
+    mem_reservation: 256m     # Réserver au moins 256 Mo de RAM pour le worker
     depends_on:
       db:
         condition: service_healthy
