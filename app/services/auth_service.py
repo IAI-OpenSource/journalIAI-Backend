@@ -61,7 +61,7 @@ class AuthService:
       
     email_data = SendOTPEmail(
       email_to=db_user.data.email,
-      otp=code_otp,
+      otp=str(code_otp),
       last_name=db_user.data.last_name,
       first_name=db_user.data.first_name
     )
@@ -70,19 +70,19 @@ class AuthService:
     
     if mail_result.is_error():
       return ServiceResult.service_error(
-        message=mail_result.data,
+        message=mail_result.error,
         status_code=mail_result.status_code,
         service_name=mail_result.service_name
       )
       
     await self.user_cache.set_user_otp_code_in_cache(
       user_mail=db_user.data.email,
-      otp=code_otp,
+      otp=str(code_otp),
       ttl=CacheDurartion.OTP_DURATION.value
     )
     
     return ServiceResult.service_success(
-      message=mail_result.data,
+      data=mail_result.data,
       status_code=mail_result.status_code,
       service_name=mail_result.service_name
     )

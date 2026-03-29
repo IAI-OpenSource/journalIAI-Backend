@@ -4,6 +4,7 @@ from logging import getLogger
 import traceback
 
 from fastapi_mail import FastMail, MessageSchema, MessageType
+from pydantic import NameEmail
 
 from app.schemas.global_schemas import SendOTPEmail, StringMessage
 from app.services import ServiceResult
@@ -34,14 +35,16 @@ class EmailServiceManager:
         ServiceResult[StringMessage]: retourne un StringMessage
     """
     
-    ## TODO: il reste 2 petits trucs a configurer
     try:
       
       fast_mail_message_type = MessageSchema(
-        subject="", 
-        recipients=[data_email_to.email_to],
+        subject="Code de vérification venant de Journal IAI suport", 
+        recipients=[NameEmail(
+          name=f"{data_email_to.last_name} {data_email_to.first_name}", 
+          email=data_email_to.email_to)
+        ],
         template_body={
-          "otp": data_email_to.otp,
+          "otp_code": data_email_to.otp,
           "last_name": data_email_to.last_name,
           "first_name": data_email_to.first_name,
         },

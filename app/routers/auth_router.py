@@ -6,7 +6,9 @@ from fastapi import APIRouter, Depends, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 from app.globals.api_tags import ApiTags
-from app.schemas.user_schemas import CreateUser, UserInfos
+from app.schemas.global_schemas import GlobalStringMessage
+from app.schemas.user_schemas import CreateUser, LoginData, UserInfos
+from app.services.auth_service import AuthService
 from app.services.user_service import UserService
 
 
@@ -23,6 +25,12 @@ def get_user_service(
   cache: CacheWrapper = Depends(get_redis_cache)
 ) -> UserService:
   return UserService(db, cache)
+
+def get_auth_service(
+  db: Annotated[AsyncSession, Depends(get_db)],
+  cache: CacheWrapper = Depends(get_redis_cache)
+) -> AuthService:
+  return AuthService(db, cache)
 
 
 @router.post(
@@ -51,3 +59,20 @@ async def register(
     response=response,
     status_code=db_user.status_code
   )
+  
+  
+@router.post(
+  "/request-otp",
+  tags=[ApiTags.AUTHENTIFICATION],
+  response_model=GlobalStringMessage
+)
+async def login_request_otp(
+  login_data: LoginData,
+  response: Response,
+  auth_service: Annotated[AuthService, Depends(get_auth_service)]
+):
+  """Route d'authentification pour demander le OTP"""
+
+  auth_service_result = await auth_service.service_find_user_by_email(login_data=login_data)
+
+  return auth_service_result.to_HTTP_api_base_response(reponse=response)
