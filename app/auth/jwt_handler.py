@@ -18,7 +18,7 @@ class JWTManager:
   def create_access_token(
     data_to_encode: dict, 
     cle: str,
-    expire_delta: timedelta | None = None) -> str | dict[str, JWTError] :
+    expire_delta: timedelta | None = None) -> str :
     
       """function pour generer un access token
         Args:
@@ -52,7 +52,7 @@ class JWTManager:
 
       except JWTError as err:
         logger.exception(f"Error {err.__class__.__name__} : {err}")
-        return {"message": err}
+        raise JWTError({"message": err})
 
   
   @staticmethod

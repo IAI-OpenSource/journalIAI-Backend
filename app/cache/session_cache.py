@@ -71,7 +71,7 @@ class SessionCache:
       logger.exception(f"Erreur de connexion à redis {e.__class__.__name__}: {e}")     
     
     
-  async def get_session_from_cache(self, session_id: UUID, session_model: ReadSession) -> Optional[ReadSession]:
+  async def get_session_from_cache(self, session_id: UUID, session_model: type[ReadSession]) -> Optional[ReadSession]:
     """fonction permettant de récupérer les infos d'une session du cache. 
       Ici on récupère toute la session conformement a la validation de ReadSession
 
@@ -94,11 +94,13 @@ class SessionCache:
 
       if session_in_cache is None:
         self.message = msg.CACHE_SESSION_NOT_FOUND
-      
-      return session_in_cache
+        return None
+
+      return ReadSession.model_validate(session_in_cache)
     
     except redis.ConnectionError as e:
-      logger.exception(f"Erreur de connexion à redis {e.__class__.__name__}: {e}")     
+      logger.exception(f"Erreur de connexion à redis {e.__class__.__name__}: {e}")   
+      return None  
     
     
   

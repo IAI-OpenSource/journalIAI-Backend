@@ -5,6 +5,8 @@ from dataclasses import dataclass
 import logging
 from uuid import UUID
 
+from pydantic import EmailStr
+
 from app.utils.security_utils import hasher_password
 from sqlalchemy import func, insert, select
 from sqlalchemy.exc import IntegrityError
@@ -122,7 +124,7 @@ class UserRepository:
       return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
 
 
-  async def get_user_by_email(self, login_data: LoginData) -> CRUDResult[User]:
+  async def get_user_by_email(self, email: EmailStr) -> CRUDResult[User]:
     """function dao pour trouver un utilisateur a partir de son email
 
     Args:
@@ -137,7 +139,7 @@ class UserRepository:
       stmt = (
         select(User)
         .options(joinedload(User.classe))
-        .where(User.email == login_data.email)
+        .where(User.email == email)
       )
       result = await self.db.execute(stmt)
       user = result.scalar_one_or_none()

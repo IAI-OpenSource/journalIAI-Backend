@@ -13,7 +13,7 @@ class CookieManager:
     self.request =  request
     
     
-  def add_cookie(self, id: str, value: Optional[str], age: Optional[int]):
+  def add_cookie(self, id: str, value: str, age: Optional[int]):
     
     try:
       
@@ -46,9 +46,6 @@ class CookieManager:
         status_code=status.HTTP_403_FORBIDDEN, 
         detail="Erreur de lecture de cookie"
       )
-    
-    if cookie_value is None:
-      raise HTTPException
     
     return cookie_value
   

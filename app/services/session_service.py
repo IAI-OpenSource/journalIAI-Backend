@@ -48,14 +48,20 @@ class SessionService:
         service_name=msg.INSERT_SESSSION
       )
       
-    return ServiceResult.service_success(data=ReadSession(**session_repo.data), status_code=session_repo.status_code)
+    await self.session_cache.set_session_in_cache(
+      session_id=session_repo.data.id, 
+      session=ReadSession.model_validate(session_repo.data),
+      ttl=CacheDurartion.SESSION_DURATION.value
+    )  
+      
+    return ServiceResult.service_success(data=ReadSession.model_validate(session_repo.data), status_code=session_repo.status_code)
 
     
   async def service_find_session_by_sid(self, sid: UUID) -> ServiceResult[ReadSession]:
     """Logique métier de récupération d'une session by SID"""
     
     ## On cherhe d'abord la donnée dans le cache
-    session_cache_data = self.session_cache.get_session_from_cache(session_id=sid, session_model=ReadSession)
+    session_cache_data = await self.session_cache.get_session_from_cache(session_id=sid, session_model=ReadSession)
 
     if session_cache_data is not None:
       return ServiceResult.service_success(data=session_cache_data, status_code=StatusCode._200_STATUS_SUCCESS.value)
@@ -95,7 +101,10 @@ class SessionService:
       ttl=CacheDurartion.SESSION_DURATION.value
     )  
     
-    return ServiceResult.service_success(session.data)
+    return ServiceResult.service_success(
+      data=session_read,
+      status_code=session.status_code,
+    )
 
 
     

@@ -33,3 +33,13 @@ class SendOTPEmail(BaseModel):
   otp: str = Field(description="Le code OTP généré pour l'utilisateur")
   last_name: str
   first_name: str
+  
+class VerifyOTPData(BaseModel):
+  """schémas de validation des données pour le OTP, vaidatio du OTP que 
+      l'utilisateur va soumettre
+  Args:
+      BaseModel (_type_): _description_
+  """
+
+  sender_email: EmailStr = Field(description="Email de l'utilisateur qui envoi le OTP donc technique c'est celui qui essaye de se connecter")
+  otp: int = Field(description="le OTP saisie")

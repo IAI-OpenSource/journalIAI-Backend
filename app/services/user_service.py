@@ -66,7 +66,7 @@ class UserService:
     )
         
     return ServiceResult.service_success(
-      data=user.data, 
+      data=ReadUser.model_validate(user.data), 
       status_code=user.status_code,
       service_name=msg.USER_SERVICE
     )

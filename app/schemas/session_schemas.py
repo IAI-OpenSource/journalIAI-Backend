@@ -21,7 +21,6 @@ class CreateSession(BaseModel):
   ip_address: Optional[str] = Field(description="Addresse IP du user")
   user_agent: Optional[str] = Field(description="Le navigateur de connexion")
   expires_at: datetime
-  created_at: datetime
   
   
 class ReadSession(BaseModel):
@@ -33,7 +32,7 @@ class ReadSession(BaseModel):
   
   id: UUID  = Field(description="ID de la session")
   user_id: UUID = Field(description="Id de l'utilisateur qui se connecte pour une session")
-  ref_token: str  = Field(description="token généré pour valider la session d'un user")
+  refresh_token_hash: str  = Field(description="token généré pour valider la session d'un user")
   ip_address: Optional[str] = Field(description="Addresse IP du user")
   user_agent: Optional[str] = Field(description="Le navigateur de connexion")
   expires_at: datetime

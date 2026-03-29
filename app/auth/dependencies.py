@@ -78,7 +78,7 @@ class UserAuthDependencies:
                 detail="Clé d'accès invalide"
             )
         
-        user_session = await self.session_service.service_find_session_by_sid(sid=sid)
+        user_session = await self.session_service.service_find_session_by_sid(sid=sid[""])
         
         if user_session.is_error():
             raise HTTPException(

@@ -2,11 +2,11 @@
 
 from typing import Annotated
 from app.cache.helpers.base import CacheWrapper, get_redis
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 from app.globals.api_tags import ApiTags
-from app.schemas.global_schemas import GlobalStringMessage
+from app.schemas.global_schemas import GlobalStringMessage, VerifyOTPData
 from app.schemas.user_schemas import CreateUser, LoginData, UserInfos
 from app.services.auth_service import AuthService
 from app.services.user_service import UserService
@@ -27,10 +27,12 @@ def get_user_service(
   return UserService(db, cache)
 
 def get_auth_service(
+  response: Response,
+  request: Request,
   db: Annotated[AsyncSession, Depends(get_db)],
-  cache: CacheWrapper = Depends(get_redis_cache)
+  cache: CacheWrapper = Depends(get_redis_cache),
 ) -> AuthService:
-  return AuthService(db, cache)
+  return AuthService(db, cache, response, request)
 
 
 @router.post(
@@ -74,5 +76,22 @@ async def login_request_otp(
   """Route d'authentification pour demander le OTP"""
 
   auth_service_result = await auth_service.service_find_user_by_email(login_data=login_data)
+
+  return auth_service_result.to_HTTP_api_base_response(reponse=response)
+
+
+@router.post(
+  "/verify-otp",
+  tags=[ApiTags.AUTHENTIFICATION],
+  response_model=GlobalStringMessage
+)
+async def login_verify_otp(
+  otp_verify_data: VerifyOTPData,
+  response: Response,
+  auth_service: Annotated[AuthService, Depends(get_auth_service)]
+):
+  """Route d'authentification pour verifier le OTP"""
+
+  auth_service_result = await auth_service.verify_user_otp_code(otp_verify_data=otp_verify_data)
 
   return auth_service_result.to_HTTP_api_base_response(reponse=response)
