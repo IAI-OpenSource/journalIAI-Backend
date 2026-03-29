@@ -63,7 +63,7 @@ class AcademicYearListResponse(BaseModel):
         classes: La liste des années académiques
     """
     
-    classes: list[AcademicYearResponse]
+    years: list[AcademicYearResponse]
     total: int
     page : int
     page_size : int

@@ -12,6 +12,10 @@ class Messages:
     # Messages spécifiques
     USER_NOT_FOUND = "Utilisateur non trouvé."
     CLUB_NOT_FOUND = "Club non trouvé."
+    CLASSE_NOT_FOUND = "Classe non trouvée."
+    ACADEMIC_YEAR_NOT_FOUND = "Année académique non trouvée."
+    ACADEMIC_YEAR_ALREADY_EXISTS = "Cette année académique existe déjà."
+    CLASSE_ALREADY_EXISTS = "Cette classe existe déjà pour cette année académique."
     CLUB_ALREADY_EXISTS = "Le club existe déjà."
     CLUB_DELETED_SUCCESSFULLY = "Club supprimé avec succès."
     CLUB_UPDATED_SUCCESSFULLY = "Club mis à jour avec succès."
@@ -53,6 +57,8 @@ class Messages:
     UNAUTHORIZED_JETON = "Ce Jeton est invalide"
     USER_SERVICE = "Service Utilisateur"
     CLUB_SERVICE = "Service Club"
+    CLASSE_SERVICE = "Service Classe"
+    ACADEMIC_YEAR_SERVICE = "Service Année Académique"
     
     
     ## Message pour le cache
