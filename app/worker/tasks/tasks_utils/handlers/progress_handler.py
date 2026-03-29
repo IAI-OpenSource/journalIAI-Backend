@@ -6,8 +6,8 @@ from typing import Optional
 
 from app.globals.messages import Messages
 from app.schemas.post_upload_schemas import WsPostProcessingInfoSchema, WsPostProcessingInfoSchemaSteps
-from app.worker.tasks.base.processing_context import ProcessingContext
-from app.worker.tasks.base.processing_step import ProcessingStep
+from app.worker.tasks.tasks_utils.base.processing_context import ProcessingContext
+from app.worker.tasks.tasks_utils.base.processing_step import ProcessingStep
 
 logger = getLogger(__name__)
 

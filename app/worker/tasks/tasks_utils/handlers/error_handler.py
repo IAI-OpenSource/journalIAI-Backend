@@ -3,7 +3,7 @@
 from logging import getLogger
 from typing import Optional
 
-from app.worker.tasks.base.processing_result import ProcessingResult
+from app.worker.tasks.tasks_utils.base.processing_result import ProcessingResult
 
 logger = getLogger(__name__)
 

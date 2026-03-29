@@ -8,7 +8,7 @@ from uuid import UUID
 from app.cache.helpers.base import CacheWrapper
 from app.cache.uploads_cache import MediaUploadsCache
 from app.schemas.post_upload_schemas import CreateMediaUploadIntentFullData
-from app.worker.tasks.base.processing_step import ProcessingStep
+from app.worker.tasks.tasks_utils.base.processing_step import ProcessingStep
 
 
 @dataclass

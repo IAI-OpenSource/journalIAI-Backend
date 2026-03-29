@@ -11,11 +11,11 @@ from app.schemas.post_upload_schemas import CreateMediaUploadIntentFullData
 from app.storage.bucket_files_utils import BucketFilesUtils
 from app.storage.minio_config import BucketName
 from app.worker.tasks.async_loop_manager import task_async_loop_manager
-from app.worker.tasks.base.processing_context import ProcessingContext
-from app.worker.tasks.base.processing_step import ProcessingStep
-from app.worker.tasks.handlers.cleanup_handler import CleanupHandler
-from app.worker.tasks.handlers.progress_handler import ProgressHandler
-from app.worker.tasks.minio.minio_operations import MinIOManager
+from app.worker.tasks.tasks_utils.base import ProcessingContext
+from app.worker.tasks.tasks_utils.base import ProcessingStep
+from app.worker.tasks.tasks_utils.handlers.cleanup_handler import CleanupHandler
+from app.worker.tasks.tasks_utils.handlers import ProgressHandler
+from app.worker.tasks.tasks_utils.minio.minio_operations import MinIOManager
 from app.worker.tasks.tasks_utils.common_media_utils import create_post_and_media, generate_blurhash_str
 from app.worker.tasks.tasks_utils.image_process_task_utils import (
     get_image_metadata,

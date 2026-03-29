@@ -11,7 +11,7 @@ from app.globals.messages import Messages
 from app.storage.minio_client import MinioClientFactory
 from app.storage.minio_config import BucketName
 from app.worker.tasks.async_loop_manager import task_async_loop_manager
-from app.worker.tasks.base.processing_result import ProcessingResult
+from app.worker.tasks.tasks_utils.base import ProcessingResult
 
 logger = getLogger(__name__)
 

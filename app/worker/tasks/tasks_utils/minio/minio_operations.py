@@ -6,7 +6,7 @@ from pathlib import Path
 from minio.datatypes import Object
 
 from app.storage.minio_client import MinioClientFactory
-from app.worker.tasks.base.processing_result import ProcessingResult
+from app.worker.tasks.tasks_utils.base.processing_result import ProcessingResult
 
 logger = getLogger(__name__)
 

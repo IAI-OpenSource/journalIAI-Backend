@@ -11,7 +11,7 @@ from app.db.models.post_media import PostMedia
 from app.db.session import AsyncSessionLocal
 from app.schemas.post_upload_schemas import CreateMediaUploadIntentFullData
 from app.storage.minio_config import BucketName
-from app.worker.tasks.base.processing_result import ProcessingResult
+from app.worker.tasks.tasks_utils.base import ProcessingResult
 from blurhash import encode
 from PIL import Image
 

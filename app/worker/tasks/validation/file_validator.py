@@ -5,7 +5,7 @@ from logging import getLogger
 import magic
 
 from app.globals.messages import Messages
-from app.worker.tasks.base.processing_result import ProcessingResult
+from app.worker.tasks.tasks_utils.base import ProcessingResult
 
 logger = getLogger(__name__)
 

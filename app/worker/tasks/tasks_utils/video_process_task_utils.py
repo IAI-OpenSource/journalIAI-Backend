@@ -8,10 +8,11 @@ from pathlib import Path
 from typing import Any, Optional
 
 from app.globals.messages import Messages
+from app.globals.others_constants import OtherConstants
 from app.storage.minio_client import MinioClientFactory
 from app.storage.minio_config import BucketName
 from app.worker.tasks.async_loop_manager import task_async_loop_manager
-from app.worker.tasks.base.processing_result import ProcessingResult
+from app.worker.tasks.tasks_utils.base import ProcessingResult
 
 logger = getLogger(__name__)
 
@@ -173,7 +174,7 @@ def generate_hls_command(local_raw_path: str, output_dir: str, qualities: list, 
         "-map", "[v_mp4]", "-map", audio_map,
         "-c:v", "libx264", "-crf", "23", "-preset", "veryfast",
         "-c:a", "aac", "-b:a", "128k", "-shortest",
-        f"{output_dir}/download_720p.mp4"
+        f"{output_dir}/{OtherConstants.HLS_DOWNLOAD_FILE_NAME}"
     ])
 
     # 5. Sorties HLS
@@ -189,8 +190,8 @@ def generate_hls_command(local_raw_path: str, output_dir: str, qualities: list, 
     var_map = " ".join([f"v:{i},a:{i},name:{q['name']}" for i, q in enumerate(qualities)])
 
     cmd.extend([
-        "-f", "hls", "-hls_time", "6", "-hls_playlist_type", "vod",
-        "-hls_segment_type", "fmp4", "-master_pl_name", "master.m3u8",
+        "-f", "hls", "-hls_time", str(OtherConstants.HLS_SEGMENTS_DURATION), "-hls_playlist_type", "vod",
+        "-hls_segment_type", "fmp4", "-master_pl_name", OtherConstants.HLS_PLAYLIST_MASTER_NAME,
         "-var_stream_map", var_map,
         "-hls_segment_filename", f"{output_dir}/%v/seg_%d.m4s",
         "-shortest",
