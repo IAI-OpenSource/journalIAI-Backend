@@ -8,6 +8,8 @@ class BaseCacheEntity:
     POST = "entity:post:{id}"
     COMMENT = "entity:comment:{id}"
     CLUB = "entity:club:{id}"
+    CLASSE = "entity:classe:{id}"
+    ACADEMIC_YEAR = "entity:academic_year:{id}"
     EVENT = "entity:event:{id}"
     SESSION = "entity:session:{id}"
     NOTIFICATION = "entity:notification:{id}"
@@ -32,6 +34,10 @@ class AvailableCacheKeys(str, Enum):
     # Clés de cache pour les clubs
     CLUB_OBJECT = BaseCacheEntity.CLUB  # Clé pour un club spécifique
     CLUB_MEMBERS = BaseCacheEntity.CLUB + ":members"  # Clé pour les membres d'un club
+
+    ACADEMIC_YEAR_OBJECT = BaseCacheEntity.ACADEMIC_YEAR  # Clé pour une année académique spécifique
+
+    CLASSE_OBJECT = BaseCacheEntity.CLASSE  # Clé pour une classe spécifique
 
     # Clés de cache pour les événements
     EVENT_OBJECT = BaseCacheEntity.EVENT  # Clé pour un événement spécifique

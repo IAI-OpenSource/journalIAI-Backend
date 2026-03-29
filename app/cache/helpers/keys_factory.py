@@ -29,6 +29,8 @@ class CacheKeysFactory:
         AvailableCacheKeys.COMMENT_LIKE_COUNT: CacheKey.new_key(AvailableCacheKeys.COMMENT_LIKE_COUNT, 1),
         AvailableCacheKeys.FILE_UPLOAD_INTENT_KEY: CacheKey.new_key(AvailableCacheKeys.FILE_UPLOAD_INTENT_KEY, 2),
         AvailableCacheKeys.FILE_UPLOAD_PROGRESS_STREAM_KEY: CacheKey.new_key(AvailableCacheKeys.FILE_UPLOAD_PROGRESS_STREAM_KEY, 2),
+        AvailableCacheKeys.ACADEMIC_YEAR_OBJECT: CacheKey.new_key(AvailableCacheKeys.ACADEMIC_YEAR_OBJECT, 1),
+        AvailableCacheKeys.CLASSE_OBJECT: CacheKey.new_key(AvailableCacheKeys.CLASSE_OBJECT, 1),
     }
 
     @classmethod
