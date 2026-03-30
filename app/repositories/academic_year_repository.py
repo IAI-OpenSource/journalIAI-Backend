@@ -78,7 +78,7 @@ class AcademicYearRepository:
             academic_years = result.scalars().all()
 
             logger.info(f"{len(academic_years)} academic years retrieved successfully")
-            return CRUDResult.crud_success(academic_years, 200)
+            return CRUDResult.crud_success((academic_years,total), 200)
         except IntegrityError as e:
             return await RepositoriesUtils.traiter_integrity_error(e, self.db, logger, AcademicYear)
         except Exception as e:
