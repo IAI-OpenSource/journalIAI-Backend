@@ -19,7 +19,7 @@ routeur = APIRouter(prefix="/events", tags=[ApiTags.EVENT])
 # AVANT les routes dynamiques (/{event_id}) pour éviter les conflits FastAPI
 
 
-@routeur.get("/", name="Récupérer tous les events.", response_model=ApiPaginatedEventListReponse, deprecated=True)
+@routeur.get("/", name="Récupérer tous les events.", response_model=ApiEventListReponse, deprecated=True)
 async def get_all_events(
     reponse: Response,
     db: AsyncSession = Depends(get_db),
