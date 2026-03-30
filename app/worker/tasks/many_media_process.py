@@ -37,7 +37,10 @@ def process_media_upload_task(
     """
 
     def send_error_to_user(error: str) -> None:
-        task_async_loop_manager.run_async(progress_handler.error(error))
+        try:
+            task_async_loop_manager.run_async(progress_handler.error(error))
+        except Exception as ee:
+            logger.error(f"Erreur {ee.__class__.__name__} envoi message d'erreur au stream pour {intent_id}: {ee}")
 
     try:
         post_data_obj: CreateMediaUploadIntentFullData = CreateMediaUploadIntentFullData.model_validate_json(post_data)
