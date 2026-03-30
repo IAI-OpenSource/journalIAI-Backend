@@ -140,10 +140,9 @@ class AcademicYearService:
 
 
     async def soft_delete_academic_year(self, academic_year_id: UUID) -> ServiceResult[StringMessage]:
-        """Supprime une année académique (soft delete).
-        
+        """Supprime une année académique (soft delete)
         Args:
-            academic_year_id: L'identifiant de l'année académique à supprimer.
+            academic_year_id: L'i   dentifiant de l'année académique à supprimer.
             
         Returns:
             StringMessage: Un message indiquant le résultat de l'opération de suppression.
@@ -164,7 +163,7 @@ class AcademicYearService:
                 logger.info(f"Année académique supprimée du cache pour l'ID {academic_year_id}")
             except Exception:
                 logger.warning(f"Impossible de supprimer l'année académique {academic_year_id} du cache")
-            return ServiceResult.service_success(StringMessage("Année académique supprimée avec succès."), status._200_STATUS_SUCCESS, msg.ACADEMIC_YEAR_SERVICE)
+            return ServiceResult.service_success(StringMessage(message="Année académique supprimée avec succès."), status._200_STATUS_SUCCESS, msg.ACADEMIC_YEAR_SERVICE)
         except Exception as e:
             logger.error(f"Erreur lors de la suppression de l'année académique: {e}")
             return ServiceResult.service_error("Une erreur est survenue lors de la suppression de l'année académique.", 500, msg.ACADEMIC_YEAR_SERVICE)

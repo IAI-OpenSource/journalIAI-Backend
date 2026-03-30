@@ -11,6 +11,8 @@ from app.globals.messages import Messages as msg
 from sqlalchemy import update
 import logging
 
+from app.schemas.global_schemas import StringMessage
+
 logger = logging.getLogger(__name__)
 
 @dataclass
@@ -185,7 +187,7 @@ class AcademicYearRepository:
             await self.db.execute(stmt)
             await self.db.commit()
             logger.info(f"Academic year deactivated successfully")
-            return CRUDResult.crud_success(None, 200)
+            return CRUDResult.crud_success("Année académique désactivée avec succès.", 200)
         except IntegrityError as e:
             return await RepositoriesUtils.traiter_integrity_error(e, self.db, logger, AcademicYear)
         except Exception as e:
