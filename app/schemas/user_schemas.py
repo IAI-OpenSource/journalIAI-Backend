@@ -22,8 +22,6 @@ class CreateUser(BaseModel):
       BaseModel (_type_): Hérite de base model
   """
   
-  last_name: str = Field(description="Nom de l'utilisateur")
-  first_name: str = Field(description="Prénom de l'utiisateur")
   email: EmailStr
   username: str = Field(description="Nom d'utilisateur")
   password: str
