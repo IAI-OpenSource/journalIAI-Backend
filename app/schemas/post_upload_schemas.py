@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Optional
+from typing import Optional, List
 
 from pydantic import BaseModel, Field
 
@@ -8,12 +8,23 @@ from uuid import UUID
 from app.db.models.enums import MediaType
 from app.schemas import ApiBaseResponse
 
+class FileToUploadSchema(BaseModel):
+    """Schéma de validation pour les informations d'un fichier à uploader, contenant le nom du fichier, sa taille et son type de média"""
+    file_name: str = Field(description="Le nom du fichier à uploader, incluant son extension")
+    file_size: int = Field(description="La taille du fichier à uploader en octets, le fichier ne doit pas depasser 100Mo sinon Errrooor")
+    media_type: MediaType = Field(description="Le type de média du fichier à uploader")
+    @property
+    def is_video(self) -> bool:
+        return self.media_type == MediaType.VIDEO
+
 #TODO: REndre la doc beaucoup plus claire et enlever quelques petites incohérences
 class CreateMediaUploadIntent(BaseModel):
     """Schéma de validation pour un intent d'upload de fichier, contenant les informations nécessaires pour initier un upload de fichier, comme le nom du fichier, son type et sa taille"""
-
-    file_name: str = Field(description="Le nom du fichier à uploader, incluant son extension")
-    file_size: int = Field(description="La taille du fichier à uploader en octets, le fichier ne doit pas depasser 100Mo sinon Errrooor")
+    files: List[FileToUploadSchema] = Field(
+        description="La liste des fichiers à uploader, actuellement limité à un 10 fichiers",
+        min_length=1,
+        max_length=10
+    )
     event_id: Optional[UUID] = Field(None, description="L'ID de l'événement auquel le fichier est associé, si applicable")
     club_id: Optional[UUID] = Field(None, description="L'ID du club auquel le fichier est associé, si applicable")
     content: Optional[str] = Field(None, description="Le contenu textuel associé au post")
@@ -28,24 +39,33 @@ class CreateMediaUploadIntent(BaseModel):
                     " de l'école, QUAND CE ATTRIBUT EST A True `for_current_academic_year` LE DEVIENT AUSSI AUTOMATIQUEMENT "
                     "DONC PLUS LA PEINE DE LE PASSER (`for_current_academic_year` SERA TOUJOURS TRUE QUAND `only_for_a_class` EST TRUE)"
     )
-    media_type: MediaType = Field(description="Le type de média du fichier à uploader")
 
-    @property
-    def is_video(self) -> bool:
-        return self.media_type == MediaType.VIDEO
+
 
 class CreateMediaUploadIntentFullData(CreateMediaUploadIntent):
     academic_year_id: Optional[UUID] = Field(None)
     classe_id: Optional[UUID] = Field(None)
 
+class AvailableUploadMethod(str, Enum):
+    PUT = "PUT"
+    POST = "POST"
 
+class FileInUploadURLSchema(BaseModel):
+    # file_id: UUID = Field(description="L'id du fichier")
+    upload_url: str = Field(description="L'url sur lequel l'Upload doit s'effectuer")
+    method: AvailableUploadMethod = Field(description="La méthode HTTP à utiliser pour l'upload")
 
 class UploadURLSchema(BaseModel):
-    upload_url: str = Field(description="L'url sur lequel l'Upload doit s'effectuer")
     intent_id: str = Field(
         description="Id de l'intent, cet id sera réutiliser pour les prochaines opérations, donc gardez çà jalousement,"
                     "vous allez faire beaucoup de choses avec🤣"
     )
+    files: List[FileInUploadURLSchema] = Field(
+        description="La liste des fichiers à uploader, avec leur id et leur url d'upload respective",
+        min_length=1,
+        max_length=10,
+    )
+
 
 class MediaUploadCompleteSchema(BaseModel):
     job_id: str = Field(

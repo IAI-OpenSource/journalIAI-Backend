@@ -4,3 +4,4 @@ class OtherConstants:
     HLS_DOWNLOAD_FILE_NAME: str = "download.mp4"
     HLS_PLAYLIST_TYPE: str = "mp4"
     MEDIA_PROCESSING_WORKER_QUEUE_NAME: str = "media_processing"
+    MAX_UPLOAD_FILE_SIZE: int = 100 * 1024 * 1024  # 100 Mo

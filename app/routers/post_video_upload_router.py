@@ -34,7 +34,10 @@ async def get_mock_user():
 
     return user
 
-
+def get_post_upload_service(
+    cache : CacheWrapper = Depends(get_redis), bd: AsyncSession = Depends(get_db)
+) -> MediaUploadsService:
+    return MediaUploadsService(cache=cache, bd=bd)
 
 # TODO: Revoir tout ce fichier quand l'auth sera dispo et re-tester, principalement verifier si l'utilisateur peut post
 
@@ -43,16 +46,14 @@ async def get_mock_user():
     response_model=PostMediaUploadIntentResponse, tags=[ApiTags.POSTS, ApiTags.UPLOADS]
 )
 async def post_unique_media_upload_intent(
-    request_data: CreateMediaUploadIntent, response: Response, cache : CacheWrapper = Depends(get_redis),
-    bd: AsyncSession = Depends(get_db), current_user: User = Depends(get_mock_user)
+    request_data: CreateMediaUploadIntent, response: Response, service = Depends(get_post_upload_service),
+    current_user: User = Depends(get_mock_user)
 ):
     """
     Endpoint pour générer un intent d'upload de média pour un post, en fournissant les informations nécessaires
     pour initier un upload de média. L'endpoint valide les données d'entrée, génère une URL d'upload
     pré-signée, c'est sur cette Url que vous allez upload le fichier média du post
     """
-
-    service = MediaUploadsService(cache=cache, bd=bd)
 
     res = await service.service_process_media_upload_intent(current_user, request_data)
 
@@ -65,14 +66,12 @@ async def post_unique_media_upload_intent(
 async def complete_video_post(
     response: Response,
     intent_id: str = Query(..., description="L'id d'intent recupéré précedemment"),
-    cache : CacheWrapper = Depends(get_redis), bd: AsyncSession = Depends(get_db), current_user: User = Depends(get_mock_user)
+    service = Depends(get_post_upload_service), current_user: User = Depends(get_mock_user)
 ):
     """
     Route pour confirmé l'upload du post média, vous ferrez une requete
     sur cette route après avoir uploadé totalement le fichier sur l'url délivré précedemment
     """
-
-    service = MediaUploadsService(cache=cache, bd=bd)
 
     verification = await service.service_verify_complete_media_upload(current_user, intent_id)
 
@@ -83,7 +82,7 @@ async def complete_video_post(
 async def ws_post_processing_info(
     websocket: WebSocket,
     intent_id: str = Query(..., description="L'id d'intent d'upload de média pour lequel on veut suivre le post-traitement"),
-    cache : CacheWrapper = Depends(get_redis), bd: AsyncSession = Depends(get_db), current_user: User = Depends(get_mock_user)
+    service = Depends(get_post_upload_service), current_user: User = Depends(get_mock_user)
 ):
     """
     Websocket pour suivre le post-traitement d'un média uploadée, vous devez vous connecter à ce
@@ -93,7 +92,6 @@ async def ws_post_processing_info(
     progression et un timestamp, en cas d'échec vous recevrez un message d'erreur dans le champ `error_message`
     et le suivi sera terminé
     """
-    service = MediaUploadsService(cache=cache, bd=bd)
 
     await websocket.accept()
 
