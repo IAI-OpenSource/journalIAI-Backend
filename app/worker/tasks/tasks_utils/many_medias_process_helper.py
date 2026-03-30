@@ -3,6 +3,7 @@ from logging import Logger
 from uuid import UUID
 
 from minio.datatypes import Object
+from sqlalchemy.orm import Mapped
 
 from app.db.models.post_media import PostMedia
 from app.globals.messages import Messages
@@ -214,7 +215,7 @@ class ManyMediasProcessHelper:
 
     def create_post_media_object(
             self,
-            post_id: UUID,
+            post_id: Mapped[UUID],
             index: int,
             duration: int | None,
             width: int,

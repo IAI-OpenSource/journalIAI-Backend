@@ -68,7 +68,11 @@ class ProcessingContext:
         for file in self.post_data.files:
             r_path = f"/tmp/{uuid4()}_raw"
             p_path = f"/tmp/{uuid4()}_processed_files"
-            os.makedirs(p_path, exist_ok=True)
+            try:
+                os.makedirs(p_path, exist_ok=True)
+            except Exception as e:
+                raise RuntimeError(f"Impossible de créer le répertoire temporaire {p_path}: {e}")
+            
             self._locals_paths[file.file_name] = {"raw": r_path, "processed": p_path}
             self.register_temp_file(r_path)
             self.register_temp_dir(p_path)
