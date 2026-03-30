@@ -3,3 +3,4 @@ class OtherConstants:
     HLS_SEGMENTS_DURATION: int = 4      # 4 secondes
     HLS_DOWNLOAD_FILE_NAME: str = "download.mp4"
     HLS_PLAYLIST_TYPE: str = "mp4"
+    MEDIA_PROCESSING_WORKER_QUEUE_NAME: str = "media_processing"

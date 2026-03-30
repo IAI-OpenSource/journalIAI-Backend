@@ -173,6 +173,7 @@ def generate_hls_command(local_raw_path: str, output_dir: str, qualities: list, 
     cmd.extend([
         "-map", "[v_mp4]", "-map", audio_map,
         "-c:v", "libx264", "-crf", "23", "-preset", "veryfast",
+        "-threads", "2",                                        # 2 threads
         "-c:a", "aac", "-b:a", "128k", "-shortest",
         f"{output_dir}/{OtherConstants.HLS_DOWNLOAD_FILE_NAME}"
     ])

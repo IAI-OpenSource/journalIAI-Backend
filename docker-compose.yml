@@ -120,11 +120,11 @@ services:
       minio:
         condition: service_healthy
 
-  # Worker Celery (Traitement images/vidéos, tâches de fond)
-  worker:
+  # Workers Celery (Traitement images/vidéos, tâches de fond)
+  default_worker:
     build: .
-    container_name: journal_IAI_worker
-    command: celery -A app.worker.celery_app worker --loglevel=info --concurrency=2 --max-tasks-per-child=10
+    container_name: journal_IAI_default_worker
+    command: celery -A app.worker.celery_app worker --loglevel=info --concurrency=5 --max-tasks-per-child=10 -n default_worker@%h
      # --concurrency=2 : Limite à 2 tâches simultanées pour éviter de surcharger le serveur
      # --max-tasks-per-child=10 : Redémarre le worker après 10 tâches pour libérer la mémoire (utile si certaines tâches sont gourmandes en RAM)
     volumes:
@@ -132,8 +132,8 @@ services:
     restart: unless-stopped
     # Limitation des ressources pour éviter que le worker ne consomme tout le CPU/RAM du serveur, surtout lors de traitements lourds
     # A ajuster selon les capacités réelles du serveur qu'on utilisera et les besoins du worker
-    mem_limit: 1g             # Maximum 1 Go de RAM
-    cpus: 1.5                 # Maximum 1.5 coeurs CPU (sur les X du serveur)
+    mem_limit: 512m             # Maximum 512 Go de RAM
+    cpus: 1.0                 # Maximum 1.0 coeurs CPU (sur les X du serveur)
     mem_reservation: 256m     # Réserver au moins 256 Mo de RAM pour le worker
     depends_on:
       db:
@@ -142,16 +142,34 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
-
-  # Flower (DashBoard de Monitoring pour Celery)
-  flower:
-    image: mher/flower:latest
-    container_name: journal_IAI_flower
-    ports:
-      - "${FLOWER_PORT}:5555"
-    command: celery --broker=redis://redis:6379/0 flower
+  # Worker spécialisé pour les tâches de traitement vidéo (plus gourmandes en ressources, on lui alloue plus de CPU/RAM mais on limite à 1 tâche à la fois pour éviter la surcharge)
+  media_worker:
+    build: .
+    container_name: journal_IAI_media_worker
+    # max-tasks-per-child=2 Redémarre le worker après chaque deux tâche pour libérer la mémoire
+    # --concurency=2 Limite à 2 tâche simultanée pour éviter de surcharger le serveur lors de traitements vidéo
+    # -Q media_processing Utilise une queue dédiée "media_processing" pour séparer les tâches de traitement vidéo des autres tâches
+    command: |
+      celery -A app.worker.celery_app worker 
+      --loglevel=info
+      -Q media_processing              
+      --concurrency=2                
+      --max-tasks-per-child=2         
+      -n media_worker@%h
+    volumes:
+      - .:/app
+    restart: unless-stopped
+    # Limitation des ressources pour éviter que le worker ne consomme tout le CPU/RAM du serveur, surtout lors de traitements lourds comme la vidéo
+    # A ajuster selon les capacités réelles du serveur qu'on utilisera et les besoins du worker
+    mem_limit: 1g
+    cpus: 1.5
+    mem_reservation: 256m
     depends_on:
+      db:
+        condition: service_healthy
       redis:
+        condition: service_healthy
+      minio:
         condition: service_healthy
 
 volumes:
