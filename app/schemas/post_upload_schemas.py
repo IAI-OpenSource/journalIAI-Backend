@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import Optional, List
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from uuid import UUID
 
@@ -10,8 +10,12 @@ from app.schemas import ApiBaseResponse
 
 class FileToUploadSchema(BaseModel):
     """Schéma de validation pour les informations d'un fichier à uploader, contenant le nom du fichier, sa taille et son type de média"""
-    file_name: str = Field(description="Le nom du fichier à uploader, incluant son extension")
-    file_size: int = Field(description="La taille du fichier à uploader en octets, le fichier ne doit pas depasser 100Mo sinon Errrooor")
+    file_name: str = Field(description="Le nom du fichier à uploader, incluant son extension. TOUT LES "
+                                       "NOMS DOIVENT ETRE DISTINCT LES UNS DES AUTRES")
+    file_size: int = Field(
+        description="La taille du fichier à uploader en octets, le fichier ne doit pas depasser 100Mo sinon Errrooor",
+        gt=0,
+    )
     media_type: MediaType = Field(description="Le type de média du fichier à uploader")
     @property
     def is_video(self) -> bool:
@@ -40,6 +44,14 @@ class CreateMediaUploadIntent(BaseModel):
                     "DONC PLUS LA PEINE DE LE PASSER (`for_current_academic_year` SERA TOUJOURS TRUE QUAND `only_for_a_class` EST TRUE)"
     )
 
+    @model_validator(mode='after')
+    def check_files_names(self):
+        names = []
+        for file in self.files:
+            if file.file_name in names:
+                raise ValueError(f"Noms de fichier doublons detecté: {file.file_name}")
+            names.append(file.file_name)
+        return self
 
 
 class CreateMediaUploadIntentFullData(CreateMediaUploadIntent):

@@ -34,6 +34,7 @@ def get_mock_data() -> tuple[UUID, UUID]:
     """Génére des données mock pour les tests"""
     return UUID("5f594ab3-2560-4e5b-adbe-f20e5dd8e193"), UUID("74910788-e47d-483d-b24f-750c7b24e3d6")
 
+# TODO: Ajouter des commentaires clairs pour se retrouver après
 class MediaUploadsService:
 
     def __init__(self, cache: CacheWrapper, bd: AsyncSession):
@@ -114,12 +115,12 @@ class MediaUploadsService:
         return ServiceResult.service_success(data=data_to_return)
 
 
-    async def worker_service_save_processed_media_post_in_bd(self, post_object: Post, media: PostMedia) -> ServiceResult[str]:
+    async def worker_service_save_processed_media_post_in_bd(self, post_object: Post, medias: List[PostMedia]) -> ServiceResult[str]:
         """
         Logique métier pour sauvegarder les informations du post média traité dans la base de données
         Args:
             post_object: Le post à save
-            media: Le média lié au post
+            medias: La liste des médias liés au post
 
         Returns:
             ServiceResult indiquant le succès ou l'échec de l'opération, avec un message approprié
@@ -136,8 +137,10 @@ class MediaUploadsService:
                 error = f"Erreur lors de la sauvegarde du post traité en base de données : {res.error}"
                 return await error_return(error)
 
-            media.post_id = res.data.id
-            res2 = await self._bd.save_post_media(media, in_transaction=True)
+            for media in medias:
+                media.post_id = res.data.id
+
+            res2 = await self._bd.save_many_post_media(medias, in_transaction=True)
 
             if res2.is_error():
                 error = f"Erreur lors de la sauvegarde du média du post traité en base de données : {res2.error}"

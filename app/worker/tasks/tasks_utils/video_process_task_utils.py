@@ -16,7 +16,7 @@ from app.worker.tasks.tasks_utils.base import ProcessingResult
 
 logger = getLogger(__name__)
 
-def process_video_file_with_ffmpeg(ffmpeg_cmd: list[str]) -> ProcessingResult:
+def process_video_file_with_ffmpeg(ffmpeg_cmd: list[str]) -> ProcessingResult[None]:
     """
     Exécute une commande FFmpeg pour traiter une vidéo.
     

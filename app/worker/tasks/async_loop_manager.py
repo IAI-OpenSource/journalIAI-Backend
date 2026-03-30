@@ -5,10 +5,6 @@ class AsyncLoopManager:
     """Classe singleton pour gérer une boucle d'événements asynchrone partagée dans les tâches Celery"""
     _loop = None
 
-    def __new__(cls, *args, **kwargs):
-        if cls._loop is None:
-            cls._loop = asyncio.new_event_loop()
-        return super(AsyncLoopManager, cls).__new__(cls)
 
     def get_loop(self):
         """Retourne la boucle d'événements asynchrone partagée"""

@@ -2,6 +2,8 @@
 
 from enum import Enum
 
+from app.schemas.post_upload_schemas import WsPostProcessingInfoSchemaSteps
+
 
 class ProcessingStep(Enum):
     """
@@ -13,11 +15,11 @@ class ProcessingStep(Enum):
     """
 
     # Étapes communes
-    UNKNOWN = ("unknown", 0)
-    VERIFICATION = ("verification", 10)
-    COMPRESSING = ("compressing", 20)
-    CREATING = ("creating", 40)
-    FINALIZING = ("finalizing", 15)
+    UNKNOWN = (WsPostProcessingInfoSchemaSteps.UNKNOWN.value, 0)
+    VERIFICATION = (WsPostProcessingInfoSchemaSteps.VERIFICATION.value, 25)
+    COMPRESSING = (WsPostProcessingInfoSchemaSteps.COMPRESSING.value, 45)
+    CREATING = (WsPostProcessingInfoSchemaSteps.CREATING.value, 25)
+    FINALIZING = (WsPostProcessingInfoSchemaSteps.FINALIZING.value, 5)
     COMPLETED = ("completed", 15)
 
     def get_name(self) -> str:

@@ -32,7 +32,7 @@ class ProgressHandler:
     async def update_step(
         self,
         step: ProcessingStep,
-        progress_increment: int = 0,
+        weight: float,
         error_message: Optional[str] = None,
     ) -> None:
         """
@@ -40,11 +40,11 @@ class ProgressHandler:
         
         Args:
             step: Nouvelle étape du traitement.
-            progress_increment: Incrément de progression à ajouter (0-100).
+            weight: nsm
             error_message: Message d'erreur si applicable.
         """
         # Mise à jour du contexte
-        self.context.update_progress(step, progress_increment, error_message)
+        self.context.update_progress(step, int(step.get_progress_increment() * weight), error_message)
 
         # Convertir ProcessingStep vers WsPostProcessingInfoSchemaSteps
         ws_step = WsPostProcessingInfoSchemaSteps(step.get_name())
@@ -74,8 +74,8 @@ class ProgressHandler:
         message = error_message or Messages.INTERNAL_SERVER_ERROR
         await self.update_step(
             self.context.current_step,
-            progress_increment=0,
             error_message=message,
+            weight=0
         )
 
     async def increment_progress(self, increment: int) -> None:

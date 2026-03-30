@@ -27,8 +27,18 @@ class CleanupHandler:
         Args:
             file_path: Chemin du fichier à supprimer.
         """
-        if file_path:
-            self.register_cleanup(lambda: self._remove_file(file_path))
+
+        self.register_cleanup(lambda: self._remove_file(file_path))
+
+    def register_many_files(self, file_paths: List[str]) -> None:
+        """
+        Enregistre plusieurs fichiers à supprimer.
+
+        Args:
+            file_paths: Liste de chemins de fichiers à supprimer.
+        """
+        for file_path in file_paths:
+            self.register_file(file_path)
 
     def register_directory(self, dir_path: str) -> None:
         """
@@ -37,8 +47,18 @@ class CleanupHandler:
         Args:
             dir_path: Chemin du répertoire à supprimer.
         """
-        if dir_path:
-            self.register_cleanup(lambda: self._remove_directory(dir_path))
+        self.register_cleanup(lambda: self._remove_directory(dir_path))
+
+
+    def register_many_directories(self, dir_paths: List[str]) -> None:
+        """
+        Enregistre plusieurs répertoires à supprimer.
+
+        Args:
+            dir_paths: Liste de chemins de répertoires à supprimer.
+        """
+        for dir_path in dir_paths:
+            self.register_directory(dir_path)
 
     def register_cleanup(self, cleanup_func: Callable[[], None]) -> None:
         """
@@ -49,7 +69,7 @@ class CleanupHandler:
         """
         self.cleanup_functions.append(cleanup_func)
 
-    async def cleanup_all(self) -> None:
+    def cleanup_all(self) -> None:
         """
         Exécute toutes les fonctions de nettoyage enregistrées.
         

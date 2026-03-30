@@ -3,13 +3,24 @@
 import os
 from dataclasses import dataclass, field
 from typing import Optional
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from app.cache.helpers.base import CacheWrapper
 from app.cache.uploads_cache import MediaUploadsCache
-from app.schemas.post_upload_schemas import CreateMediaUploadIntentFullData
+from app.schemas.post_upload_schemas import CreateMediaUploadIntentFullData, FileToUploadSchema
 from app.worker.tasks.tasks_utils.base.processing_step import ProcessingStep
 
+def calculate_media_progress_weight(
+    medias: list[FileToUploadSchema]
+) -> dict[str, float]:
+    total_size = 0
+    for media in medias:
+        total_size += media.file_size
+    media_progress_weight = {}
+    for media in medias:
+        media_progress_weight[media.file_name] = media.file_size / total_size
+
+    return media_progress_weight
 
 @dataclass
 class ProcessingContext:
@@ -20,23 +31,16 @@ class ProcessingContext:
     réduisant le nombre de paramètres à passer entre les fonctions.
     
     Attributes:
-        raw_bucket_name: Bucket MinIO du fichier brut.
-        raw_object_name: Nom du fichier brut dans MinIO.
         user_id: ID de l'utilisateur auteur.
         intent_id: ID de l'intent d'upload.
         post_data: Données du post à créer.
         cache: Connexion Redis pour le cache.
         upload_cache: Cache spécialisé pour les uploads.
-        local_raw_path: Chemin local du fichier téléchargé.
-        local_processed_dir: Répertoire de traitement local.
         global_progress_percentage: Pourcentage de progression global (0-100).
         current_step: Étape actuelle du traitement.
         error_message: Message d'erreur si applicable.
     """
 
-    # Identifiants et données métier
-    raw_bucket_name: str
-    raw_object_name: str
     user_id: str
     intent_id: str
     post_data: CreateMediaUploadIntentFullData
@@ -44,30 +48,54 @@ class ProcessingContext:
     # Cache et connexions
     cache: CacheWrapper
     upload_cache: MediaUploadsCache
-    
-    # Chemins locaux
-    local_raw_path: str = field(default="")
-    local_processed_dir: str = field(default="")
-    
+    _locals_paths: dict[str, dict[str, str]] = field(default_factory=dict, init=False, repr=False)
     # État du traitement
-    global_progress_percentage: int = field(default=0)
-    current_step: ProcessingStep = field(default=ProcessingStep.UNKNOWN)
-    error_message: Optional[str] = field(default=None)
+    global_progress_percentage: int = field(default=0, init=False)
+    current_step: ProcessingStep = field(default=ProcessingStep.UNKNOWN, init=False)
+    error_message: Optional[str] = field(default=None, init=False)
+    _progress_weight: dict[str, float] = field(default=None, init=False)
+
     
     # Ressources à nettoyer
-    temp_files: list[str] = field(default_factory=list)
-    temp_dirs: list[str] = field(default_factory=list)
+    temp_files: list[str] = field(default_factory=list, init=False)
+    temp_dirs: list[str] = field(default_factory=list, init=False)
 
     def __post_init__(self):
         """Initialiser les chemins temporaires s'ils ne sont pas définis."""
-        from uuid import uuid4
-        
-        if not self.local_raw_path:
-            self.local_raw_path = f"/tmp/{uuid4()}_raw"
-        if not self.local_processed_dir:
-            self.local_processed_dir = f"/tmp/{uuid4()}_processed_files"
-            os.makedirs(self.local_processed_dir, exist_ok=True)
 
+        self._progress_weight = calculate_media_progress_weight(self.post_data.files)
+
+        for file in self.post_data.files:
+            r_path = f"/tmp/{uuid4()}_raw"
+            p_path = f"/tmp/{uuid4()}_processed_files"
+            os.makedirs(p_path, exist_ok=True)
+            self._locals_paths[file.file_name] = {"raw": r_path, "processed": p_path}
+            self.register_temp_file(r_path)
+            self.register_temp_dir(p_path)
+
+
+
+    def get_local_raw_path(self, file_name: str) -> str:
+        return self._locals_paths[file_name]["raw"]
+
+    def get_local_processed_dir(self, file_name: str) -> str:
+        return self._locals_paths[file_name]["processed"]
+
+    def get_file_progress_weight(self, file_name: str) -> float:
+        return self._progress_weight[file_name]
+
+    def get_all_processed_dirs_paths(self) -> list[str]:
+        to_return = []
+        for file_name in self._locals_paths:
+            to_return.append(self._locals_paths[file_name]["processed"])
+        return to_return
+
+    def get_all_raw_paths(self) -> list[str]:
+        to_return = []
+        for file_name in self._locals_paths:
+            to_return.append(self._locals_paths[file_name]["raw"])
+
+        return to_return
     def register_temp_file(self, file_path: str) -> None:
         """Enregistre un fichier temporaire à nettoyer."""
         if file_path and file_path not in self.temp_files:
@@ -102,4 +130,3 @@ class ProcessingContext:
     def intent_id_as_uuid(self) -> UUID:
         """Récupère l'ID intent en tant que UUID."""
         return UUID(self.intent_id)
-
