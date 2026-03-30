@@ -3,10 +3,12 @@
 
 from typing import Annotated
 from uuid import UUID
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.cache.helpers.base import CacheWrapper, get_redis
 from app.db.session import get_db
 from app.db.models.enums import MediaType
 from app.globals.api_tags import ApiTags
@@ -28,8 +30,12 @@ router = APIRouter(prefix="/posts", tags=[ApiTags.POSTS])
 # Dépendances
 # ------------------------------------------------------------------
 
+def get_redis_cache(redis: CacheWrapper = Depends(get_redis)) -> CacheWrapper:
+    return redis
+
 def get_post_service(
     db: Annotated[AsyncSession, Depends(get_db)],
+    cache: CacheWrapper = Depends(get_redis_cache),
 ) -> PostService:
     return PostService(db)
 
@@ -41,6 +47,7 @@ def get_post_service(
 @router.post(
     "",
     response_model=PostInfos,
+    status_code=201,
     summary="Créer un post",
 )
 async def create_post(
@@ -84,16 +91,22 @@ async def create_post(
 async def get_feed(
     response: Response,
     academic_year_id: UUID,
+    user_id:UUID,
     cursor: str | None = None,
     page_size: int = 20,
     post_service: PostService = Depends(get_post_service),
 ):
-    """Retourne une page du feed (cursor-based pagination).
-
-    Passer le next_cursor reçu dans la réponse précédente pour
-    obtenir la page suivante. NULL = première page.
+    """Retourne une page du feed.
+ 
+    Les posts déjà vus par cet utilisateur sont automatiquement exclus
+    grâce au cache Redis (SET user:{id}:seen_posts).
+ 
+    - Première page : cursor absent
+    - Page suivante : passer next_cursor reçu dans la réponse précédente
+    - Pull-to-refresh : appeler sans cursor (efface le contexte de pagination)
     """
     result = await post_service.service_get_feed(
+        user_id=user_id,
         academic_year_id=academic_year_id,
         cursor=cursor,
         page_size=page_size,
@@ -112,6 +125,42 @@ async def get_feed(
         status_code=result.status_code,
     )
 
+
+@router.get(
+    "/feed/new-count",
+    summary="Badge — nombre de nouveaux posts depuis un timestamp (spec §7.3)",
+)
+async def get_new_posts_count(
+    response: Response,
+    academic_year_id: UUID,
+    since: datetime,
+    post_service: PostService = Depends(get_post_service),
+):
+    """Compte les posts créés après `since`. Polling toutes les 60s.
+ 
+    Requête ultra-légère (COUNT(*) uniquement, < 10ms).
+ 
+    Paramètres :
+    - since : datetime ISO 8601 du dernier refresh client
+      Exemple : 2025-02-26T10:00:00Z
+ 
+    Réponse : { "ok": true, "result": { "new_count": 3 } }
+ 
+    Le frontend affiche le badge si new_count > 0.
+    """
+    result = await post_service.service_count_new_posts(
+        academic_year_id=academic_year_id,
+        since=since,
+    )
+    if result.is_error():
+        return PostListInfos.error_response(
+            error_message=result.error,
+            status_code=result.status_code,
+            response=response,
+        )
+    return PostListInfos.success_response(
+        data=result.data, response=response, status_code=result.status_code,
+    )
 
 @router.get(
     "/{post_id}",

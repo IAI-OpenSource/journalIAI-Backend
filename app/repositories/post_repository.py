@@ -3,12 +3,13 @@
 
 import base64
 import logging
+import json
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID
 
-from sqlalchemy import insert, select, update, delete, func
+from sqlalchemy import insert, select, update, func,text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -32,9 +33,14 @@ DEFAULT_PAGE_SIZE = 10
 def _encode_cursor(created_at: datetime, post_id: UUID) -> str:
     """Encode un curseur opaque à partir de created_at et id.
 
-    Format : base64(created_at.isoformat() + '|' + str(post_id))
-    """
-    raw = f"{created_at.isoformat()}|{post_id}"
+    Format : base64({ "created_at": "ISO8601", "id": "uuid" })    """
+    payload = {
+        "created_at": created_at.isoformat(),
+        "id": str(post_id),
+    }
+    
+    raw = json.dumps(payload, separators=(",", ":"))
+    raw = json.dumps(payload, separators=(",", ":"))        
     return base64.urlsafe_b64encode(raw.encode()).decode()
 
 
@@ -46,8 +52,8 @@ def _decode_cursor(cursor: str) -> tuple[datetime, UUID]:
     """
     try:
         raw = base64.urlsafe_b64decode(cursor.encode()).decode()
-        iso, uid = raw.split("|", 1)
-        return datetime.fromisoformat(iso), UUID(uid)
+        data = json.loads(raw)
+        return datetime.fromisoformat(data["created_at"]), UUID(data["id"])
     except Exception:
         raise ValueError("Curseur de pagination invalide.")
 
@@ -135,6 +141,7 @@ class PostRepository:
     async def get_feed(
         self,
         academic_year_id: UUID,
+        seen_post_ids: list[str],
         cursor: Optional[str] = None,
         page_size: int = DEFAULT_PAGE_SIZE,
     ) -> CRUDResult[dict]:
@@ -163,6 +170,14 @@ class PostRepository:
                 .order_by(Post.created_at.desc(), Post.id.desc())
                 .limit(page_size + 1)  # +1 pour détecter has_more
             )
+            
+            # Exclusion posts vus (spec §4 Étape 4B)
+            # Si liste vide → condition ignorée (spec §9.1)
+            if seen_post_ids:
+                # Tronquer à 1000 pour éviter clause WHERE trop lourde (spec §9.5)
+                ids_to_exclude = seen_post_ids[:1000]
+                uuid_ids = [UUID(sid) for sid in ids_to_exclude]
+                stmt = stmt.where(Post.id.not_in(uuid_ids))
 
             # Appliquer le curseur si présent
             if cursor:
@@ -296,6 +311,66 @@ class PostRepository:
         except Exception as e:
             return RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
 
+# Fallback PostgreSQL si Redis crash
+
+    async def get_seen_post_ids_from_db(
+            self, user_id: UUID
+        ) -> CRUDResult[list[str]]:
+            """Récupère les posts vus depuis PostgreSQL (fallback Redis crash).
+    
+            Si Redis est down, on lit post_views depuis PostgreSQL
+            pour les 7 derniers jours. Données potentiellement incomplètes
+            (snapshot fait la nuit) mais le feed continue de fonctionner.
+            """
+            try:
+                stmt = (
+                    select(PostViews.post_id)
+                    .where(
+                        PostViews.user_id == user_id,
+                        PostViews.viewed_at >= text("NOW() - INTERVAL '7 days'"),
+                    )
+                )
+                result = await self.db.execute(stmt)
+                post_ids = [str(row[0]) for row in result.fetchall()]
+    
+                logger.warning(
+                    "Fallback PostgreSQL seen_posts user=%s count=%d",
+                    user_id, len(post_ids),
+                )
+                return CRUDResult.crud_success(post_ids, status._200_STATUS_OK.value)
+    
+            except Exception as e:
+                return RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
+
+
+    async def count_new_posts_since(
+            self,
+            academic_year_id: UUID,
+            since: datetime,
+        ) -> CRUDResult[int]:
+            """Compte les posts créés depuis un timestamp (polling badge 60s).
+    
+            Requête ultra-légère COUNT(*) utilisant l'index created_at.
+            Temps de réponse cible < 10ms (spec §7.3 Performance).
+            """
+            try:
+                stmt = (
+                    select(func.count(Post.id))
+                    .where(
+                        Post.academic_year_id == academic_year_id,
+                        Post.deleted_at.is_(None),
+                        Post.is_published.is_(True),
+                        Post.created_at > since,
+                    )
+                )
+                result = await self.db.execute(stmt)
+                count = result.scalar_one()
+                return CRUDResult.crud_success(count, status._200_STATUS_OK.value)
+            except Exception as e:
+                return RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
+
+
+
     # PostMedia
 
     async def insert_post_media(
@@ -420,3 +495,52 @@ class PostRepository:
 
         except Exception as e:
             return RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
+
+    async def batch_insert_post_views(
+        self, user_id: UUID, post_ids: list[UUID]
+    ) -> CRUDResult[int]:
+        """Insert batch de vues pour le snapshot Redis → PostgreSQL (spec §8.2).
+ 
+        ON CONFLICT DO NOTHING assure l'idempotence si déjà snapé.
+        """
+        if not post_ids:
+            return CRUDResult.crud_success(0, status._200_STATUS_OK.value)
+        try:
+            rows = [{"user_id": user_id, "post_id": pid} for pid in post_ids]
+            stmt = (
+                insert(PostViews)
+                .values(rows)
+                .on_conflict_do_nothing(index_elements=["post_id", "user_id"])
+            )
+            result = await self.db.execute(stmt)
+            await self.db.commit()
+            return CRUDResult.crud_success(result.rowcount, status._200_STATUS_OK.value)
+        except Exception as e:
+            return RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
+ 
+    async def delete_old_post_views(self, older_than_days: int = 30) -> CRUDResult[int]:
+        """Supprime les vues de plus de N jours (nettoyage snapshot spec §8.2 Étape 3)."""
+        try:
+            stmt = text(
+                f"DELETE FROM post_views WHERE viewed_at < NOW() - INTERVAL '{older_than_days} days'"
+            )
+            result = await self.db.execute(stmt)
+            await self.db.commit()
+            logger.info("Nettoyage post_views : %d lignes supprimées", result.rowcount)
+            return CRUDResult.crud_success(result.rowcount, status._200_STATUS_OK.value)
+        except Exception as e:
+            return RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
+        
+    
+    async def delete_old_post_views(self, older_than_days: int = 30) -> CRUDResult[int]:
+        """Supprime les vues de plus de N jours (nettoyage snapshot spec §8.2 Étape 3)."""
+        try:
+            stmt = text(
+                f"DELETE FROM post_views WHERE viewed_at < NOW() - INTERVAL '{older_than_days} days'"
+            )
+            result = await self.db.execute(stmt)
+            await self.db.commit()
+            logger.info("Nettoyage post_views : %d lignes supprimées", result.rowcount)
+            return CRUDResult.crud_success(result.rowcount, status._200_STATUS_OK.value)
+        except Exception as e:
+            return RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)    

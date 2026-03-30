@@ -3,6 +3,7 @@
 
 import logging
 from uuid import UUID
+from datetime import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -93,17 +94,29 @@ class PostService:
 
     async def service_get_feed(
         self,
+        user_id: UUID,
         academic_year_id: UUID,
         cursor: str | None = None,
         page_size: int = 20,
     ) -> ServiceResult[ReadPostList]:
         """Retourne une page du feed (cursor-based pagination)."""
+        
+        seen_post_ids = await self.feed_cache.get_seen_post_ids(user_id=user_id)
+        if seen_post_ids is None:
+            logger.warning(
+                "Redis indisponible — fallback PostgreSQL user=%s", user_id
+            )
+            fallback = await self.post_repo.get_seen_post_ids_from_db(user_id=user_id)
+            # Si PostgreSQL aussi en erreur → feed sans exclusion (dégradé fonctionnel)
+            seen_post_ids = fallback.data if not fallback.is_error() else []
+            
         result = await self.post_repo.get_feed(
             academic_year_id=academic_year_id,
+            seen_post_ids=seen_post_ids,
             cursor=cursor,
             page_size=page_size,
-        )
-
+        )    
+        
         if result.is_error():
             logger.error("Erreur récupération feed : %s", result.error)
             return ServiceResult.service_error(
@@ -111,9 +124,16 @@ class PostService:
                 status_code=result.status_code,
                 service_name=msg.POST_SERVICE,
             )
+        items = result.data["items"]
+        
+        if items:
+            await self.feed_cache.mark_posts_as_seen(
+                user_id=user_id,
+                post_ids=[post.id for post in items],
+            )  
 
         feed = ReadPostList(
-            items=[ReadPost.model_validate(p) for p in result.data["items"]],
+            items=[ReadPost.model_validate(p) for p in items],
             next_cursor=result.data["next_cursor"],
             has_more=result.data["has_more"],
         )
@@ -123,6 +143,30 @@ class PostService:
         )
 
     # Demande d'URL d'upload (étape 1)
+    
+    async def service_count_new_posts(
+        self,
+        academic_year_id: UUID,
+        since: datetime,
+    ) -> ServiceResult[dict]:
+        """COUNT(*) posts créés depuis `since`. Appelé toutes les 60s.
+ 
+        Retourne {"new_count": N}.
+        Requête ultra-légère utilisant l'index sur created_at.
+        """
+        result = await self.post_repo.count_new_posts_since(
+            academic_year_id=academic_year_id,
+            since=since,
+        )
+        if result.is_error():
+            return ServiceResult.service_error(
+                message=result.error,
+                status_code=result.status_code,
+                service_name=msg.POST_SERVICE,
+            )
+        return ServiceResult.service_success(
+            data={"new_count": result.data},
+            status_code=result.status_code,)
 
     async def service_request_upload_url(
         self,
