@@ -50,12 +50,17 @@ class ClubMemberSummary(BaseModel):
 
 
 class ClubMemberInfo(ApiBaseResponse):
-    result: ClubMemberRead = Field(..., description="Informations du membre")
-
+    result: Optional[ClubMemberRead] = Field(None, description="Informations du membre")
 
 class ClubMemberListResponse(BaseModel):
-    members: list[ClubMemberRead]
+    members: list[ClubMemberRead] = Field(..., description="Liste des membres du club")
+
+class PaginatedClubMemberListResponse(ClubMemberListResponse):
     next_cursor: Optional[UUID] = None
 
 class ApiClubMemberListResponse(ApiBaseResponse):
-    result: ClubMemberListResponse
+    result: Optional[ClubMemberListResponse] = None
+
+class ApiPaginatedClubMemberListResponse(ApiBaseResponse):
+    result: Optional[PaginatedClubMemberListResponse] = None
+
