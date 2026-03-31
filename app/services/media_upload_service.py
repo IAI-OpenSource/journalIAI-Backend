@@ -1,6 +1,7 @@
 import secrets
 from logging import getLogger
 from time import time
+from typing import List
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,11 +13,12 @@ from app.db.models.post import Post
 from app.db.models.post_media import PostMedia
 from app.db.models.user import User
 from app.globals.messages import Messages
+from app.globals.others_constants import OtherConstants
 from app.repositories.post_video_repository import PostRepository
 from app.schemas.post_upload_schemas import CreateMediaUploadIntent, UploadURLSchema, MediaUploadCompleteSchema, \
-    WsPostProcessingInfoSchema, WsPostProcessingInfoSchemaSteps, CreateMediaUploadIntentFullData
+    WsPostProcessingInfoSchema, WsPostProcessingInfoSchemaSteps, CreateMediaUploadIntentFullData, FileInUploadURLSchema, \
+    AvailableUploadMethod
 from app.services import ServiceResult
-
 from app.storage.post_video_storage import PostUploadStorage
 from app.worker.celery_app import celery_app
 from app.worker.tasks.workers_task_names import WorkersTaskNames
@@ -32,6 +34,7 @@ def get_mock_data() -> tuple[UUID, UUID]:
     """Génére des données mock pour les tests"""
     return UUID("5f594ab3-2560-4e5b-adbe-f20e5dd8e193"), UUID("74910788-e47d-483d-b24f-750c7b24e3d6")
 
+# TODO: Ajouter des commentaires clairs pour se retrouver après
 class MediaUploadsService:
 
     def __init__(self, cache: CacheWrapper, bd: AsyncSession):
@@ -53,21 +56,43 @@ class MediaUploadsService:
         """
         random_intent_id = generate_random_intent_id(16)
 
-        if intent_data.is_video:
-            upload_url = PostUploadStorage.get_video_upload_intent_presigned_upload_url(random_intent_id,
-                                                                                    intent_data.file_name)
-        else:
-            upload_url = PostUploadStorage.get_image_upload_intent_presigned_upload_url(random_intent_id,
-                                                                                    intent_data.file_name)
+        files_to_upload: List[FileInUploadURLSchema] = []
 
-        if not upload_url:
-            logger.error("Erreur lors de la génération de l'URL d'upload pour l'intent d'upload")
+        for file in intent_data.files:
+            if file.file_size >= OtherConstants.MAX_UPLOAD_FILE_SIZE:
+                return ServiceResult.service_error(
+                    message=f"Le fichier {file.file_name} dépasse la taille totale autorisée (100Mo), taille du fichier : {file.file_size} octets",
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    service_name=Messages.POST_SERVICE
+                )
+            if file.is_video:
+                upload_url = PostUploadStorage.get_video_upload_intent_presigned_upload_url(
+                    random_intent_id, file.file_name
+                )
+            else:
+                upload_url = PostUploadStorage.get_image_upload_intent_presigned_upload_url(
+                    random_intent_id, file.file_name
+                )
+            if not upload_url:
+                logger.error(f"Erreur lors de la génération de l'URL d'upload pour l'intent d'upload {random_intent_id}")
+                continue
+
+            files_to_upload.append(
+                FileInUploadURLSchema(
+                    upload_url=upload_url, method=AvailableUploadMethod.PUT,
+                    media_type=file.media_type, file_name=file.file_name
+                )
+            )
+
+        if not files_to_upload:
+            logger.error("Liste des fichiers à UPload vide")
             return ServiceResult.service_error(message=Messages.ERROR_UPLOAD_URL_GENERATION, status_code=500)
 
-        logger.info(f"URL d'upload générée avec succès pour l'intent d'upload")
+        logger.info(f"URLs d'upload générées avec succès pour l'intent d'upload {random_intent_id}")
 
 
         # TODO: Revoir ces mocks data et cette logique apres
+        # TODO: Verifier la véracité des données quand AnneeAcademique et Club seront pret
         full_data = CreateMediaUploadIntentFullData.model_validate(intent_data.model_dump(), from_attributes=True)
         if full_data.club_id:
             full_data.academic_year_id, full_data.classe_id = None, None     # Sécurisation
@@ -88,17 +113,17 @@ class MediaUploadsService:
 
         await self._cache.save_media_upload_intent(str(current_user.id), random_intent_id, full_data)
 
-        data_to_return = UploadURLSchema(upload_url=upload_url, intent_id=random_intent_id)
+        data_to_return = UploadURLSchema(intent_id=random_intent_id, files=files_to_upload)
 
         return ServiceResult.service_success(data=data_to_return)
 
 
-    async def worker_service_save_processed_media_post_in_bd(self, post_object: Post, media: PostMedia) -> ServiceResult[str]:
+    async def worker_service_save_processed_media_post_in_bd(self, post_object: Post, medias: List[PostMedia]) -> ServiceResult[str]:
         """
         Logique métier pour sauvegarder les informations du post média traité dans la base de données
         Args:
             post_object: Le post à save
-            media: Le média lié au post
+            medias: La liste des médias liés au post
 
         Returns:
             ServiceResult indiquant le succès ou l'échec de l'opération, avec un message approprié
@@ -115,8 +140,10 @@ class MediaUploadsService:
                 error = f"Erreur lors de la sauvegarde du post traité en base de données : {res.error}"
                 return await error_return(error)
 
-            media.post_id = res.data.id
-            res2 = await self._bd.save_post_media(media, in_transaction=True)
+            for media in medias:
+                media.post_id = res.data.id
+
+            res2 = await self._bd.save_many_post_media(medias, in_transaction=True)
 
             if res2.is_error():
                 error = f"Erreur lors de la sauvegarde du média du post traité en base de données : {res2.error}"
@@ -147,16 +174,22 @@ class MediaUploadsService:
         intent_data = await self._cache.get_media_upload_intent(user_id_str, intent_id)
 
         if not intent_data:
-            return ServiceResult.service_error(message=Messages.ERROR_MEDIA_UPLOAD_INTENT_NOT_FOUND, status_code=status.HTTP_404_NOT_FOUND)
+            return ServiceResult.service_error(
+                message=Messages.ERROR_MEDIA_UPLOAD_INTENT_NOT_FOUND,
+                status_code=status.HTTP_404_NOT_FOUND, service_name= Messages.POST_SERVICE
+            )
 
-        if intent_data.is_video:
-            intent_file_metadata = PostUploadStorage.get_video_upload_intent_file_info(intent_id, intent_data.file_name)
-        else:
-            intent_file_metadata = PostUploadStorage.get_image_upload_intent_file_info(intent_id, intent_data.file_name)
+        for file in intent_data.files:
+            if file.is_video:
+                intent_file_metadata = PostUploadStorage.get_video_upload_intent_file_info(intent_id, file.file_name)
+            else:
+                intent_file_metadata = PostUploadStorage.get_image_upload_intent_file_info(intent_id, file.file_name)
 
-
-        if not intent_file_metadata:
-            return ServiceResult.service_error(message=Messages.ERROR_MEDIA_UPLOAD_INTENT_NOT_FOUND, status_code=status.HTTP_404_NOT_FOUND)
+            if not intent_file_metadata:
+                return ServiceResult.service_error(
+                    message=Messages.ERROR_FILE_NOT_UPLOADED.format(file_name=file.file_name),
+                    status_code=status.HTTP_404_NOT_FOUND, service_name= Messages.POST_SERVICE
+                )
 
         await self._cache.add_upload_event_in_a_stream(
             user_id=user_id_str, intent_id=intent_id,
@@ -168,21 +201,25 @@ class MediaUploadsService:
            ),
             must_add_ttl=True
         )
-
-        celery_app.send_task(
-            name=WorkersTaskNames.PROCESS_VIDEO if intent_data.is_video else WorkersTaskNames.PROCESS_IMAGE,
-            kwargs={
-                "raw_object_name": intent_file_metadata.object_name,
-                "raw_bucket_name": intent_file_metadata.bucket_name,
-                "intent_id": intent_id,
-                "user_id": user_id_str,
-                "post_data": intent_data.model_dump_json()
-
-            }
-        )
+        try:
+            celery_app.send_task(
+                name=WorkersTaskNames.PROCESS_MEDIAS_UPLOAD,
+                kwargs={
+                    "intent_id": intent_id,
+                    "user_id": user_id_str,
+                    "post_data": intent_data.model_dump_json()
+                },
+                queue=OtherConstants.MEDIA_PROCESSING_WORKER_QUEUE_NAME
+            )
+        except Exception as e:
+            logger.error(f"Erreur {e.__class__.__name__} lors de l'envoi de la tâche de post-traitement du média uploadé dans le worker : {e}")
+            await self._cache.delete_upload_progress_stream(user_id_str, intent_id)   # Nettoyage du stream en cas d'erreur pour éviter les fuites de mémoire
+            return ServiceResult.service_error(
+                message=Messages.INTERNAL_SERVER_ERROR,
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, service_name=Messages.POST_SERVICE
+            )
 
         await self._cache.delete_media_upload_intent(user_id_str, intent_id)  # Marque comme déja en cours de process
-
 
         return ServiceResult.service_success(
             data=MediaUploadCompleteSchema(
