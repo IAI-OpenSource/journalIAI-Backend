@@ -32,10 +32,11 @@ class AvailableCacheKeys(str, Enum):
 
     # Clés de cache pour les clubs
     CLUB_OBJECT = BaseCacheEntity.CLUB  # Clé pour un club spécifique
-    #CLUB_MEMBERS = BaseCacheEntity.CLUB + ":members"  # Clé pour les membres d'un club
-    CLUB_MEMBER_OBJECT = BaseCacheEntity.CLUB_MEMBER
+    CLUB_MEMBERS = BaseCacheEntity.CLUB + ":members"  # Liste des membres d'un club (par club_id)
+    CLUB_MEMBER_LIST = BaseCacheEntity.CLUB_MEMBER + ":list"  # Liste paginée des membres
     CLUB_MEMBER_OBJECT = BaseCacheEntity.CLUB + ":member:{id}"
 
+    
     # Clés de cache pour les événements
     EVENT_OBJECT = BaseCacheEntity.EVENT  # Clé pour un événement spécifique
     EVENT_LIST = BaseCacheEntity.EVENT + ":list"               # pagination
