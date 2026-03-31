@@ -5,7 +5,7 @@ from app.db.models.club_member import ClubMember
 from app.db.models.enums import ClubMembersType
 from app.repositories.repositories_utils import RepositoriesUtils
 from app.schemas.club_member_schema import ClubMemberCreate, ClubMemberUpdate
-from typing import List, Optional
+from typing import List, Optional, Any
 from uuid import UUID
 from datetime import datetime, timezone
 from . import CRUDResult
@@ -194,7 +194,7 @@ class ClubMemberRepository:
         """
         try:
 
-            values = data.model_dump(exclude_unset=True)
+            values: dict[str, Any] = data.model_dump(exclude_unset=True)
             if not values:
                 return CRUDResult.crud_error("Aucune donnée à mettre à jour", status_code=400)
 
