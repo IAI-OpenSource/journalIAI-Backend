@@ -81,7 +81,7 @@ class ManyMediasProcessHelper:
         local_raw_path: str,
         output_dir: str,
         media_progress_weight: float
-    ) -> ProcessingResult[tuple[str | None, int, int, int | None  ]]:
+    ) -> ProcessingResult[tuple[str | None, int, int, int | None ]]:
         """local_thumbnail_path, height, width, duration"""
 
         thumb_path, h, w, duration = None, None, None, None

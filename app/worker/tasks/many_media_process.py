@@ -87,7 +87,7 @@ def process_media_upload_task(
 
         current_step = ProcessingStep.COMPRESSING
 
-        compress_process_res: dict[str, tuple] = {}     # des tuples: local_thumbnail_path, height, width, duration
+        compress_process_res: dict[str, tuple[str | None, int, int, int | None ]] = {}     # des tuples: local_thumbnail_path, height, width, duration
 
         for media in post_data_obj.files:
             compress_res = helper.compress_file(
@@ -103,7 +103,7 @@ def process_media_upload_task(
 
         current_step = ProcessingStep.CREATING
 
-        uploads_res: dict[str, tuple] = {}     # des tuples: minio_media_url et minio_thumbnail_url
+        uploads_res: dict[str, tuple[str, str | None]] = {}     # des tuples: minio_media_url et minio_thumbnail_url
 
         for media in post_data_obj.files:
             upload_res = helper.upload_files_to_minio(
