@@ -101,6 +101,12 @@ class UserService:
         user=read_user,
         ttl=CacheDurartion.USER_DURATION.value
       )
+      
+      await self.user_cache.set_user_in_cache(
+        user_id=db_user.data.id,
+        user=read_user,
+        ttl=CacheDurartion.USER_DURATION
+      )
 
       return ServiceResult.service_success(
         data=StringMessage(message=msg.ACCOUNT_CREATED_SUCCESSFULLY),

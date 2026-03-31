@@ -1,10 +1,14 @@
 from typing import Annotated, Callable, Any, Coroutine, Optional
 from uuid import UUID
 
-from fastapi import status, HTTPException, Response, Request
+from fastapi import Depends, status, HTTPException, Response, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.cache.helpers.base import CacheWrapper
+from app.db.models.enums import ExecutiveRoleType, UserRole
+from app.db.session import get_db
+from app.routers.auth_router import get_redis_cache
 from app.schemas.user_schemas import ReadUser
 from app.services.session_service import SessionService
 from app.auth.cookie_handler import CookieManager
@@ -16,13 +20,13 @@ from app.globals.status_codes import StatusCode as custom_status
 
 class UserAuthDependencies:
   
-  def __init__(self, db: AsyncSession):
+    def __init__(self, db: AsyncSession, response: Response, request: Request, cache: CacheWrapper):
       self.db = db
-      self.cookie = CookieManager(response=Response, request=Request)
-      self.session_service = SessionService(self.db)
-      self.user_service = UserService(self.db)
+      self.cookie = CookieManager(response=response, request=request)
+      self.session_service = SessionService(self.db, cache)
+      self.user_service = UserService(self.db, cache)
 
-  async def get_token_data(self, token: Annotated[str | None, Cookie(alias=ACCESS_IDENTIFIER)] = None):
+    async def get_token_data(self, token: Annotated[str | None, Cookie(alias=ACCESS_IDENTIFIER)] = None):
       """Fonction permettant de return les données contenues dans le token, on utilisera si on n'a pas forcément besoin de
           toutes les infos de l'utilisateur actuellement connecté (dans ce cas, on ne fait pas de requete bd), ça sera
           surtout utile pour les routes ou on a besoin de seulement de l'id de l'etablissement pour les requetes bd.
@@ -42,7 +46,7 @@ class UserAuthDependencies:
       pass
 
 
-  async def get_current_user(self) -> Optional[ReadUser]:
+    async def get_current_user(self) -> Optional[ReadUser]:
 
         """function permettant de return le user actuellement connecter.
           Elle sera utiliser pr securiser certaine routes en exigant le token
@@ -59,7 +63,7 @@ class UserAuthDependencies:
               HTTPException: Clé d'accès invalide
               HTTPException: user.error
           Returns:
-              Personnel | Professeur: return un objet Personnel ou Professeur qui est les infos de user actuellement connecter
+              ReadUser: return un objet ReadUser qui est les infos de user actuellement connecter
         """
       
         access_token = self.cookie.get_cookie(id=JWT_COOKIE_ACCESS_ID)
@@ -70,15 +74,15 @@ class UserAuthDependencies:
                 detail="Aucun clé d'access fourni !"
             )
         
-        sid = JWTManager.decode_access_token(access_token, ACCESS_SECRET_KEY)
+        payload = JWTManager.decode_access_token(token=access_token, cle=ACCESS_SECRET_KEY)
 
-        if sid is None:
+        if payload is None:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Clé d'accès invalide"
             )
         
-        user_session = await self.session_service.service_find_session_by_sid(sid=sid[""])
+        user_session = await self.session_service.service_find_session_by_sid(sid=UUID(payload["sid"]))
         
         if user_session.is_error():
             raise HTTPException(
@@ -90,7 +94,10 @@ class UserAuthDependencies:
         
         if user.is_error():
             if user.status_code == custom_status._404_STATUS_NOT_FOUND.value:
-                return {"Message": "Utilisateur Non Trouvé"}
+                raise HTTPException(
+                    status_code=user.status_code,
+                    detail=user.error
+                ) 
             
             raise HTTPException(
                 detail=user.error,
@@ -103,33 +110,40 @@ class UserAuthDependencies:
         
 
 
-  @staticmethod
-  def requires_roles(*role_autorises: str) -> Callable[[str], Coroutine[Any, Any, str]]:
-      """function pour restraindre les accès uniquement aux admis
+    @staticmethod
+    def requires_roles(*role_autorises: str, response: Response, request: Request) -> Callable[[ReadUser], Coroutine[Any, Any, ReadUser]]:
+        """function pour restraindre les accès uniquement aux utilisateurs en fonction de leurs 
+            roles (autorisaions)
 
-          Args:
-              *role_autorises: recuperere les role des personne autorisées. ex: ("directeur", "secretaire")
-          Raises:
-              HTTPException: lever une exection si c'est pas un role correspondant
+            Args:
+                *role_autorises: recuperere les role des personne autorisées. ex: ("directeur", "secretaire")
+            Raises:
+                HTTPException: lever une exection si c'est pas un role correspondant
 
-          Returns:
-              Professeur | Personnel: return tjrs les infos de current_user Prof ou Personnel
-      """
+            Returns:
+                Professeur | Personnel: return tjrs les infos de current_user Prof ou Personnel
+        """
+        
+        user_dependence = UserAuthDependencies(
+            db=Depends(get_db), 
+            response=response,
+            request=request,
+            cache=Depends(get_redis_cache)
+            )
 
-      # def verify_role(
-      #     current_user_token_data: Annotated[TokenData, Depends(get_token_data)]
-      #     ) :
+        def verify_role(
+          current_user: Annotated[ReadUser, Depends(user_dependence.get_current_user)]
+        ) :
           
-      #     role = current_user_token_data.role
+            role: list[UserRole | Optional[ExecutiveRoleType]] = [current_user.role, current_user.executive_role]
           
-      #     if role.lower() not in role_autorises :
-      #         raise HTTPException(
-      #             status_code=status.HTTP_401_UNAUTHORIZED,
-      #             detail="Accès Refusé"
-      #         ) 
+            if role[0] not in role_autorises and role[1] :
+                    raise HTTPException(
+                  status_code=status.HTTP_401_UNAUTHORIZED,
+                  detail="Accès Refusé"
+                ) 
               
-      #     return current_user_token_data
-      # return verify_role
-      pass
+            return current_user
+        return verify_role
 
 
