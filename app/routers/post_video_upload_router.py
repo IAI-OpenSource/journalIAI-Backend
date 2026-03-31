@@ -14,7 +14,7 @@ from app.globals.api_tags import ApiTags
 from app.schemas.post_upload_schemas import PostMediaUploadIntentResponse, CreateMediaUploadIntent, PostMediaUploadCompleteResponse
 from app.services.media_upload_service import MediaUploadsService
 
-router = APIRouter(prefix="/post_video_upload")
+router = APIRouter(prefix="/post_media_upload")
 
 async def get_mock_user():
     user = User(
@@ -42,8 +42,8 @@ def get_post_upload_service(
 # TODO: Revoir tout ce fichier quand l'auth sera dispo et re-tester, principalement verifier si l'utilisateur peut post
 
 @router.post(
-    path="/intent", name="Générer un intent d'upload de média pour un post",
-    response_model=PostMediaUploadIntentResponse, tags=[ApiTags.POSTS, ApiTags.UPLOADS]
+    path="/get-intent", name="Créer un post avec des médias (Images, Vidéos)",
+    response_model=PostMediaUploadIntentResponse, tags=[ApiTags.POSTS]
 )
 async def post_unique_media_upload_intent(
     request_data: CreateMediaUploadIntent, response: Response, service = Depends(get_post_upload_service),
@@ -51,8 +51,8 @@ async def post_unique_media_upload_intent(
 ):
     """
     Endpoint pour générer un intent d'upload de média pour un post, en fournissant les informations nécessaires
-    pour initier un upload de média. L'endpoint valide les données d'entrée, génère une URL d'upload
-    pré-signée, c'est sur cette Url que vous allez upload le fichier média du post
+    pour initier des uploads de médias. L'endpoint valide les données d'entrée, génère des URLs d'uploads
+    pré-signée pour chaque fichier demandé, c'est sur ces Urls que vous allez upload les fichiers média du post
     """
 
     res = await service.service_process_media_upload_intent(current_user, request_data)
@@ -60,8 +60,8 @@ async def post_unique_media_upload_intent(
     return res.to_HTTP_api_base_response(response)
 
 @router.post(
-    path="/complete_video_post", name="Finaliser un post unique de média",
-    tags=[ApiTags.POSTS, ApiTags.UPLOADS], response_model=PostMediaUploadCompleteResponse
+    path="/complete_medias_post", name="Finaliser un post aves des médias",
+    tags=[ApiTags.POSTS], response_model=PostMediaUploadCompleteResponse
 )
 async def complete_video_post(
     response: Response,
@@ -70,7 +70,7 @@ async def complete_video_post(
 ):
     """
     Route pour confirmé l'upload du post média, vous ferrez une requete
-    sur cette route après avoir uploadé totalement le fichier sur l'url délivré précedemment
+    sur cette route après avoir uploadé totalement les fichiers sur les urls délivrés précedemment
     """
 
     verification = await service.service_verify_complete_media_upload(current_user, intent_id)

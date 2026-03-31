@@ -78,7 +78,10 @@ class MediaUploadsService:
                 continue
 
             files_to_upload.append(
-                FileInUploadURLSchema(upload_url=upload_url, method=AvailableUploadMethod.PUT)
+                FileInUploadURLSchema(
+                    upload_url=upload_url, method=AvailableUploadMethod.PUT,
+                    media_type=file.media_type, file_name=file.file_name
+                )
             )
 
         if not files_to_upload:

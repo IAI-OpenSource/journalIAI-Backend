@@ -18,7 +18,7 @@ def calculate_media_progress_weight(
         total_size += media.file_size
     media_progress_weight = {}
     for media in medias:
-        media_progress_weight[media.file_name] = media.file_size / total_size
+        media_progress_weight[media.file_name] = round(media.file_size / total_size, 4)
 
     return media_progress_weight
 
