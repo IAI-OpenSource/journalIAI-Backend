@@ -5,6 +5,7 @@ import logging
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
+from app.schemas.global_schemas import StringMessage
 from app.utils.security_utils import verify_password
 from app.cache.helpers.base import CacheWrapper
 from app.cache.user_cache import UserCache
@@ -73,8 +74,8 @@ class UserService:
 
 
 
-  async def service_create_user(self, user_data: CreateUser) -> ServiceResult[ReadUser]:
-    """logique métier pour inserer un utilisateur dans la bd (genre à la création de compte que)
+  async def service_create_user(self, user_data: CreateUser) -> ServiceResult[StringMessage]:
+    """logique métier pour inserer un utilisateur dans la bd (genre à la création de compte quoi)
 
     Args:
         user_data (CreateUser): On prend les données validé et envoyer par le front
@@ -102,7 +103,7 @@ class UserService:
       )
 
       return ServiceResult.service_success(
-        data=read_user,
+        data=StringMessage(message=msg.ACCOUNT_CREATED_SUCCESSFULLY),
         status_code=db_user.status_code,
         service_name=msg.USER_SERVICE
       )

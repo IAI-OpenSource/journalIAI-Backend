@@ -5,8 +5,6 @@ from datetime import UTC, datetime, timedelta
 import logging
 import random
 import secrets
-from uuid import UUID
-
 from fastapi import Request, Response
 from pydantic import EmailStr
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,12 +16,12 @@ from app.integrations.fastApi_email.email_manager import EmailServiceManager
 from app.schemas.global_schemas import SendOTPEmail, StringMessage, VerifyOTPData
 from app.schemas.session_schemas import CreateSession
 from app.services.session_service import SessionService
-from app.utils.security_utils import verify_password
+from app.utils.security_utils import get_real_ip, verify_password
 from app.cache.helpers.base import CacheWrapper
 from app.cache.user_cache import UserCache
 from app.globals.status_codes import StatusCode
 from app.repositories.user_repository import UserRepository
-from app.schemas.user_schemas import CreateUser, LoginData, ReadUser
+from app.schemas.user_schemas import LoginData
 from app.globals.messages import Messages as msg
 from app.globals.cache_duration import CacheDurartion 
 from app.integrations.fastApi_email.fastapi_mail_config import fm
@@ -132,7 +130,7 @@ class AuthService:
         service_name=msg.OTP_SERVICE
       )
       
-    if cache_otp["otp"] == otp_verify_data.otp:
+    if cache_otp["otp"] == str(otp_verify_data.otp):
       ## comme le OTP est valide on va :
       ## générer le refresh_token sous form de jeton secret et on cré une session dans la db
       refresh_token = secrets.token_urlsafe(16)
@@ -148,8 +146,8 @@ class AuthService:
       db_user_session = CreateSession(
         user_id=user.data.id,
         ref_token=refresh_token,
-        ip_address=None,
-        user_agent=None,
+        ip_address=None, ## géré cette partie après
+        user_agent=self.cookie_manager.request.headers.get("user-agent"),
         expires_at=datetime.now(UTC) + timedelta(days=1) # 1 jours pour les test
       )
       created_session = await self.session_service.service_create_session(db_user_session)
@@ -167,16 +165,18 @@ class AuthService:
       ## maintenant on les stock dans les cookie pour gérer les requettes avec ça
       self.cookie_manager.add_cookie(id=JWT_COOKIE_ACCESS_ID, value=access_token, age=JWT_EXPIRES_MINUTES)
       self.cookie_manager.add_cookie(id=SID_REF_COOKIE, value=created_session.data.refresh_token_hash, age=60*24*2) ## age c'est pr test
-
+      
+      ##TODO : avant d'aller en prod, implementer suppression du cache ici
       return ServiceResult.service_success(
         data=StringMessage(message=msg.LOGIN_SUCCESSFUL),
-        status_code=StatusCode._200_STATUS_SUCCESS,
+        status_code=StatusCode._200_STATUS_SUCCESS.value,
         service_name=msg.OTP_SERVICE
       )
       
+      
     return ServiceResult.service_error(
       message="le OTP fourni est incorrect",
-      status_code=StatusCode._400_STATUS_BAD_REQUEST,
+      status_code=StatusCode._400_STATUS_BAD_REQUEST.value,
       service_name=msg.OTP_SERVICE
     )
       

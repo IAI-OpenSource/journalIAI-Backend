@@ -37,7 +37,7 @@ def get_auth_service(
 
 @router.post(
   "/register",
-  response_model=UserInfos,
+  response_model=GlobalStringMessage,
   tags=[ApiTags.ALL_USERS]
 )
 async def register(
@@ -47,19 +47,19 @@ async def register(
 ):
   """Route pour Inscription utilisateur: Création de compte"""
 
-  db_user = await user_service.service_create_user(user_data=user_data)
+  service_result = await user_service.service_create_user(user_data=user_data)
 
-  if db_user.is_error():
-    return UserInfos.error_response(
-      error_message=db_user.error,
-      status_code=db_user.status_code,
+  if service_result.is_error():
+    return GlobalStringMessage.error_response(
+      error_message=service_result.error,
+      status_code=service_result.status_code,
       response=response
     )
 
-  return UserInfos.success_response(
-    data=db_user.data,
+  return GlobalStringMessage.success_response(
+    data=service_result.data,
+    status_code=service_result.status_code,
     response=response,
-    status_code=db_user.status_code
   )
   
   

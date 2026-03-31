@@ -66,8 +66,8 @@ class UserRepository:
       data_to_insert["classe_id"] = user_registration.classe_id
       data_to_insert["access_jeton_id"] = user_registration.id
       data_to_insert["sexe"] = user_registration.sexe
-      data_to_insert["last_name"] = user_registration.last_name
-      data_to_insert["first_name"] = user_registration.first_name
+      data_to_insert["last_name"] = user_registration.last_name.upper()
+      data_to_insert["first_name"] = user_registration.first_name.capitalize()
       
       stmt2 = (
         insert(User)
