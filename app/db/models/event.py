@@ -18,7 +18,9 @@ from app.db.models.enums import EventStatus
 # Noms des contraintes
 FK_EVENTS_ORGANIZER_CLUB = "fk_events_organizer_club"
 FK_EVENTS_PARENT_EVENT = "fk_events_parent_event"
+UQ_EVENT_SLUG_KEY = "uq_events_slug"
 UQ_EVENTS_SLUG = "uq_events_slug"
+UQ_EVENTS_DATE_TITLE = "uq_events_date_title"
 CHK_EVENTS_DATES = "chk_events_dates"
 IDX_EVENTS_CREATED_AT_ID = "idx_events_created_at_id"
 IDX_EVENTS_START_DATE = "idx_events_start_date"
@@ -26,7 +28,6 @@ IDX_EVENTS_STATUS = "idx_events_status"
 IDX_EVENTS_ORGANIZER_CLUB_ID = "idx_events_organizer_club_id"
 IDX_EVENTS_SLUG = "idx_events_slug"
 IDX_EVENTS_DELETED_AT = "idx_events_deleted_at"
-
 
 class Event(Base, IntegrityMapperMixin):
     """Événements universitaires."""
@@ -36,7 +37,7 @@ class Event(Base, IntegrityMapperMixin):
     # Attributs
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4, init=False)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
-    slug: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+    slug: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(nullable=True)
 
     # Détails de l'événement
@@ -81,15 +82,17 @@ class Event(Base, IntegrityMapperMixin):
         Index(IDX_EVENTS_STATUS, "status", postgresql_where=(deleted_at == None)),
         Index(IDX_EVENTS_ORGANIZER_CLUB_ID, "organizer_club_id", postgresql_where=(deleted_at == None) & (organizer_club_id != None)),
         Index(IDX_EVENTS_SLUG, "slug", postgresql_where=(deleted_at == None)),
+        Index(UQ_EVENTS_DATE_TITLE, "title", "start_date", unique=True, postgresql_where=(deleted_at == None)),
         Index(IDX_EVENTS_DELETED_AT, "deleted_at", postgresql_where=(deleted_at != None)),
+        Index(UQ_EVENT_SLUG_KEY, "slug", unique=True, postgresql_where=(deleted_at != None)),
         CheckConstraint("end_date IS NULL OR end_date >= start_date", name=CHK_EVENTS_DATES),
     )
 
     # Relationships
-    organizer_club: Mapped[Optional["Club"]] = relationship("Club", foreign_keys=[organizer_club_id], back_populates="events", uselist=False, init=False)
-    parent_event: Mapped[Optional["Event"]] = relationship("Event", remote_side=[id], foreign_keys=[parent_event_id], back_populates="child_events", uselist=False, init=False)
-    child_events: Mapped[list["Event"]] = relationship("Event", remote_side=[parent_event_id], back_populates="parent_event", cascade="all, delete-orphan", uselist=True, init=False)
-    posts: Mapped[list["Post"]] = relationship("Post", foreign_keys="Post.event_id", back_populates="event", cascade="all, delete-orphan", uselist=True, init=False)
+    organizer_club: Mapped[Optional["Club"]] = relationship("Club", foreign_keys=[organizer_club_id], back_populates="events", uselist=False, init=False,lazy="noload")
+    parent_event: Mapped[Optional["Event"]] = relationship("Event", remote_side=[id], foreign_keys=[parent_event_id], back_populates="child_events", uselist=False, init=False,lazy="noload")
+    child_events: Mapped[list["Event"]] = relationship("Event", remote_side=[parent_event_id], back_populates="parent_event", cascade="all, delete-orphan", uselist=True, init=False,lazy="noload")
+    posts: Mapped[list["Post"]] = relationship("Post", foreign_keys="Post.event_id", back_populates="event", cascade="all, delete-orphan", uselist=True, init=False,lazy="noload")
 
     # Messages d'erreur
     ERROR_MESSAGES = {
@@ -97,4 +100,6 @@ class Event(Base, IntegrityMapperMixin):
         FK_EVENTS_PARENT_EVENT: "L'événement parent spécifié n'existe pas.",
         UQ_EVENTS_SLUG: "Ce slug d'événement est déjà utilisé.",
         CHK_EVENTS_DATES: "La date de fin doit être après la date de début.",
+        UQ_EVENTS_DATE_TITLE : "Cet Evenement existe deja",
+        UQ_EVENT_SLUG_KEY : "Ce slug existe deja pour un evenement",
     }

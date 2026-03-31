@@ -4,5 +4,7 @@ db_data/
 minio_data/
 .venv/
 __pycache__/
-*.pyc
 .git/
+logs/
+.env
+# Ne pas envoyer ces fichiers au démon Docker lors du build

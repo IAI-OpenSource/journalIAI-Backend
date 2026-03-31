@@ -64,7 +64,7 @@ app.middleware("http")(log_requests)
 
 app.include_router(v1_api_router)
 
-# Route de monitoring
+#Route de monitoring
 @app.api_route("/health", methods=["GET", "HEAD", "POST"], include_in_schema=False)
 def health():
     """Route de monitoring"""
@@ -80,3 +80,6 @@ if __name__ == "__main__":
     conf = uvicorn.Config(app, port=8000, log_level='info')
     server = uvicorn.Server(conf)
     server.run()
+
+
+

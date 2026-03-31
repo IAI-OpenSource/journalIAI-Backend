@@ -51,3 +51,11 @@ MINIO_BROWSER_REDIRECT_URL: str = os.getenv("MINIO_BROWSER_REDIRECT_URL")
 
 ## Start period pour docker
 START_PERIOD: int = os.getenv("START_PERIOD", 10)
+
+## Gestion du mail
+MAIL_USERNAME: str = os.getenv("MAIL_USERNAME")
+MAIL_PASSWORD: str = os.getenv("MAIL_PASSWORD")
+MAIL_FROM: str = os.getenv("MAIL_FROM")
+MAIL_FROM_NAME: str = os.getenv("MAIL_FROM_NAME")
+MAIL_PORT: int = int(os.getenv("MAIL_PORT"))
+MAIL_SERVER: str = os.getenv("MAIL_SERVER")

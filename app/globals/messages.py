@@ -11,6 +11,10 @@ class Messages:
 
     # Messages spécifiques
     USER_NOT_FOUND = "Utilisateur non trouvé."
+    CLUB_NOT_FOUND = "Club non trouvé."
+    CLUB_ALREADY_EXISTS = "Le club existe déjà."
+    CLUB_DELETED_SUCCESSFULLY = "Club supprimé avec succès."
+    CLUB_UPDATED_SUCCESSFULLY = "Club mis à jour avec succès."
     INVALID_CREDENTIALS = "Identifiants invalides."
     DELETED_USER = "Compte Utilisateur est supprimé"
     USER_ALREADY_EXISTS = "Un utilisateur avec cet email existe déjà."
@@ -21,7 +25,25 @@ class Messages:
     LOGOUT_SUCCESSFUL = "Déconnexion réussie."
     PROFILE_UPDATED_SUCCESSFULLY = "Profil mis à jour avec succès."
     INVALID_SESSION = "Session invalide"
-    
+    DELETE_FAILED = "Erreur lors de la suppression"
+    LOGIN_NOT_FOUND = "Utilisateur ou Mot de passe incorrect"
+
+    EVENT_SERVICE = "Service Events"
+    EVENT_NOT_FOUND = "Event non trouvé."
+    DELETED_EVENT = "Event est supprimé"
+    EVENTS_NOT_FOUND = "Aucun event trouver" #Si il y a aucun event en cours 
+    EVENT_DELETE_FAILED = "Erreur lors de la suppression de l'événement"
+    EVENT_PAGINATION_ERROR = "Erreur validation events paginés"
+    EVENT_DELETE_SUCCESS = "Event supprimé avec succès"
+    EVENT_UPDATE_SUCCES = "Event mis a jour avec succès"
+    EVENT_CREATE_SUCCES = "Event créé avec succès"
+    EVENT_ALREADY_EXISTS = 'Evenement deja existant'
+
+    ERROR_UPLOAD_URL_GENERATION = "Erreur Inconnue lors de la génération des URL d'upload"
+    VIDEO_UPLOAD_INTENT_SAVED = "Intent d'upload video enregistré avec succès"
+    ERROR_MEDIA_UPLOAD_INTENT_NOT_FOUND = "Intent d'upload média expirée ou inexistant"
+    ERROR_FILE_NOT_UPLOADED = "Le fichier {file_name} n'a pas été complètement uploadé ou est innacessible"
+    ERROR_FILE_TOO_LARGE = "Le fichier dépasse la taille maximale autorisée de 100Mo."
     # Messages des noms des services 
     INSERT_SESSSION = "Service: Insertion Session"
     DELETE_SESSION = "Service: Suppression Session"
@@ -29,9 +51,17 @@ class Messages:
     UNKNOWN_SERVICE = "Service Inconnu"
     REGISTRATION_JETON = "Régistration de jeton"
     READ_REGISTRATION = "Lecture régistration jeton"
+    UNAUTHORIZED_JETON = "Ce Jeton est invalide"
     USER_SERVICE = "Service Utilisateur"
+    CLUB_SERVICE = "Service Club"
+    POST_SERVICE = "Service Post"
     
     
     ## Message pour le cache
     CACHE_USER_NOT_FOUND = "Utilisateur non Touvé dans le cache"
     CACHE_SESSION_NOT_FOUND = "Session non trouvé dans le cache"
+    
+    
+    ## Message envoi de mail
+    MAIL_SERVICE = "Service email"
+    MAIL_ERROR = "Erreur de Connection pour l'envoi du mail"

@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
-from sqlalchemy import DateTime, ForeignKey, Index, String, Boolean, func, CheckConstraint
+from sqlalchemy import DateTime, ForeignKey, Index, String, Boolean, func, CheckConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy import Enum as SQLEnum
 
@@ -30,6 +30,19 @@ IDX_USERS_CAN_POST = "idx_users_can_post"
 IDX_USERS_CLASSE = "idx_users_classe"
 IDX_USERS_ACCESS_JETON = "idx_users_access_jeton"
 IDX_USERS_DELETED_AT = "idx_users_deleted_at"
+
+def format_unique_constraint_name(role: ExecutiveRoleType) -> str:
+    return f"uq_unique_{role.value.lower()}"
+
+IDX_UNIQUE_EXEC_ROLES = [
+    Index(
+        format_unique_constraint_name(role),
+        "executive_role",
+        unique=True,
+        postgresql_where=text(f"executive_role = '{role.value}' AND deleted_at IS NULL")
+    )
+    for role in ExecutiveRoleType
+]
 
 
 class User(Base, IntegrityMapperMixin):
@@ -99,7 +112,8 @@ class User(Base, IntegrityMapperMixin):
             "(role = 'EXECUTIVE_MEMBER' AND executive_role IS NOT NULL) OR "
             "(role != 'EXECUTIVE_MEMBER' AND executive_role IS NULL)",
             name=CHK_USERS_EXEC_ROLE_VALID
-        )
+        ),
+        *IDX_UNIQUE_EXEC_ROLES
     )
 
     # Relationships
@@ -126,3 +140,8 @@ class User(Base, IntegrityMapperMixin):
         CHK_USERS_BIO_LENGTH: "La biographie ne peut pas dépasser 500 caractères.",
         CHK_USERS_EXEC_ROLE_VALID: "Erreur au niveau des roles",
     }
+
+    ERROR_MESSAGES.update({
+        format_unique_constraint_name(role): f"Il existe déjà un {role.value.replace('_', ' ').lower()} actif."
+        for role in ExecutiveRoleType
+    })

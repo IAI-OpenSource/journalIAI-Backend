@@ -27,7 +27,11 @@ class CRUDResult(GlobalAppResult[T]):
 
     @classmethod
     def crud_success(cls, data: T, status_code: int = 200) -> "CRUDResult[T]":
-        """Crée une réponse de succès avec les données fournies."""
+        """Crée une réponse de succès avec les données fournies.
+
+        Returns:
+            "CRUDResult[T]": 
+        """
         return cls(data=data, status_code=status_code)
 
     @classmethod

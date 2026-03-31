@@ -5,17 +5,18 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 from uuid import UUID
 
 from app.db.models.enums import ExecutiveRoleType, SexeType, UserRole
 from app.schemas import ApiBaseResponse
 from app.schemas.classe_schemas import ReadUserClasse
+from app.schemas.registration_schemas import FindRegistration
 
 
 class CreateUser(BaseModel):
-  """schémas de validation de a création d'un utilisateur
+  """schémas de validation de a création d'un utilisateur (Création de compte)
 
   Args:
       BaseModel (_type_): Hérite de base model
@@ -26,7 +27,24 @@ class CreateUser(BaseModel):
   email: EmailStr
   username: str = Field(description="Nom d'utilisateur")
   password: str
+  jeton: FindRegistration
   
+  
+class LoginData(BaseModel):
+    """schéma de validation des données de connexion (login)
+
+    Args:
+        BaseModel (_type_): Hérite de BaseModel
+
+    Returns:
+        _type_: Retourne rien, sert juste a la validation
+    """
+    
+    email: EmailStr = Field(description="Email de connexion")
+    password: str = Field(description="Mot de passe de l'utilisateur")
+    
+    
+    
   
 class ReadUser(BaseModel):
     """Schémas de validation des infos 'un utilisateur
@@ -59,12 +77,11 @@ class ReadUser(BaseModel):
             return False
         return True
 
-    class Config:
-        from_attributes=True
+    model_config = ConfigDict(from_attributes=True)
         
 ReadUser.model_rebuild()
 
 
 class UserInfos(ApiBaseResponse):
     
-    result: ReadUser = Field(description="Informations d'un utilisateur")
+    result: Optional[ReadUser] = Field(description="Informations d'un utilisateur")

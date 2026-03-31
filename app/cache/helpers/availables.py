@@ -13,6 +13,7 @@ class BaseCacheEntity:
     NOTIFICATION = "entity:notification:{id}"
     FEED = "feed:user:{id}"
     LIKE = "entity:like:{id}"
+    OTP = "entity:otp:{email}"
 
 class AvailableCacheKeys(str, Enum):
     """Definis toutes les clés de cache utilisées dans l'application, organisées par entité et par type de données"""
@@ -34,6 +35,8 @@ class AvailableCacheKeys(str, Enum):
 
     # Clés de cache pour les événements
     EVENT_OBJECT = BaseCacheEntity.EVENT  # Clé pour un événement spécifique
+    EVENT_LIST = BaseCacheEntity.EVENT + ":list"               # pagination
+    EVENT_BY_STATUS = BaseCacheEntity.EVENT + ":status"        # filtrage par statut
 
 
     # Clés de cache pour les sessions
@@ -50,3 +53,9 @@ class AvailableCacheKeys(str, Enum):
     POST_LIKE_COUNT = BaseCacheEntity.POST + ":like_count"  # Clé pour le nombre de likes d'un post
     COMMENT_LIKE_COUNT = BaseCacheEntity.COMMENT + ":like_count"  # Clé pour le nombre de likes d'un commentaire
 
+    FILE_UPLOAD_INTENT_KEY = "upload_intent:{user_id}:{intent_id}" # Clé pour stocker les intent d'upload
+
+    FILE_UPLOAD_PROGRESS_STREAM_KEY = "upload_progress_stream:{user_id}:{intent_id}" # Clé pour le stream sur l'anvancement du traitemenr d'un upload
+
+    ## Clés pour le OTP
+    USER_OTP = BaseCacheEntity.OTP 
