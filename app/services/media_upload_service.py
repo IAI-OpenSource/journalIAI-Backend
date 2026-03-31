@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import status, WebSocket, WebSocketDisconnect
 
 from app.cache.helpers.base import CacheWrapper
-from app.cache.uploads_cache import MediaUploadsCache
+from app.cache.post_cache import PostCache
 from app.db.models.post import Post
 from app.db.models.post_media import PostMedia
 from app.db.models.user import User
@@ -38,7 +38,7 @@ def get_mock_data() -> tuple[UUID, UUID]:
 class MediaUploadsService:
 
     def __init__(self, cache: CacheWrapper, bd: AsyncSession):
-        self._cache = MediaUploadsCache(cache)
+        self._cache = PostCache(cache)
         self._bd = PostRepository(bd)
 
 

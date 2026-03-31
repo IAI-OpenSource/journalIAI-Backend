@@ -1,7 +1,6 @@
-from enum import StrEnum
 
 
-class WorkersTaskNames(StrEnum):
+class WorkersTaskNames:
     """
     Classe pour centraliser les noms des tâches Celery utilisées dans l'application pour éviter les erreurs de frappe
     et faciliter la maintenance. Chaque nom de tâche est défini comme une constante de classe.

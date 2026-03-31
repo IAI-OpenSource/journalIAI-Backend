@@ -6,7 +6,7 @@ from typing import Optional
 from uuid import UUID, uuid4
 
 from app.cache.helpers.base import CacheWrapper
-from app.cache.uploads_cache import MediaUploadsCache
+from app.cache.post_cache import PostCache
 from app.schemas.post_upload_schemas import CreateMediaUploadIntentFullData, FileToUploadSchema
 from app.worker.tasks.tasks_utils.base.processing_step import ProcessingStep
 
@@ -47,7 +47,7 @@ class ProcessingContext:
     
     # Cache et connexions
     cache: CacheWrapper
-    upload_cache: MediaUploadsCache
+    upload_cache: PostCache
     _locals_paths: dict[str, dict[str, str]] = field(default_factory=dict, init=False, repr=False)
     # État du traitement
     global_progress_percentage: int = field(default=0, init=False)

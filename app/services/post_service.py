@@ -22,7 +22,6 @@ from app.schemas.post_schemas import (
     PresignedUploadUrlResponse,
 )
 from app.db.models.enums import MediaType
-from app.worker.tasks.media_tasks import task_process_media
 
 from . import ServiceResult
 
@@ -198,72 +197,6 @@ class PostService:
                 service_name=msg.POST_SERVICE,
             )
 
-    # Confirmation d'upload (étape 3) + déclenchement worker
-
-    async def service_confirm_media_upload(
-        self,
-        post_id: UUID,
-        media_data: ConfirmMediaUpload,
-    ) -> ServiceResult[ReadPostMedia]:
-        """Confirme qu'un upload MinIO a réussi et crée l'entrée PostMedia.
-
-        Vérifie d'abord que l'objet existe vraiment dans MinIO
-        (évite les entrées DB orphelines si le client ment).
-        Puis déclenche le worker Celery pour la conversion WebP.
-        """
-
-        # 1. Vérification existence dans MinIO avant création DB
-        exists = await self.storage_repo.object_exists(
-            bucket=media_data.source_bucket,
-            object_key=media_data.object_key,
-        )
-
-        if not exists:
-            logger.error(
-                "Objet introuvable dans MinIO bucket=%s key=%s",
-                media_data.source_bucket,
-                media_data.object_key,
-            )
-            return ServiceResult.service_error(
-                message=msg.MEDIA_NOT_FOUND_IN_STORAGE,
-                status_code=StatusCode._404_STATUS_NOT_FOUND.value,
-                service_name=msg.POST_SERVICE,
-            )
-
-        # 2. Création de l'entrée PostMedia en base (is_processed=False)
-        result = await self.post_repo.insert_post_media(
-            post_id=post_id,
-            media_data=media_data,
-        )
-
-        if result.is_error():
-            logger.error("Erreur création PostMedia : %s", result.error)
-            return ServiceResult.service_error(
-                message=result.error,
-                status_code=result.status_code,
-                service_name=msg.POST_SERVICE,
-            )
-
-        media_read = ReadPostMedia.model_validate(result.data)
-
-        # 3. Déclenchement asynchrone du worker Celery
-        # Le worker convertira l'image en WebP, génèrera le thumbnail
-        # et appellera mark_media_as_processed() pour mettre is_processed=True
-        if media_data.media_type == MediaType.IMAGE:
-            task_process_media.delay(
-                media_id=str(media_read.id),
-                post_id=str(post_id),
-                raw_key=media_data.object_key,
-                media_type=media_data.media_type.value,
-            )
-            logger.info(
-                "Worker de conversion déclenché pour media_id=%s", media_read.id
-            )
-
-        return ServiceResult.service_success(
-            data=media_read,
-            status_code=result.status_code,
-        )
 
     # Enregistrement d'une vue
 

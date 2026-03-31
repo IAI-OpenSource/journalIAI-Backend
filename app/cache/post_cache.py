@@ -10,7 +10,7 @@ from app.schemas.post_upload_schemas import WsPostProcessingInfoSchema, CreateMe
 
 logger = getLogger(__name__)
 
-class MediaUploadsCache:
+class PostCache:
     """Classe pour toutes les opérations de cache liées aux uploads de fichiers, comme la gestion des intents d'upload pour les utilisateurs"""
 
     def __init__(self, cache: CacheWrapper):
@@ -105,8 +105,8 @@ class MediaUploadsCache:
             return False
 
     async def add_upload_event_in_a_stream(
-            self, user_id: str, intent_id: str, data: WsPostProcessingInfoSchema,
-            must_add_ttl: bool = False
+        self, user_id: str, intent_id: str, data: WsPostProcessingInfoSchema,
+        must_add_ttl: bool = False
     ) -> Optional[str]:
         """
         Ajoute un evenement dans le stream redis qui gère l'avancée des uploads

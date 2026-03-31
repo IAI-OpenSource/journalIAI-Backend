@@ -1,6 +1,3 @@
-## fichier contenant les routes FastAPI pour les posts
-## pattern identique à auth.py : dépendances → service → réponse ApiBaseResponse
-
 from typing import Annotated
 from uuid import UUID
 from datetime import datetime
@@ -10,16 +7,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.cache.helpers.base import CacheWrapper, get_redis
 from app.db.session import get_db
-from app.db.models.enums import MediaType
 from app.globals.api_tags import ApiTags
 from app.schemas.post_schemas import (
     CreatePost,
     PostInfos,
     PostListInfos,
-    PostMediaInfos,
-    PresignedUrlInfos,
-    RequestMediaUploadUrl,
-    ConfirmMediaUpload,
 )
 from app.services.post_service import PostService
 
@@ -186,92 +178,6 @@ async def get_post(
         response=response,
         status_code=result.status_code,
     )
-
-
-# ------------------------------------------------------------------
-# Routes Médias (flow upload en 3 étapes)
-# ------------------------------------------------------------------
-
-@router.post(
-    "/{post_id}/media/upload-url",
-    response_model=PresignedUrlInfos,
-    summary="Étape 1 — Demander une URL d'upload MinIO",
-)
-async def request_upload_url(
-    post_id: UUID,
-    upload_request: RequestMediaUploadUrl,
-    response: Response,
-    post_service: PostService = Depends(get_post_service),
-):
-    """Génère une presigned PUT URL valable 15 minutes.
-
-    Le client doit ensuite faire un PUT directement sur cette URL
-    avec le fichier binaire en body — sans passer par l'API.
-    Une fois l'upload terminé, appeler /confirm pour créer l'entrée DB.
-
-    Retourne :
-    - upload_url : URL PUT présignée MinIO (pointe vers MINIO_PUBLIC_URL)
-    - object_key : clé à conserver et renvoyer lors de la confirmation
-    """
-    result = await post_service.service_request_upload_url(
-        post_id=post_id,
-        filename=upload_request.filename,
-        media_type=upload_request.media_type,
-    )
-
-    if result.is_error():
-        return PresignedUrlInfos.error_response(
-            error_message=result.error,
-            status_code=result.status_code,
-            response=response,
-        )
-
-    return PresignedUrlInfos.success_response(
-        data=result.data,
-        response=response,
-        status_code=result.status_code,
-    )
-
-
-@router.post(
-    "/{post_id}/media/confirm",
-    response_model=PostMediaInfos,
-    status_code=201,
-    summary="Étape 3 — Confirmer l'upload et déclencher le worker",
-)
-async def confirm_media_upload(
-    post_id: UUID,
-    media_data: ConfirmMediaUpload,
-    response: Response,
-    post_service: PostService = Depends(get_post_service),
-):
-    """Confirme qu'un upload MinIO a réussi.
-
-    Le service :
-    1. Vérifie que l'objet existe dans MinIO (évite les entrées DB orphelines)
-    2. Crée l'entrée PostMedia en base (is_processed=False)
-    3. Déclenche le worker Celery pour conversion WebP + thumbnail
-
-    Le champ is_processed passera à True une fois le worker terminé.
-    """
-    result = await post_service.service_confirm_media_upload(
-        post_id=post_id,
-        media_data=media_data,
-    )
-
-    if result.is_error():
-        return PostMediaInfos.error_response(
-            error_message=result.error,
-            status_code=result.status_code,
-            response=response,
-        )
-
-    return PostMediaInfos.success_response(
-        data=result.data,
-        response=response,
-        status_code=result.status_code,
-    )
-
 
 # ------------------------------------------------------------------
 # Enregistrement d'une vue

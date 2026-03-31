@@ -13,14 +13,13 @@ from sqlalchemy import insert, select, update, func,text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-
+from fastapi import  status
 from app.db.models.post import Post
 from app.db.models.post_media import PostMedia
 from app.db.models.post_views import PostViews
 from app.schemas.post_schemas import CreatePost, UpdatePost, ConfirmMediaUpload
 from . import CRUDResult
-from app.globals.messages import Messages as msg
-from app.globals.status_codes import StatusCode as status
+from app.globals.messages import Messages
 from .repositories_utils import RepositoriesUtils
 
 
@@ -40,7 +39,6 @@ def _encode_cursor(created_at: datetime, post_id: UUID) -> str:
     }
     
     raw = json.dumps(payload, separators=(",", ":"))
-    raw = json.dumps(payload, separators=(",", ":"))        
     return base64.urlsafe_b64encode(raw.encode()).decode()
 
 
@@ -98,13 +96,13 @@ class PostRepository:
             await self.db.commit()
 
             logger.info("Post créé avec succès ! id=%s", post.id)
-            return CRUDResult.crud_success(post, status._201_STATUS_CREATED.value)
+            return CRUDResult.crud_success(post, status.HTTP_201_CREATED)
 
         except IntegrityError as ie:
-            return RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, Post)
+            return await RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, Post)
 
         except Exception as e:
-            return RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
+            return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
 
     async def get_post_by_id(self, post_id: UUID) -> CRUDResult[Post]:
         """Récupère un post par son ID avec ses médias (selectinload).
@@ -128,15 +126,16 @@ class PostRepository:
             if post is None:
                 logger.info("Post non trouvé id=%s", post_id)
                 return CRUDResult.crud_error(
-                    msg.POST_NOT_FOUND,
-                    status_code=status._404_STATUS_NOT_FOUND.value,
+                    Messages.POST_NOT_FOUND,
+                    status_code=status.HTTP_400_BAD_REQUEST,
                 )
+            
 
             logger.info("Post récupéré avec succès ! id=%s", post_id)
-            return CRUDResult.crud_success(post, status._200_STATUS_OK.value)
+            return CRUDResult.crud_success(post, status.HTTP_200_OK)
 
         except Exception as e:
-            return RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
+            return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
 
     async def get_feed(
         self,
@@ -151,6 +150,7 @@ class PostRepository:
         Retourne un dict avec les clés : items, next_cursor, has_more.
 
         Args:
+            seen_post_ids:
             academic_year_id (UUID): Filtre sur l'année académique.
             cursor (Optional[str]): Curseur opaque de la page précédente.
             page_size (int): Nombre de posts par page.
@@ -206,15 +206,15 @@ class PostRepository:
             )
             return CRUDResult.crud_success(
                 {"items": items, "next_cursor": next_cursor, "has_more": has_more},
-                status._200_STATUS_OK.value,
+                status.HTTP_200_OK,
             )
 
         except ValueError as ve:
             # Curseur malformé
-            return CRUDResult.crud_error(str(ve), status_code=status._400_STATUS_BAD_REQUEST.value)
+            return CRUDResult.crud_error(str(ve), status_code=status.HTTP_400_BAD_REQUEST)
 
         except Exception as e:
-            return RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
+            return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
 
     async def update_post(
         self, post_id: UUID, author_id: UUID, update_data: UpdatePost
@@ -236,7 +236,7 @@ class PostRepository:
             if not values:
                 return CRUDResult.crud_error(
                     "Aucune donnée à mettre à jour.",
-                    status_code=status._400_STATUS_BAD_REQUEST.value,
+                    status_code=status.HTTP_400_BAD_REQUEST,
                 )
 
             stmt = (
@@ -256,19 +256,19 @@ class PostRepository:
             if post is None:
                 logger.info("Post non trouvé ou non autorisé id=%s", post_id)
                 return CRUDResult.crud_error(
-                    msg.POST_NOT_FOUND,
-                    status_code=status._404_STATUS_NOT_FOUND.value,
+                    Messages.POST_NOT_FOUND,
+                    status_code=status.HTTP_400_BAD_REQUEST,
                 )
 
             await self.db.commit()
             logger.info("Post mis à jour avec succès ! id=%s", post_id)
-            return CRUDResult.crud_success(post, status._200_STATUS_OK.value)
+            return CRUDResult.crud_success(post, status.HTTP_200_OK)
 
         except IntegrityError as ie:
-            return RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, Post)
+            return await RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, Post)
 
         except Exception as e:
-            return RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
+            return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
 
     async def soft_delete_post(
         self, post_id: UUID, author_id: UUID
@@ -300,16 +300,16 @@ class PostRepository:
             if deleted_id is None:
                 logger.info("Post non trouvé ou non autorisé id=%s", post_id)
                 return CRUDResult.crud_error(
-                    msg.POST_NOT_FOUND,
-                    status_code=status._404_STATUS_NOT_FOUND.value,
+                    Messages.POST_NOT_FOUND,
+                    status_code=status.HTTP_400_BAD_REQUEST,
                 )
 
             await self.db.commit()
             logger.info("Post supprimé (soft delete) avec succès ! id=%s", post_id)
-            return CRUDResult.crud_success(None, status._200_STATUS_OK.value)
+            return CRUDResult.crud_success(None, status.HTTP_200_OK)
 
         except Exception as e:
-            return RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
+            return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
 
 # Fallback PostgreSQL si Redis crash
 
@@ -337,10 +337,10 @@ class PostRepository:
                     "Fallback PostgreSQL seen_posts user=%s count=%d",
                     user_id, len(post_ids),
                 )
-                return CRUDResult.crud_success(post_ids, status._200_STATUS_OK.value)
+                return CRUDResult.crud_success(post_ids, status.HTTP_200_OK)
     
             except Exception as e:
-                return RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
+                return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
 
 
     async def count_new_posts_since(
@@ -365,9 +365,9 @@ class PostRepository:
                 )
                 result = await self.db.execute(stmt)
                 count = result.scalar_one()
-                return CRUDResult.crud_success(count, status._200_STATUS_OK.value)
+                return CRUDResult.crud_success(count, status.HTTP_200_OK)
             except Exception as e:
-                return RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
+                return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
 
 
 
@@ -409,15 +409,15 @@ class PostRepository:
             await self.db.commit()
 
             logger.info("PostMedia créé avec succès ! id=%s", media.id)
-            return CRUDResult.crud_success(media, status._201_STATUS_CREATED.value)
+            return CRUDResult.crud_success(media, status.HTTP_201_CREATED)
 
         except IntegrityError as ie:
-            return RepositoriesUtils.traiter_integrity_error(
+            return await RepositoriesUtils.traiter_integrity_error(
                 ie, self.db, logger, PostMedia
             )
 
         except Exception as e:
-            return RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
+            return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
 
     async def mark_media_as_processed(
         self, media_id: UUID, thumbnail_url: str
@@ -446,16 +446,16 @@ class PostRepository:
 
             if media is None:
                 return CRUDResult.crud_error(
-                    msg.MEDIA_NOT_FOUND,
-                    status_code=status._404_STATUS_NOT_FOUND.value,
+                    Messages.MEDIA_NOT_FOUND,
+                    status_code=status.HTTP_400_BAD_REQUEST,
                 )
 
             await self.db.commit()
             logger.info("PostMedia marqué comme traité ! id=%s", media_id)
-            return CRUDResult.crud_success(media, status._200_STATUS_OK.value)
+            return CRUDResult.crud_success(media, status.HTTP_200_OK)
 
         except Exception as e:
-            return RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
+            return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
 
     # PostViews
 
@@ -481,7 +481,7 @@ class PostRepository:
             await self.db.commit()
 
             logger.info("Vue enregistrée post_id=%s user_id=%s", post_id, user_id)
-            return CRUDResult.crud_success(None, status._201_STATUS_CREATED.value)
+            return CRUDResult.crud_success(None, status.HTTP_201_CREATED)
 
         except IntegrityError:
             # Post déjà vu par cet utilisateur — comportement idempotent attendu
@@ -491,10 +491,10 @@ class PostRepository:
                 post_id,
                 user_id,
             )
-            return CRUDResult.crud_success(None, status._200_STATUS_OK.value)
+            return CRUDResult.crud_success(None, status.HTTP_200_OK)
 
         except Exception as e:
-            return RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
+            return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
 
     async def batch_insert_post_views(
         self, user_id: UUID, post_ids: list[UUID]
@@ -504,7 +504,7 @@ class PostRepository:
         ON CONFLICT DO NOTHING assure l'idempotence si déjà snapé.
         """
         if not post_ids:
-            return CRUDResult.crud_success(0, status._200_STATUS_OK.value)
+            return CRUDResult.crud_success(0, status.HTTP_200_OK)
         try:
             rows = [{"user_id": user_id, "post_id": pid} for pid in post_ids]
             stmt = (
@@ -514,33 +514,6 @@ class PostRepository:
             )
             result = await self.db.execute(stmt)
             await self.db.commit()
-            return CRUDResult.crud_success(result.rowcount, status._200_STATUS_OK.value)
+            return CRUDResult.crud_success(result.rowcount, status.HTTP_200_OK)
         except Exception as e:
-            return RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
- 
-    async def delete_old_post_views(self, older_than_days: int = 30) -> CRUDResult[int]:
-        """Supprime les vues de plus de N jours (nettoyage snapshot spec §8.2 Étape 3)."""
-        try:
-            stmt = text(
-                f"DELETE FROM post_views WHERE viewed_at < NOW() - INTERVAL '{older_than_days} days'"
-            )
-            result = await self.db.execute(stmt)
-            await self.db.commit()
-            logger.info("Nettoyage post_views : %d lignes supprimées", result.rowcount)
-            return CRUDResult.crud_success(result.rowcount, status._200_STATUS_OK.value)
-        except Exception as e:
-            return RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
-        
-    
-    async def delete_old_post_views(self, older_than_days: int = 30) -> CRUDResult[int]:
-        """Supprime les vues de plus de N jours (nettoyage snapshot spec §8.2 Étape 3)."""
-        try:
-            stmt = text(
-                f"DELETE FROM post_views WHERE viewed_at < NOW() - INTERVAL '{older_than_days} days'"
-            )
-            result = await self.db.execute(stmt)
-            await self.db.commit()
-            logger.info("Nettoyage post_views : %d lignes supprimées", result.rowcount)
-            return CRUDResult.crud_success(result.rowcount, status._200_STATUS_OK.value)
-        except Exception as e:
-            return RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)    
+            return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
