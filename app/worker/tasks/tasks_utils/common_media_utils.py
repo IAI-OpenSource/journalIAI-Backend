@@ -69,7 +69,7 @@ async def create_post_and_media(
                 else:
                     post_type = PostType.IMAGE
 
-            post_object.media_type = post_type
+            post_object.post_type = post_type
 
 
             # Sauvegarder

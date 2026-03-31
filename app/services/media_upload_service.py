@@ -205,7 +205,8 @@ class MediaUploadsService:
                     "intent_id": intent_id,
                     "user_id": user_id_str,
                     "post_data": intent_data.model_dump_json()
-                }
+                },
+                queue=OtherConstants.MEDIA_PROCESSING_WORKER_QUEUE_NAME
             )
         except Exception as e:
             logger.error(f"Erreur {e.__class__.__name__} lors de l'envoi de la tâche de post-traitement du média uploadé dans le worker : {e}")

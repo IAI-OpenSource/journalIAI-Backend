@@ -161,7 +161,7 @@ services:
     restart: unless-stopped
     # Limitation des ressources pour éviter que le worker ne consomme tout le CPU/RAM du serveur, surtout lors de traitements lourds comme la vidéo
     # A ajuster selon les capacités réelles du serveur qu'on utilisera et les besoins du worker
-    mem_limit: 1g
+    mem_limit: 2g
     cpus: 1.5
     mem_reservation: 256m
     depends_on:

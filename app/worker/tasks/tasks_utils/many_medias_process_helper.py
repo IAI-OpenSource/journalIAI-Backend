@@ -43,7 +43,8 @@ class ManyMediasProcessHelper:
 
         type_fichier = "vidéo" if file_info.is_video else "photo"
 
-        raw_object_result = PostUploadStorage.get_video_upload_intent_file_info(self.intent_id, file_info.file_name)
+        raw_object_result = PostUploadStorage.get_video_upload_intent_file_info(self.intent_id, file_info.file_name) \
+            if file_info.is_video else PostUploadStorage.get_image_upload_intent_file_info(self.intent_id, file_info.file_name)
 
         if raw_object_result is None:
             self.logger.error(f"Fichier {type_fichier} non trouvé dans MinIO pour l'intent {self.intent_id} et le fichier {file_info.file_name}")
@@ -95,7 +96,7 @@ class ManyMediasProcessHelper:
 
             # Traiter la vidéo
             qualities = get_target_qualities(video_metadata['height'])
-            self.logger.error(f"Qualités cibles pour la compression vidéo pour l'intent {self.intent_id} et le fichier {file_info.file_name} : {qualities}")
+            self.logger.info(f"Qualités cibles pour la compression vidéo pour l'intent {self.intent_id} et le fichier {file_info.file_name} : {qualities}")
 
             hls_command = generate_hls_command(
                 local_raw_path=local_raw_path,
@@ -159,7 +160,7 @@ class ManyMediasProcessHelper:
         """minio_media_url et minio_thumbnail_url"""
 
         if file_info.is_video:
-            final_bucket_objects_path = BucketFilesUtils.generate_objects_path_for_processed_video(self.intent_id)
+            final_bucket_objects_path = BucketFilesUtils.generate_objects_path_for_processed_video()
 
             upload_result = task_async_loop_manager.run_async(
                 upload_hls_to_minio(output_dir, final_bucket_objects_path)
@@ -173,7 +174,7 @@ class ManyMediasProcessHelper:
             final_bucket_thumbnail_path = None
 
             if thumbnail_path:
-                final_bucket_thumbnail_path = BucketFilesUtils.generate_objects_path_for_video_thumbnail(self.intent_id)
+                final_bucket_thumbnail_path = BucketFilesUtils.generate_objects_path_for_video_thumbnail()
                 res = MinIOManager.upload_file(
                     BucketName.USER_IDENTITY_ASSETS.value,
                     final_bucket_thumbnail_path,
@@ -186,7 +187,7 @@ class ManyMediasProcessHelper:
 
             media_url, thumbnail_url = final_bucket_objects_path, final_bucket_thumbnail_path
         else:
-            final_bucket_objects_path = BucketFilesUtils.generate_objects_path_for_processed_image(self.intent_id)
+            final_bucket_objects_path = BucketFilesUtils.generate_objects_path_for_processed_image()
             upload_result = task_async_loop_manager.run_async(
                 upload_images_to_minio(output_dir, final_bucket_objects_path)
             )
@@ -194,14 +195,14 @@ class ManyMediasProcessHelper:
             if upload_result.is_error():
                 self.logger.error(f"Erreur lors de l'upload des images traitées vers MinIO pour l'intent {self.intent_id} et le fichier {file_info.file_name} : {upload_result.error}")
                 return self._return_error(upload_result.error)
-
+            self.logger.info(f"Upload des images traitées vers MinIO réussi pour l'intent {self.intent_id} et le fichier {file_info.file_name}")
             final_bucket_thumbnail_path = None
             if thumbnail_path:
-                final_bucket_thumbnail_path = BucketFilesUtils.generate_objects_path_for_image_thumbnail(self.intent_id)
+                final_bucket_thumbnail_path = BucketFilesUtils.generate_objects_path_for_image_thumbnail()
                 res = MinIOManager.upload_file(
                     BucketName.USER_IDENTITY_ASSETS.value,
                     final_bucket_thumbnail_path,
-                    output_dir,
+                    thumbnail_path,
                     content_type="image/webp"
                 )
                 if res.is_error():
