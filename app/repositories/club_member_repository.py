@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 import logging
-from sqlalchemy import select, update, insert, delete
+from sqlalchemy import select, update, insert
 from app.db.models.club_member import ClubMember
 from app.db.models.enums import ClubMembersType
 from app.repositories.repositories_utils import RepositoriesUtils
@@ -46,7 +46,7 @@ class ClubMemberRepository:
                 .order_by(ClubMember.joined_at)
             )
             result = await self.db.execute(stmt)
-            members = result.scalars().all()
+            members = list(result.scalars().all())
 
             logger.info(f"Membres du club {club_id} récupérés avec succès !")
             return CRUDResult.crud_success(members)
@@ -79,6 +79,7 @@ class ClubMemberRepository:
                 logger.info(f"Aucun membre trouvé pour l'id {member_id}")
                 return CRUDResult.crud_error(msg.NOT_FOUND, status_code=404)
 
+            assert isinstance(member, ClubMember)
             logger.info("Membre récupéré avec succès !")
             return CRUDResult.crud_success(member)
 
@@ -138,7 +139,7 @@ class ClubMemberRepository:
                 .order_by(ClubMember.joined_at)
             )
             result = await self.db.execute(stmt)
-            members = result.scalars().all()
+            members = list(result.scalars().all())
 
             logger.info(f"Membres avec rôle '{role.value}' récupérés avec succès !")
             return CRUDResult.crud_success(members)

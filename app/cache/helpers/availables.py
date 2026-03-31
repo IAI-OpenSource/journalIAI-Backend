@@ -16,6 +16,8 @@ class BaseCacheEntity:
     OTP = "entity:otp:{email}"
     CLUB_MEMBER = "entity:club_member:{id}"
 
+
+
 class AvailableCacheKeys(str, Enum):
     """Definis toutes les clés de cache utilisées dans l'application, organisées par entité et par type de données"""
 
@@ -35,6 +37,7 @@ class AvailableCacheKeys(str, Enum):
     CLUB_MEMBERS = BaseCacheEntity.CLUB + ":members"  # Liste des membres d'un club (par club_id)
     CLUB_MEMBER_LIST = BaseCacheEntity.CLUB_MEMBER + ":list"  # Liste paginée des membres
     CLUB_MEMBER_OBJECT = BaseCacheEntity.CLUB + ":member:{id}"
+    CLUB_MEMBER_PAGINATED = BaseCacheEntity.CLUB_MEMBER + ":paginated"
 
     
     # Clés de cache pour les événements

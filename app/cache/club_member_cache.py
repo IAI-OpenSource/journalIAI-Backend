@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import Optional, List, cast
 from uuid import UUID
 from logging import getLogger
 import redis
@@ -6,7 +6,7 @@ from app.cache.helpers.availables import AvailableCacheKeys
 from app.cache.helpers.base import CacheWrapper
 from app.cache.helpers.cache_keys import CacheKey
 from app.cache.helpers.keys_factory import CacheKeysFactory
-from app.schemas.club_member_schema import ClubMemberRead, ApiPaginatedClubMemberListResponse, PaginatedClubMemberListResponse
+from app.schemas.club_member_schema import ClubMemberRead, PaginatedClubMemberListResponse
 
 logger = getLogger(__name__)
 
@@ -58,10 +58,10 @@ class ClubMemberCache:
     async def get_member_from_cache(self, member_id: UUID) -> Optional[ClubMemberRead]:
         try:
             cache_key = self.create_member_cache_key(member_id)
-            return await self.cache.get_pydantic_model_from_cache(
+            return cast(Optional[ClubMemberRead], await self.cache.get_pydantic_model_from_cache(
                 key=cache_key,
                 model_class=ClubMemberRead
-            )
+            ))
         except redis.ConnectionError:
             logger.exception(f"Erreur de connexion Redis lors de la récupération du membre {member_id}")
             return None
@@ -169,10 +169,11 @@ class ClubMemberCache:
     ) -> Optional[PaginatedClubMemberListResponse]:
         try:
             cache_key = self.create_member_paginated_cache_key(club_id, cursor, limit)
-            return await self.cache.get_pydantic_model_from_cache(
+            result = await self.cache.get_pydantic_model_from_cache(
                 key=cache_key,
                 model_class=PaginatedClubMemberListResponse
             )
+            return cast(Optional[PaginatedClubMemberListResponse], result)
         except redis.ConnectionError:
             logger.exception(f"Erreur de connexion Redis lors de la récupération paginée des membres du club {club_id}")
             return None

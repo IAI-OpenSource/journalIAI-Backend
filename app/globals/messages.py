@@ -39,6 +39,10 @@ class Messages:
     EVENT_CREATE_SUCCES = "Event créé avec succès"
     EVENT_ALREADY_EXISTS = 'Evenement deja existant'
 
+    CLUB_MEMBER_SERVICE = "Service Club Member"
+    ALREADY_EXISTS = "Le memebre existe deja"
+    MEMBER_DELETE_SUCCESS = "Membre supprimer avec sucsess"
+
     ERROR_UPLOAD_URL_GENERATION = "Erreur lors de la génération de l'URL d'upload"
     VIDEO_UPLOAD_INTENT_SAVED = "Intent d'upload video enregistré avec succès"
     ERROR_MEDIA_UPLOAD_INTENT_NOT_FOUND = "Intent d'upload média expirée ou inexistant"
