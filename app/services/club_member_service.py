@@ -1,5 +1,5 @@
 import logging
-from typing import Optional
+from typing import Optional, Any
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,9 +16,7 @@ from app.schemas.club_member_schema import (
 )
 from app.db.models.enums import ClubMembersType
 from app.globals.messages import Messages as msg
-from app.schemas.global_schemas import GlobalStringMessage  # FIX: import absolu + bon nom
-
-from . import ServiceResult
+from app.services import ServiceResult
 
 logger = logging.getLogger(__name__)
 
@@ -279,7 +277,7 @@ class ClubMemberService:
 
     async def service_remove_member(
         self, club_id: UUID, member_id: UUID  # FIX: club_id ajouté
-    ) -> ServiceResult[GlobalStringMessage]:
+    ) -> ServiceResult[Any] | ServiceResult[dict[str, str]]:
         """Supprime (soft delete) un membre et invalide tous ses caches."""
 
         # FIX: club_id vient du router — plus besoin de fetch préalable juste pour l'avoir
@@ -296,7 +294,7 @@ class ClubMemberService:
 
         logger.info(f"Membre {member_id} supprimé du club {club_id} avec succès")
         return ServiceResult.service_success(
-            data=GlobalStringMessage(message=msg.MEMBER_DELETE_SUCCESS),
+            data={"message": msg.MEMBER_DELETE_SUCCESS},
             status_code=200,
             service_name=msg.CLUB_MEMBER_SERVICE
         )

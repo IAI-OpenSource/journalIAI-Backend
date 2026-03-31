@@ -193,11 +193,16 @@ class ClubMemberRepository:
             CRUDResult[ClubMember]: Le membre mis à jour.
         """
         try:
+
+            values = data.model_dump(exclude_unset=True)
+            if not values:
+                return CRUDResult.crud_error("Aucune donnée à mettre à jour", status_code=400)
+
             stmt = (
                 update(ClubMember)
                 .where(ClubMember.id == member_id)
                 .where(ClubMember.deleted_at == None)
-                .values(**data.model_dump(exclude_unset=True))
+                .values(**values)
                 .returning(ClubMember)
             )
             result = await self.db.execute(stmt)

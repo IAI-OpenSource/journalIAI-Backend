@@ -36,7 +36,7 @@ class AvailableCacheKeys(str, Enum):
     CLUB_OBJECT = BaseCacheEntity.CLUB  # Clé pour un club spécifique
     CLUB_MEMBERS = BaseCacheEntity.CLUB + ":members"  # Liste des membres d'un club (par club_id)
     CLUB_MEMBER_LIST = BaseCacheEntity.CLUB_MEMBER + ":list"  # Liste paginée des membres
-    CLUB_MEMBER_OBJECT = BaseCacheEntity.CLUB + ":member:{id}"
+    CLUB_MEMBER_OBJECT = BaseCacheEntity.CLUB_MEMBER 
     CLUB_MEMBER_PAGINATED = BaseCacheEntity.CLUB_MEMBER + ":paginated"
 
     
