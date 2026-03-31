@@ -7,11 +7,11 @@ from app.cache.helpers.keys_factory import CacheKeysFactory
 from app.db.models.classe import Classe
 from app.globals.messages import Messages as msg
 from app.globals.status_codes import StatusCode as status
-from app.repositories.academic_year_repository import AcademicYearRepository
 from app.repositories.classe_repository import ClasseRepository
 from app.schemas.classe_schemas import ClasseCreateRequest,ClasseListResponse,ClasseResponse,ClasseUpdateRequest
 from app.schemas.global_schemas import StringMessage
 from app.services import ServiceResult
+from app.services.academic_year_service import AcademicYearService
 
 logger = logging.getLogger(__name__)
 CLASSE_CACHE_TTL = 3600  # 1 heure
@@ -24,7 +24,7 @@ class ClasseService:
         self.db = db
         self.redis = redis
         self.classe_repository = ClasseRepository(db)
-        self.academic_year_repository = AcademicYearRepository(db)
+        self.academic_year_service = AcademicYearService(db, redis)
 
     def _build_classe_cache_key(self, classe_id: UUID):
         """Construit la clé de cache pour une classe par son ID."""
@@ -77,14 +77,14 @@ class ClasseService:
         """Crée une nouvelle classe.
         """
 
-        academic_year_result = await self.academic_year_repository.get_active_academic_year()
+        academic_year_result = await self.academic_year_service.get_active_academic_year()
         if academic_year_result.is_error():
             return ServiceResult.service_error(msg.ACADEMIC_YEAR_NOT_FOUND,status._404_STATUS_NOT_FOUND,msg.CLASSE_SERVICE)
 
-        academic_year_id = academic_year_result.data.id
-        existing = await self.classe_repository.get_classe_by_prefix_sufix_year(classe_prefix=payload.classe_prefix,classe_suffix=payload.classe_suffix,academic_year_id=academic_year_id)
-        if existing.is_success():
-            return ServiceResult.service_error(msg.CLASSE_ALREADY_EXISTS,status._400_STATUS_BAD_REQUEST,msg.CLASSE_SERVICE)
+        #academic_year_id = academic_year_result.data.id
+        #{existing = await self.classe_repository.get_classe_by_prefix_sufix_year(classe_prefix=payload.classe_prefix,classe_suffix=payload.classe_suffix,academic_year_id=academic_year_id)
+        #if existing.is_success():
+        #    return ServiceResult.service_error(msg.CLASSE_ALREADY_EXISTS,status._400_STATUS_BAD_REQUEST,msg.CLASSE_SERVICE)
 
 
         nouvelle_classe = Classe(classe_prefix=payload.classe_prefix,classe_suffix=payload.classe_suffix,academic_year_id=academic_year_result.data.id)
