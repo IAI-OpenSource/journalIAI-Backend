@@ -22,33 +22,26 @@ class CreatePost(BaseModel):
     (token JWT + contexte académique actif), jamais envoyés par le client.
     """
 
-    content: Optional[str] = Field(
+    content: str = Field(
         default=None,
-        max_length=10000,
-        description="Contenu textuel du post. Obligatoire si post_type=TEXT.",
-    )
-    post_type: PostType = Field(
-        default=PostType.TEXT,
-        description="Type du post (TEXT, IMAGE, VIDEO…)",
-    )
-    club_id: Optional[UUID] = Field(
-        default=None,
-        description="Club auquel ce post est rattaché (optionnel).",
-    )
-    event_id: Optional[UUID] = Field(
-        default=None,
-        description="Événement auquel ce post est rattaché (optionnel).",
-    )
-    target_classe_id: Optional[UUID] = Field(
-        default=None,
-        description="Classe ciblée par ce post (optionnel, NULL = post général).",
+        description="Contenu textuel du post",
     )
 
-    @model_validator(mode="after")
-    def content_required_for_text(self) -> "CreatePost":
-        if self.post_type == PostType.TEXT and not self.content:
-            raise ValueError("Le contenu est obligatoire pour un post de type TEXT.")
-        return self
+    event_id: Optional[UUID] = Field(None, description="L'ID de l'événement auquel le post est associé, si applicable")
+    club_id: Optional[UUID] = Field(None, description="L'ID du club auquel le post est associé, si applicable")
+    for_current_academic_year: Optional[bool] = Field(
+        description="Indique si le post doit etre limité à l'année académique en cours, si true alors"
+                    " le post ne sera visible que pendant l'année académique en cours, sinon le post sera"
+                    " visible sans limite de temps"
+    )
+    only_for_a_class: Optional[bool] = Field(
+        description="Indique si le post doit etre limité seulement aux étudiants d'une classe précise, si `true` "
+                    "le post sera visible uniquement par eux sinon le post sera visible pour tous les étudiants"
+                    " de l'école, QUAND CE ATTRIBUT EST A `true` `for_current_academic_year` LE DEVIENT AUSSI AUTOMATIQUEMENT "
+                    "DONC PLUS LA PEINE DE LE PASSER (`for_current_academic_year` SERA TOUJOURS `true` QUAND `only_for_a_class` EST `true`)"
+                    "CET ATTRIBUT NE PEUT ETRE MIS A `true` QUE POUR LES DELEGUES DES SALLES, SI LE USER N'EST PAS DELEGUE D'UNE SALLE "
+                    "LA REQUETE RENVERRA UNE BELLE `ERREUR 404`"
+    )
 
 
 class UpdatePost(BaseModel):
@@ -248,7 +241,7 @@ class PostInfos(ApiBaseResponse):
 class PostListInfos(ApiBaseResponse):
     """Réponse API pour un feed paginé de posts."""
 
-    result: ReadPostList = Field(description="Page de posts avec curseur de pagination.")
+    result: Optional[ReadPostList] = Field(description="Page de posts avec curseur de pagination.")
 
 
 class PostMediaInfos(ApiBaseResponse):

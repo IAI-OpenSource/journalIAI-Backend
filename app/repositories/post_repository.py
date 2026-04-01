@@ -12,7 +12,7 @@ from uuid import UUID
 from sqlalchemy import insert, select, update, func,text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, joinedload, with_loader_criteria
 from fastapi import  status
 from app.db.models.post import Post
 from app.db.models.post_media import PostMedia
@@ -181,7 +181,10 @@ class PostRepository:
             stmt = (
                 select(Post)
                 .where(Post.id == post_id, Post.deleted_at.is_(None))
-                .options(selectinload(Post.media))
+                .options(
+                    selectinload(Post.media),
+                    with_loader_criteria(PostMedia, PostMedia.deleted_at.is_(None))
+                )
             )
 
             result = await self.db.execute(stmt)
@@ -232,7 +235,10 @@ class PostRepository:
                     Post.deleted_at.is_(None),
                     Post.is_published.is_(True),
                 )
-                .options(selectinload(Post.media))
+                .options(
+                    selectinload(Post.media),
+                    with_loader_criteria(PostMedia, PostMedia.deleted_at.is_(None))
+                )
                 .order_by(Post.created_at.desc(), Post.id.desc())
                 .limit(page_size + 1)  # +1 pour détecter has_more
             )
@@ -532,7 +538,7 @@ class PostRepository:
 
     async def insert_post_view(
         self, post_id: UUID, user_id: UUID
-    ) -> CRUDResult[None]:
+    ) -> CRUDResult[str]:
         """Enregistre la vue d'un post par un utilisateur.
 
         La clé primaire composite (post_id, user_id) garantit l'unicité —
@@ -552,9 +558,9 @@ class PostRepository:
             await self.db.commit()
 
             logger.info("Vue enregistrée post_id=%s user_id=%s", post_id, user_id)
-            return CRUDResult.crud_success(None, status.HTTP_201_CREATED)
+            return CRUDResult.crud_success("ok", status.HTTP_201_CREATED)
 
-        except IntegrityError:
+        except IntegrityError as e:
             # Post déjà vu par cet utilisateur — comportement idempotent attendu
             await self.db.rollback()
             logger.debug(
@@ -562,7 +568,7 @@ class PostRepository:
                 post_id,
                 user_id,
             )
-            return CRUDResult.crud_success(None, status.HTTP_200_OK)
+            return CRUDResult.crud_success("None", status.HTTP_200_OK)
 
         except Exception as e:
             return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)

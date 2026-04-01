@@ -29,6 +29,7 @@ IDX_POSTS_BY_CLUB = "idx_posts_by_club"
 IDX_POSTS_BY_EVENT = "idx_posts_by_event"
 IDX_POSTS_POPULAR = "idx_posts_popular"
 IDX_POSTS_DELETED_AT = "idx_posts_deleted_at"
+IDX_POSTS_ACADEMIC_YEAR = "idx_posts_academic_year"
 
 
 class Post(Base, IntegrityMapperMixin):
@@ -82,21 +83,22 @@ class Post(Base, IntegrityMapperMixin):
         Index(IDX_POSTS_BY_EVENT, "event_id", "created_at", "id", postgresql_where=(deleted_at == None) & (event_id != None)),
         Index(IDX_POSTS_POPULAR, "like_count", "created_at", "id", postgresql_where=(deleted_at == None) & (is_published == True)),
         Index(IDX_POSTS_DELETED_AT, "deleted_at", postgresql_where=(deleted_at != None)),
+        Index(IDX_POSTS_ACADEMIC_YEAR, "academic_year_id", postgresql_where=(deleted_at == None)),
         CheckConstraint("like_count >= 0 AND comment_count >= 0", name=CHK_POSTS_METRICS),
         CheckConstraint("content IS NOT NULL OR post_type != 'TEXT'", name=CHK_POSTS_CONTENT_REQUIRED),
         CheckConstraint("content IS NULL OR LENGTH(content) <= 10000", name=CHK_POSTS_CONTENT_LENGTH),
     )
 
     # Relationships
-    author: Mapped["User"] = relationship("User", foreign_keys=[author_id], back_populates="posts", uselist=False, init=False)
-    club: Mapped[Optional["Club"]] = relationship("Club", foreign_keys=[club_id], back_populates="posts", uselist=False, init=False)
-    event: Mapped[Optional["Event"]] = relationship("Event", foreign_keys=[event_id], back_populates="posts", uselist=False, init=False)
-    comments: Mapped[list["Comment"]] = relationship("Comment", back_populates="post", cascade="all, delete-orphan", uselist=True, init=False)
-    media: Mapped[list["PostMedia"]] = relationship("PostMedia", back_populates="post", cascade="all, delete-orphan", uselist=True, init=False)
-    likes: Mapped[list["Like"]] = relationship("Like", foreign_keys="Like.post_id", back_populates="post", cascade="all, delete-orphan", uselist=True, init=False)
-    academic_year: Mapped["AcademicYear"] = relationship("AcademicYear", back_populates="posts", uselist=False, init=False)
-    classe: Mapped[Optional["Classe"]] = relationship("Classe", back_populates="posts", foreign_keys=[target_classe_id], uselist=False, init=False)
-    views: Mapped[list["PostViews"]] = relationship("PostViews", back_populates="post", cascade="all, delete-orphan", uselist=True, init=False)
+    author: Mapped["User"] = relationship("User", lazy="noload", foreign_keys=[author_id], back_populates="posts", uselist=False, init=False)
+    club: Mapped[Optional["Club"]] = relationship("Club",lazy="noload", foreign_keys=[club_id], back_populates="posts", uselist=False, init=False)
+    event: Mapped[Optional["Event"]] = relationship("Event",lazy="noload", foreign_keys=[event_id], back_populates="posts", uselist=False, init=False)
+    comments: Mapped[list["Comment"]] = relationship("Comment",lazy="noload", back_populates="post", cascade="all, delete-orphan", uselist=True, init=False)
+    media: Mapped[list["PostMedia"]] = relationship("PostMedia",lazy="noload", back_populates="post", cascade="all, delete-orphan", uselist=True, init=False)
+    likes: Mapped[list["Like"]] = relationship("Like",lazy="noload", foreign_keys="Like.post_id", back_populates="post", cascade="all, delete-orphan", uselist=True, init=False)
+    academic_year: Mapped["AcademicYear"] = relationship("AcademicYear",lazy="noload", back_populates="posts", uselist=False, init=False)
+    classe: Mapped[Optional["Classe"]] = relationship("Classe",lazy="noload", back_populates="posts", foreign_keys=[target_classe_id], uselist=False, init=False)
+    views: Mapped[list["PostViews"]] = relationship("PostViews",lazy="noload", back_populates="post", cascade="all, delete-orphan", uselist=True, init=False)
 
     # Messages d'erreur d'intégrité spécifiques au modèle Post
     ERROR_MESSAGES = {

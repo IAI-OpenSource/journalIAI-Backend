@@ -35,7 +35,6 @@ class PostService:
     async def service_create_post(
         self,
         author_id: UUID,
-        academic_year_id: UUID,
         post_data: CreatePost,
     ) -> ServiceResult[ReadPost]:
         """Crée un post en base de données.
@@ -43,9 +42,10 @@ class PostService:
         author_id et academic_year_id sont injectés depuis le token JWT
         et le contexte académique actif — jamais depuis le body client.
         """
+        # TODO: Changer ce mock
         result = await self.post_repo.insert_post(
             author_id=author_id,
-            academic_year_id=academic_year_id,
+            academic_year_id=UUID("5f594ab3-2560-4e5b-adbe-f20e5dd8e193"),
             post_data=post_data,
         )
 
@@ -89,7 +89,6 @@ class PostService:
     async def service_get_feed(
         self,
         user_id: UUID,
-        academic_year_id: UUID,
         cursor: str | None = None,
         page_size: int = 20,
     ) -> ServiceResult[ReadPostList]:
@@ -103,9 +102,10 @@ class PostService:
             fallback = await self.post_repo.get_seen_post_ids_from_db(user_id=user_id)
             # Si PostgreSQL aussi en erreur → feed sans exclusion (dégradé fonctionnel)
             seen_post_ids = fallback.data if not fallback.is_error() else []
-            
+
+        # TODO: Changer ce mock
         result = await self.post_repo.get_feed(
-            academic_year_id=academic_year_id,
+            academic_year_id=UUID("5f594ab3-2560-4e5b-adbe-f20e5dd8e193"),
             seen_post_ids=seen_post_ids,
             cursor=cursor,
             page_size=page_size,
@@ -160,7 +160,7 @@ class PostService:
 
     async def service_record_view(
         self, post_id: UUID, user_id: UUID
-    ) -> ServiceResult[None]:
+    ) -> ServiceResult[str]:
         """Enregistre la vue d'un post — opération idempotente."""
         result = await self.post_repo.insert_post_view(
             post_id=post_id,
@@ -176,6 +176,6 @@ class PostService:
             )
 
         return ServiceResult.service_success(
-            data=None,
+            data="ok",
             status_code=result.status_code,
         )
