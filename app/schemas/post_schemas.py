@@ -83,20 +83,38 @@ class ReadPostMedia(BaseModel):
 
     id: UUID
     media_type: MediaType
-    media_url: str = Field(description="Clé objet MinIO (pas une URL directe).")
+    media_url: str = Field(
+        description="Lien pour récuperer le média en question, au cas où c'est du HLS vous devriez"
+                    " faire des magouilles supplémmentaires coté player"
+    )
     thumbnail_url: Optional[str] = Field(
         default=None,
-        description="Clé objet MinIO du thumbnail (généré de manière asynchrone).",
+        description="Lien direct public pour récup la miniature du média",
     )
-    file_size: Optional[int]
-    width: Optional[int]
-    height: Optional[int]
+    media_blur_hash: Optional[str] = Field(
+        default=None,
+        description="BlurHash du média pour affichage d'un placeholder flou pendant le chargement."
+    )
+
+    width: Optional[int] = Field(
+        default=None,
+        description="Largeur en pixels, vous pouvez utiliser pour savoir comment générer votre player vidéo ou votre composant d'affichage d'image en fonction du ratio"
+    )
+
+    height: Optional[int] = Field(
+        default=None,
+        description="Hauteur en pixels, vous pouvez utiliser pour savoir comment générer votre player vidéo ou votre composant d'affichage d'image en fonction du ratio"
+    )
+
     duration: Optional[int] = Field(
         default=None,
         description="Durée en secondes, uniquement pour les vidéos.",
     )
-    display_order: int
-    is_processed: bool
+
+    display_order: int = Field(
+        description="Ordre d'affichage du média parmi les médias du post (0 = premier média, 1 = deuxième, etc.)"
+    )
+
     created_at: datetime
 
     class Config:

@@ -483,13 +483,53 @@ class CacheWrapper:
         if not message_ids:
             return 0
         return await self._connection.xack(self._format_cache_key(key), group_name, *message_ids)
+
+    async def add_to_a_set(self, key: CacheKey, *values: List[str]) -> int:
+        """
+        Ajoute une ou plusieurs valeurs à un ensemble (Set) Redis.
+        Args:
+            key: La clé du set, définie dans CacheKey.
+            values: Les valeurs à ajouter au set.
+        Returns:
+            Le nombre de nouvelles valeurs ajoutées au set (exclut les doublons déjà présents).
+        """
+        if not values:
+            return 0
+
+        return await self._connection.sadd(self._format_cache_key(key), *values)
+
+    async def get_from_a_set(self, key: CacheKey) -> set:
+        """
+        Récupère toutes les valeurs d'un ensemble (Set) Redis.
+        Args:
+            key: La clé du set, définie dans CacheKey.
+        Returns:
+            Un ensemble de valeurs (strings) présentes dans le set, ou un set vide si la clé n'existe pas.
+        """
+        return await self._connection.smembers(self._format_cache_key(key))
+
+    async def spop_from_a_set(self, key: CacheKey, number_to_pop: int) -> None:
+        """
+        Supprime et retourne un ou plusieurs éléments aléatoires d'un ensemble (Set) Redis.
+        Args:
+            key: La clé du set, définie dans CacheKey.
+            number_to_pop: Le nombre d'éléments à supprimer et retourner.
+        Returns:
+            Un ensemble de valeurs (strings) qui ont été supprimées du set, ou un set vide si la clé n'existe pas ou si le set est vide.
+        """
+        if number_to_pop <= 0:
+            return None
+
+        await self._connection.spop(self._format_cache_key(key), number_to_pop)
+
+        return None
     async def close(self) -> None:
         """
         Ferme la connexion Redis associée à ce CacheWrapper
         Returns:
             Que dalle, cette méthode ne retourne rien, elle effectue simplement l'opération de fermeture de la connexion Redis
         """
-        await self._connection.close()
+        await self._connection.aclose()
 
 
 class CacheManager:

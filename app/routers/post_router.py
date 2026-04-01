@@ -35,14 +35,14 @@ def get_post_service(
     db: Annotated[AsyncSession, Depends(get_db)],
     cache: CacheWrapper = Depends(get_redis_cache),
 ) -> PostService:
-    return PostService(db)
+    return PostService(db, cache)
 
 def get_post_upload_service(
     cache : CacheWrapper = Depends(get_redis), bd: AsyncSession = Depends(get_db)
 ) -> MediaUploadsService:
     return MediaUploadsService(cache=cache, bd=bd)
 
-async def get_mock_user():
+def get_mock_user():
     user = User(
         last_name="Adjovi",
         username="3f70c95e8e",

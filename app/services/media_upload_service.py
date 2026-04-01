@@ -19,7 +19,7 @@ from app.schemas.post_upload_schemas import CreateMediaUploadIntent, UploadURLSc
     WsPostProcessingInfoSchema, WsPostProcessingInfoSchemaSteps, CreateMediaUploadIntentFullData, FileInUploadURLSchema, \
     AvailableUploadMethod
 from app.services import ServiceResult
-from app.storage.post_video_storage import PostUploadStorage
+from app.storage.post_upload_storage import PostUploadStorage
 from app.worker.celery_app import celery_app
 from app.worker.tasks.workers_task_names import WorkersTaskNames
 

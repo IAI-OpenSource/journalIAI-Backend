@@ -29,6 +29,7 @@ class CacheKeysFactory:
         AvailableCacheKeys.COMMENT_LIKE_COUNT: CacheKey.new_key(AvailableCacheKeys.COMMENT_LIKE_COUNT, 1),
         AvailableCacheKeys.FILE_UPLOAD_INTENT_KEY: CacheKey.new_key(AvailableCacheKeys.FILE_UPLOAD_INTENT_KEY, 2),
         AvailableCacheKeys.FILE_UPLOAD_PROGRESS_STREAM_KEY: CacheKey.new_key(AvailableCacheKeys.FILE_UPLOAD_PROGRESS_STREAM_KEY, 2),
+        AvailableCacheKeys.USER_SEEN_POSTS: CacheKey.new_key(AvailableCacheKeys.USER_SEEN_POSTS, 1),
     }
 
     @classmethod

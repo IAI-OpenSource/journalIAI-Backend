@@ -2,38 +2,33 @@
 ## vous y trouverez les appels aux repositories (DB + Storage)
 
 import logging
+from typing import List
 from uuid import UUID
 from datetime import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.globals.status_codes import StatusCode
-from app.globals.messages import Messages as msg
+from app.globals.messages import Messages
 from app.repositories.post_repository import PostRepository
-from app.storage.post_storage_repository import PostStorageRepository ## TODO : repositary à implementer 
-from app.storage.minio_config import BucketName
 from app.schemas.post_schemas import (
     CreatePost,
-    UpdatePost,
-    ConfirmMediaUpload,
     ReadPost,
     ReadPostList,
-    ReadPostMedia,
-    PresignedUploadUrlResponse,
 )
-from app.db.models.enums import MediaType
 
 from . import ServiceResult
+from ..cache.feed_cache import FeedCache
+from ..cache.helpers.base import CacheWrapper
 
 logger = logging.getLogger(__name__)
 
 
 class PostService:
 
-    def __init__(self, db: AsyncSession):
+    def __init__(self, db: AsyncSession, cache: CacheWrapper):
         self.db = db
         self.post_repo = PostRepository(self.db)
-        self.storage_repo = PostStorageRepository()
+        self.feed_cache = FeedCache(cache)
 
     # Création d'un post
 
@@ -59,7 +54,7 @@ class PostService:
             return ServiceResult.service_error(
                 message=result.error,
                 status_code=result.status_code,
-                service_name=msg.POST_SERVICE,
+                service_name=Messages.POST_SERVICE,
             )
 
         post_read = ReadPost.model_validate(result.data)
@@ -79,7 +74,7 @@ class PostService:
             return ServiceResult.service_error(
                 message=result.error,
                 status_code=result.status_code,
-                service_name=msg.POST_SERVICE,
+                service_name=Messages.POST_SERVICE,
             )
 
         post_read = ReadPost.model_validate(result.data)
@@ -100,7 +95,7 @@ class PostService:
     ) -> ServiceResult[ReadPostList]:
         """Retourne une page du feed (cursor-based pagination)."""
         
-        seen_post_ids = await self.feed_cache.get_seen_post_ids(user_id=user_id)
+        seen_post_ids: List[UUID] = await self.feed_cache.get_seen_post_ids(user_id=user_id)
         if seen_post_ids is None:
             logger.warning(
                 "Redis indisponible — fallback PostgreSQL user=%s", user_id
@@ -121,15 +116,9 @@ class PostService:
             return ServiceResult.service_error(
                 message=result.error,
                 status_code=result.status_code,
-                service_name=msg.POST_SERVICE,
+                service_name=Messages.POST_SERVICE,
             )
         items = result.data["items"]
-        
-        if items:
-            await self.feed_cache.mark_posts_as_seen(
-                user_id=user_id,
-                post_ids=[post.id for post in items],
-            )  
 
         feed = ReadPostList(
             items=[ReadPost.model_validate(p) for p in items],
@@ -141,7 +130,6 @@ class PostService:
             status_code=result.status_code,
         )
 
-    # Demande d'URL d'upload (étape 1)
     
     async def service_count_new_posts(
         self,
@@ -161,41 +149,11 @@ class PostService:
             return ServiceResult.service_error(
                 message=result.error,
                 status_code=result.status_code,
-                service_name=msg.POST_SERVICE,
+                service_name=Messages.POST_SERVICE,
             )
         return ServiceResult.service_success(
             data={"new_count": result.data},
             status_code=result.status_code,)
-
-    async def service_request_upload_url(
-        self,
-        post_id: UUID,
-        filename: str,
-        media_type: MediaType,
-    ) -> ServiceResult[PresignedUploadUrlResponse]:
-        """Génère une presigned PUT URL pour que le client uploade
-        directement sur MinIO (posts-raw-uploads).
-
-        Utilise _public_client via PostStorageRepository pour que
-        l'URL générée soit accessible depuis le mobile/web du client.
-        """
-        try:
-            presigned = await self.storage_repo.generate_upload_url(
-                post_id=post_id,
-                filename=filename,
-                media_type=media_type,
-            )
-            return ServiceResult.service_success(
-                data=presigned,
-                status_code=StatusCode._200_STATUS_SUCCESS.value,
-            )
-        except Exception as e:
-            logger.error("Erreur génération URL upload : %s", e)
-            return ServiceResult.service_error(
-                message=msg.STORAGE_ERROR,
-                status_code=StatusCode._500_STATUS_INTERNAL_SERVER_ERROR.value,
-                service_name=msg.POST_SERVICE,
-            )
 
 
     # Enregistrement d'une vue
@@ -214,7 +172,7 @@ class PostService:
             return ServiceResult.service_error(
                 message=result.error,
                 status_code=result.status_code,
-                service_name=msg.POST_SERVICE,
+                service_name=Messages.POST_SERVICE,
             )
 
         return ServiceResult.service_success(

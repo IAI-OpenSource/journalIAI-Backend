@@ -6,7 +6,7 @@ import logging
 import json
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Optional, List
+from typing import Optional, List, Sequence
 from uuid import UUID
 
 from sqlalchemy import insert, select, update, func,text
@@ -17,6 +17,7 @@ from fastapi import  status
 from app.db.models.post import Post
 from app.db.models.post_media import PostMedia
 from app.db.models.post_views import PostViews
+from app.repositories import CRUDResult
 from app.schemas.post_schemas import CreatePost, UpdatePost, ConfirmMediaUpload
 from . import CRUDResult
 from app.globals.messages import Messages
@@ -203,7 +204,8 @@ class PostRepository:
     async def get_feed(
         self,
         academic_year_id: UUID,
-        seen_post_ids: list[str],
+        seen_post_ids: list[UUID],
+        classe_id: Optional[UUID] = None,
         cursor: Optional[str] = None,
         page_size: int = DEFAULT_PAGE_SIZE,
     ) -> CRUDResult[dict]:
@@ -217,6 +219,7 @@ class PostRepository:
             academic_year_id (UUID): Filtre sur l'année académique.
             cursor (Optional[str]): Curseur opaque de la page précédente.
             page_size (int): Nombre de posts par page.
+            classe_id (UUID): La classe à laquelle appartient l'utilisateur (filtrage des posts ciblés classe_id ou non ciblés).
 
         Returns:
             CRUDResult[dict]: Feed paginé ou une erreur.
@@ -233,14 +236,19 @@ class PostRepository:
                 .order_by(Post.created_at.desc(), Post.id.desc())
                 .limit(page_size + 1)  # +1 pour détecter has_more
             )
+
+            # Limiter les posts aux posts ciblant la classe de l'utilisateur ou sans cible de classe
+            if classe_id:
+                stmt = stmt.where(
+                    Post.target_classe_id.in_([None, classe_id])
+                )
             
             # Exclusion posts vus (spec §4 Étape 4B)
             # Si liste vide → condition ignorée (spec §9.1)
             if seen_post_ids:
                 # Tronquer à 1000 pour éviter clause WHERE trop lourde (spec §9.5)
                 ids_to_exclude = seen_post_ids[:1000]
-                uuid_ids = [UUID(sid) for sid in ids_to_exclude]
-                stmt = stmt.where(Post.id.not_in(uuid_ids))
+                stmt = stmt.where(Post.id.not_in(ids_to_exclude))
 
             # Appliquer le curseur si présent
             if cursor:
@@ -277,7 +285,7 @@ class PostRepository:
             return CRUDResult.crud_error(str(ve), status_code=status.HTTP_400_BAD_REQUEST)
 
         except Exception as e:
-            return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
+            return await RepositoriesUtils.traiter_errors_en_global(e, self.db, logger, Post)
 
     async def update_post(
         self, post_id: UUID, author_id: UUID, update_data: UpdatePost
@@ -375,10 +383,10 @@ class PostRepository:
             return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
 
 # Fallback PostgreSQL si Redis crash
-
+    # TODO: Reverifier cette logique, surtout le <NOW() - INTERVAL '7 days'>
     async def get_seen_post_ids_from_db(
             self, user_id: UUID
-        ) -> CRUDResult[list[str]]:
+        ) -> CRUDResult[Sequence[UUID]]:
             """Récupère les posts vus depuis PostgreSQL (fallback Redis crash).
     
             Si Redis est down, on lit post_views depuis PostgreSQL
@@ -394,7 +402,7 @@ class PostRepository:
                     )
                 )
                 result = await self.db.execute(stmt)
-                post_ids = [str(row[0]) for row in result.fetchall()]
+                post_ids = result.scalars().all()
     
                 logger.warning(
                     "Fallback PostgreSQL seen_posts user=%s count=%d",

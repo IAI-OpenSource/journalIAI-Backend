@@ -8,7 +8,10 @@
 import logging
 from uuid import UUID
 
+from app.cache.helpers.availables import AvailableCacheKeys
 from app.cache.helpers.base import CacheWrapper
+from app.cache.helpers.cache_keys import CacheKey
+from app.cache.helpers.keys_factory import CacheKeysFactory
 
 logger = logging.getLogger(__name__)
 
@@ -20,8 +23,8 @@ SEEN_POSTS_TTL = 60 * 60 * 24 * 7
 MAX_SEEN_POSTS = 2000
 
 # Clé Redis : user:{user_id}:seen_posts
-def _seen_posts_key(user_id: UUID) -> str:
-    return f"user:{user_id}:seen_posts"
+def _seen_posts_key(user_id: UUID) -> CacheKey:
+    return CacheKeysFactory.get_cache_key(AvailableCacheKeys.USER_SEEN_POSTS).set_arguments(user_id=str(user_id))
 
 
 class FeedCache:
@@ -35,7 +38,7 @@ class FeedCache:
     def __init__(self, cache: CacheWrapper):
         self.cache = cache
 
-    async def get_seen_post_ids(self, user_id: UUID) -> list[str] | None:
+    async def get_seen_post_ids(self, user_id: UUID) -> list[UUID] | None:
         """Récupère la liste des UUIDs de posts déjà vus par l'utilisateur.
 
         Commande Redis : SMEMBERS user:{user_id}:seen_posts
@@ -46,9 +49,9 @@ class FeedCache:
         """
         try:
             key = _seen_posts_key(user_id)
-            members = await self.cache.smembers(key)
+            members = await self.cache.get_from_a_set(key)
             # smembers retourne un set Python vide {} si la clé n'existe pas
-            result = [m.decode() if isinstance(m, bytes) else m for m in members]
+            result = [UUID(m.decode()) if isinstance(m, bytes) else UUID(m) for m in members]
             logger.debug(
                 "Cache hit seen_posts user=%s count=%d", user_id, len(result)
             )
