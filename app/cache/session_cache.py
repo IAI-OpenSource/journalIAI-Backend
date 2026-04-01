@@ -103,4 +103,25 @@ class SessionCache:
       return None  
     
     
+    
+  async def delete_session_from_cache(self, session_id: UUID):
+      """fonction permettant de supprimer les infos d'une session du cache. 
+        
+      Args:
+          session_id (UUID): On prend le ID de la session pour constituer la clé du cache
+
+      Returns:
+          None 
+      """
+
+      try:
+        
+        cache_key = self.create_session_cache_key(session_id)
+        
+        await self.session_cache.delete_in_cache(key=cache_key)
+      
+      except redis.ConnectionError as e:
+        logger.exception(f"Erreur de connexion à redis {e.__class__.__name__}: {e}")   
+      
+    
   

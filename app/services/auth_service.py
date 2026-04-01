@@ -5,7 +5,8 @@ from datetime import UTC, datetime, timedelta
 import logging
 import random
 import secrets
-from fastapi import Request, Response
+from uuid import UUID
+from fastapi import HTTPException, Request, Response, status
 from pydantic import EmailStr
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.cookie_handler import CookieManager
@@ -42,7 +43,7 @@ class AuthService:
     self.session_service = SessionService(self.db, cache)
     self.cookie_manager = CookieManager(response=response, request=request)
       
-      
+  ## ------- Service find user by email / connexion etape 1 --------- ##
   async def service_find_user_by_email(self, login_data: LoginData) -> ServiceResult[StringMessage]:
     """Logique métier pour récupérer un utilisateur à partir de 
       son email: Beaucoup plus spécial pour la connexion"""
@@ -118,6 +119,7 @@ class AuthService:
     )
 
 
+  ## ------------ Service verify OTP ----------------- ##
   async def verify_user_otp_code(self, otp_verify_data: VerifyOTPData) -> ServiceResult[StringMessage]:
     """Logique métier pour vérifier le OTP et créer la session de l'utilisateur"""
 
@@ -126,7 +128,7 @@ class AuthService:
     if cache_otp is None:
       return ServiceResult.service_error(
         message=f"Impossible de récupérer le OTP pour {otp_verify_data.sender_email}",
-        status_code=StatusCode._404_STATUS_NOT_FOUND,
+        status_code=StatusCode._404_STATUS_NOT_FOUND.value,
         service_name=msg.OTP_SERVICE
       )
       
@@ -161,10 +163,11 @@ class AuthService:
         
       ## on cré ensuite le access plus court 15 min
       access_token = JWTManager.create_access_token(data_to_encode={"sid": str(created_session.data.id)}, cle=ACCESS_SECRET_KEY)
+      ref_token = JWTManager.create_access_token(data_to_encode={"sid": str(created_session.data.id), "ref_token_hash": created_session.data.refresh_token_hash}, cle=ACCESS_SECRET_KEY)
 
       ## maintenant on les stock dans les cookie pour gérer les requettes avec ça
       self.cookie_manager.add_cookie(id=JWT_COOKIE_ACCESS_ID, value=access_token, age=JWT_EXPIRES_SECONDES)
-      self.cookie_manager.add_cookie(id=SID_REF_COOKIE, value=created_session.data.refresh_token_hash, age=24*3600) ## age c'est pr test
+      self.cookie_manager.add_cookie(id=SID_REF_COOKIE, value=ref_token, age=24*3600) ## age c'est pr test
       
       ##TODO : avant d'aller en prod, implementer suppression du cache ici
       return ServiceResult.service_success(
@@ -179,5 +182,68 @@ class AuthService:
       status_code=StatusCode._400_STATUS_BAD_REQUEST.value,
       service_name=msg.OTP_SERVICE
     )
+    
+  
+  ## ----------------- Service refresh token ------------------------ ##  
+  async def service_manage_refresh(self) -> ServiceResult[StringMessage]:
+    """Logique métier pour gérer le refresh token"""
+    
+    access_token = self.cookie_manager.get_cookie(id=SID_REF_COOKIE)
+    
+    if access_token is None:
+      raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Aucune clé d'access fourni tchaley"
+      )
+
+    payload = JWTManager.decode_access_token(token=access_token, cle=ACCESS_SECRET_KEY)
+
+    if payload is None:
+      raise HTTPException(
+          status_code=status.HTTP_401_UNAUTHORIZED,
+          detail="Clé d'accès invalide"
+      )
+    
+    user_session = await self.session_service.service_find_session_by_sid(sid=UUID(payload["sid"]))
+        
+    if user_session.is_error():
+        raise HTTPException(
+            status_code=user_session.status_code,
+            detail=user_session.error
+        )
+        
+    if user_session.data.refresh_token_hash != payload["ref_token_hash"]:
+      return ServiceResult.service_error(
+        message="Session non valide tchaley",
+        status_code=StatusCode._401_STATUS_UNAUTHORIZED.value,
+        service_name=msg.USER_SERVICE
+      )
+      
+    ## si la session est valide et est la bonne on cré un nouveau access token puis le cookie
+    access_token = JWTManager.create_access_token(data_to_encode={"sid": str(user_session.data.id)}, cle=ACCESS_SECRET_KEY)
+    self.cookie_manager.add_cookie(id=JWT_COOKIE_ACCESS_ID, value=access_token, age=JWT_EXPIRES_SECONDES)
+      
+    
+    return ServiceResult.service_success(
+      data=StringMessage(message="Nouveau access créé avec success"),
+      status_code=StatusCode._200_STATUS_SUCCESS.value,
+      service_name=msg.USER_SERVICE
+    )
+    
+    
+  ## ---------------- Service pour gérer les déconnexion / logout ------------------ ##
+  def service_logout_account(self) ->ServiceResult[StringMessage]:
+    """Logique métier pour gérer les déconnexion / logout"""
+
+    ## qd le user veux se déconnecter, on supprime tou ses cookies simplement
+    self.cookie_manager.delete_cookie(id=JWT_COOKIE_ACCESS_ID)
+    self.cookie_manager.delete_cookie(id=SID_REF_COOKIE)
+
+    return ServiceResult.service_success(
+      data=StringMessage(message="Déconnecter avec succès"),
+      status_code=StatusCode._200_STATUS_SUCCESS.value,
+      service_name=msg.USER_SERVICE
+    )
+    
       
     

@@ -35,10 +35,10 @@ def get_auth_service(
   return AuthService(db, cache, response, request)
 
 
+## ------------ Route pour créer un compte ------------ ##
 @router.post(
   "/register",
   response_model=GlobalStringMessage,
-  tags=[ApiTags.ALL_USERS]
 )
 async def register(
   user_data:CreateUser,
@@ -62,10 +62,10 @@ async def register(
     response=response,
   )
   
-  
+
+## ------------- Route pour request le code OTP : Etape 1 de la connexion ------------ ##
 @router.post(
   "/request-otp",
-  tags=[ApiTags.AUTHENTIFICATION],
   response_model=GlobalStringMessage
 )
 async def login_request_otp(
@@ -80,9 +80,10 @@ async def login_request_otp(
   return auth_service_result.to_HTTP_api_base_response(reponse=response)
 
 
+
+## -------------- Route pour vérifier le OTP : Etape 2 de la connexion ------------- ## 
 @router.post(
   "/verify-otp",
-  tags=[ApiTags.AUTHENTIFICATION],
   response_model=GlobalStringMessage
 )
 async def login_verify_otp(
@@ -95,3 +96,39 @@ async def login_verify_otp(
   auth_service_result = await auth_service.verify_user_otp_code(otp_verify_data=otp_verify_data)
 
   return auth_service_result.to_HTTP_api_base_response(reponse=response)
+
+
+
+## ------------- Route pour refresh le token et générer un nouveau access -------------- ## 
+@router.post(
+  "/refresh",
+  response_model=GlobalStringMessage
+)
+async def refresh_token(
+  response: Response,
+  auth_service: Annotated[AuthService, Depends(get_auth_service)]
+):
+  """Route d'authentification pour verifier le OTP"""
+
+  auth_service_result = await auth_service.service_manage_refresh()
+
+  return auth_service_result.to_HTTP_api_base_response(reponse=response)
+
+
+
+## ------------- Route pour logout / se déconnecter -------------- ##
+@router.post(
+  "/logout",
+  response_model=GlobalStringMessage
+)
+async def logout(
+  response: Response,
+  auth_service: Annotated[AuthService, Depends(get_auth_service)]
+):
+  """Route d'authentification pour logout / se déconnecter"""
+
+  auth_service_result = auth_service.service_logout_account()
+
+  return auth_service_result.to_HTTP_api_base_response(reponse=response)
+
+

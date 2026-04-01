@@ -80,6 +80,7 @@ class SessionService:
       
       logger.error(f"Erreur: {msg.INVALID_SESSION}")                            
       sess_deleted = await self.session_repo.delete_session(session.data.id)
+      await self.session_cache.delete_session_from_cache(session_id=session.data.id)
       
       if sess_deleted.is_error():
         logger.error(sess_deleted.error)

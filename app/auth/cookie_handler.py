@@ -49,3 +49,18 @@ class CookieManager:
     
     return cookie_value
   
+  
+  def delete_cookie(self, id: str):
+    """fonction pour supprimer un cookie"""
+
+    try:
+      
+      self.response.delete_cookie(key=id)
+      
+    except Exception:
+      raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail="Erreur lors de la suppression du cookie"
+      )
+      
+  

@@ -1,13 +1,17 @@
 from typing import Annotated
+from app.auth.dependencies import get_current_user
 from app.cache.helpers.base import CacheWrapper, get_redis
 from fastapi import APIRouter, Depends, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 from app.globals.api_tags import ApiTags
-from app.schemas.global_schemas import GlobalStringMessage
-from app.schemas.user_schemas import CreateUser, ListUserInfos, UserInfos
+from app.schemas.global_schemas import GlobalStringMessage, StringMessage
+from app.schemas.user_schemas import ListUserInfos, ReadUser, UserInfos
 from app.services.user_service import UserService
 from app.auth.role_depends import RoleDepends
+from app.globals.status_codes import StatusCode
+from app.globals.messages import Messages as msg
+
 
 router = APIRouter(prefix="/user", tags=[ApiTags.USER])
 
@@ -24,6 +28,8 @@ def get_user_service(
   return UserService(db, cache)
 
 
+
+## -------------- Route pour avoir tous les utilisateurs --------------- ## 
 @router.get(
   "/all",
   response_model=ListUserInfos,
@@ -51,3 +57,31 @@ async def register(
     response=response,
   )
   
+
+
+## -------------- Route pour avoir le profil de l'utilisateur actuellement connecter ---------------- ##
+@router.get(
+  "/user-profil-data",
+  response_model=UserInfos,
+  tags=[ApiTags.ADMINISTRATEUR]
+)
+async def get_current_user_data(
+  response: Response,
+  current_user: Annotated[ReadUser, Depends(get_current_user)]
+):
+  """Route pour avoir tous les les infos du users actuellement 
+  connecter. Utiliser ça pour le profil de létudiant"""
+
+
+  if current_user is None:
+    return UserInfos.error_response(
+      data=msg.USER_NOT_FOUND,
+      status_code=StatusCode._404_STATUS_NOT_FOUND.value,
+      response=response
+    )
+    
+  return UserInfos.success_response(
+    data=current_user,
+    status_code=StatusCode._200_STATUS_SUCCESS,
+    response=response,
+  )
