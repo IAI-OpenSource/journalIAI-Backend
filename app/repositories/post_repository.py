@@ -6,7 +6,7 @@ import logging
 import json
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Optional, List
 from uuid import UUID
 
 from sqlalchemy import insert, select, update, func,text
@@ -103,6 +103,69 @@ class PostRepository:
 
         except Exception as e:
             return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
+
+    async def save_many_post_media(
+        self, post_medias: List[PostMedia], in_transaction: bool
+    ) -> CRUDResult[str]:
+        """
+        Enregistre une liste de media liés à un post dans la bd
+        Args:
+            post_medias: Une liste d'objets PostMedia contenant les informations des medias à enregistrer
+            in_transaction: Un booléen qui indique si la session doit être commit à la fin de l'opération.
+             Utile pour les cas où on veut faire plusieurs opérations en une transaction
+
+        Returns:
+            Un objet CRUDResult contenant la liste des media de post créés ou une erreur en cas d'échec.
+        """
+        try:
+            self.db.add_all(post_medias)
+            await self.db.flush()
+
+            if in_transaction:
+                logger.warning("Medias de post insert mais pas commit en Base, MODE TRANSACTION")
+            else:
+                await self.db.commit()
+                logger.info("Commit: Medias de post sauvegarder définitivement en Base")
+
+            return CRUDResult.crud_success('ok', status_code=status.HTTP_201_CREATED)
+        except Exception as err:
+            return await RepositoriesUtils.traiter_errors_en_global(
+                exception=err, session=self.db, logger=logger, model_bd=PostMedia
+            )
+
+    async def save_post(
+        self, post_object: Post, in_transaction: bool
+    ) -> CRUDResult[Post]:
+        """
+        Enregistre un post dans la bd pour un user précis
+        Args:
+
+            post_object: L'objet post à inserer dans la bd
+            in_transaction: Un booléen qui indique si la session doit être commit à la fin de
+                l'opération. Utile pour les cas où on veut faire plusieurs opérations en une transaction
+                et qu'on veut contrôler quand faire le commit
+
+        Returns:
+            Un objet CRUDResult contenant le post créé ou une erreur en cas d'échec.
+        """
+        try:
+            self.db.add(post_object)
+
+            await self.db.flush()
+
+            await self.db.refresh(post_object)
+
+            if in_transaction:
+                logger.warning("Post insert mais pas commit en Base, MODE TRANSACTION")
+            else:
+                await self.db.commit()
+                logger.info("Commit: Post sauvegarder définitivement en Base")
+
+            return CRUDResult.crud_success(post_object, status_code=status.HTTP_201_CREATED)
+        except Exception as err:
+            return await RepositoriesUtils.traiter_errors_en_global(
+                exception=err, session=self.db,logger=logger, model_bd=Post
+            )
 
     async def get_post_by_id(self, post_id: UUID) -> CRUDResult[Post]:
         """Récupère un post par son ID avec ses médias (selectinload).

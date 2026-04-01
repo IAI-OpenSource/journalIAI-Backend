@@ -14,7 +14,7 @@ from app.db.models.post_media import PostMedia
 from app.db.models.user import User
 from app.globals.messages import Messages
 from app.globals.others_constants import OtherConstants
-from app.repositories.post_video_repository import PostRepository
+from app.repositories.post_repository import PostRepository
 from app.schemas.post_upload_schemas import CreateMediaUploadIntent, UploadURLSchema, MediaUploadCompleteSchema, \
     WsPostProcessingInfoSchema, WsPostProcessingInfoSchemaSteps, CreateMediaUploadIntentFullData, FileInUploadURLSchema, \
     AvailableUploadMethod
@@ -129,7 +129,7 @@ class MediaUploadsService:
             ServiceResult indiquant le succès ou l'échec de l'opération, avec un message approprié
         """
         async def error_return(error_message: str):
-            await self._bd.bd_session.rollback()
+            await self._bd.db.rollback()
             logger.error(error_message)
             return ServiceResult.service_error(message=error_message, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -149,11 +149,11 @@ class MediaUploadsService:
                 error = f"Erreur lors de la sauvegarde du média du post traité en base de données : {res2.error}"
                 return await error_return(error)
 
-            await self._bd.bd_session.commit()
+            await self._bd.db.commit()
             return ServiceResult.service_success(data="Ok")     # nsm
 
         except Exception as e:
-            await self._bd.bd_session.rollback()
+            await self._bd.db.rollback()
             error = f"Exception {e.__class__.__name__} lors de la sauvegarde du post traité en base de données : {e}"
             logger.exception(error)
             return ServiceResult.service_error(message=error, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
