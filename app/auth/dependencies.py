@@ -26,26 +26,6 @@ class UserAuthDependencies:
       self.session_service = SessionService(self.db, cache)
       self.user_service = UserService(self.db, cache)
 
-    async def get_token_data(self, token: Annotated[str | None, Cookie(alias=ACCESS_IDENTIFIER)] = None):
-      """Fonction permettant de return les données contenues dans le token, on utilisera si on n'a pas forcément besoin de
-          toutes les infos de l'utilisateur actuellement connecté (dans ce cas, on ne fait pas de requete bd), ça sera
-          surtout utile pour les routes ou on a besoin de seulement de l'id de l'etablissement pour les requetes bd.
-
-          Args:
-              token (Annotated[str, Depends): Extait directement le token dans le Header avec Bearer
-
-          Raises:
-              HTTPException: Token invalide ou expiré
-              HTTPException: Token invalide ou expiré
-              HTTPException: Cet utilisateur n'existe pas
-
-          Returns:
-              TokenData: return un objet TokenData qui contient les données du token
-      """
-      
-      pass
-
-
     async def get_current_user(self) -> Optional[ReadUser]:
 
         """function permettant de return le user actuellement connecter.
@@ -106,44 +86,21 @@ class UserAuthDependencies:
             
         return user.data
                 
-            
-        
 
 
-    @staticmethod
-    def requires_roles(*role_autorises: str, response: Response, request: Request) -> Callable[[ReadUser], Coroutine[Any, Any, ReadUser]]:
-        """function pour restraindre les accès uniquement aux utilisateurs en fonction de leurs 
-            roles (autorisaions)
+### fonction utilitaires pour gérer la classe UserAuthDepends
 
-            Args:
-                *role_autorises: recuperere les role des personne autorisées. ex: ("directeur", "secretaire")
-            Raises:
-                HTTPException: lever une exection si c'est pas un role correspondant
+# Fonction pour instancier ta classe avec tout ce qu'il faut
+def get_user_auth_deps(
+    request: Request,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+    cache: CacheWrapper = Depends(get_redis_cache)
+) -> UserAuthDependencies:
+    return UserAuthDependencies(db=db, response=response, request=request, cache=cache)
 
-            Returns:
-                Professeur | Personnel: return tjrs les infos de current_user Prof ou Personnel
-        """
-        
-        user_dependence = UserAuthDependencies(
-            db=Depends(get_db), 
-            response=response,
-            request=request,
-            cache=Depends(get_redis_cache)
-            )
-
-        def verify_role(
-          current_user: Annotated[ReadUser, Depends(user_dependence.get_current_user)]
-        ) :
-          
-            role: list[UserRole | Optional[ExecutiveRoleType]] = [current_user.role, current_user.executive_role]
-          
-            if role[0] not in role_autorises and role[1] :
-                    raise HTTPException(
-                  status_code=status.HTTP_401_UNAUTHORIZED,
-                  detail="Accès Refusé"
-                ) 
-              
-            return current_user
-        return verify_role
-
-
+# Dépendance finale pour récupérer le user
+async def get_current_user(
+    auth_deps: UserAuthDependencies = Depends(get_user_auth_deps)
+) -> Optional[ReadUser]:
+    return await auth_deps.get_current_user()

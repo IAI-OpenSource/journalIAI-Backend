@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, UTC
 from jose import jwt, JWTError
 
 from app.core.config import (
-    JWT_EXPIRES_MINUTES, ALGORITHM
+    JWT_EXPIRES_SECONDES, ALGORITHM
 )
 
 
@@ -35,7 +35,7 @@ class JWTManager:
       to_encode = (data_to_encode.copy()) ## on fait une copy des données a encoder
 
       expiration_time = datetime.now(UTC) + (
-        expire_delta or timedelta(minutes=JWT_EXPIRES_MINUTES)
+        expire_delta or timedelta(minutes=JWT_EXPIRES_SECONDES)
       )  ## on defini le durée du token avant expiration
 
       to_encode.update(

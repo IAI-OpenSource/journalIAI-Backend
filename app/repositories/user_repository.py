@@ -156,3 +156,21 @@ class UserRepository:
 
     except Exception as e:
       return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
+    
+    
+  async def get_all_users(self) -> CRUDResult[list[User]]:
+    """fonction repository pour récupérer tout les utisateur/étudiants
+
+    Returns:
+        CRUDResult[list[User]]: retourne une liste de tous les étudiants
+    """
+    
+    stmt= (
+      select(User)
+      .options(joinedload(User.classe))
+    )
+    
+    result = await self.db.execute(stmt)
+    users = list(result.scalars().all())
+    
+    return CRUDResult.crud_success(data=users)

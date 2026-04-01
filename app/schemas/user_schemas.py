@@ -83,3 +83,7 @@ ReadUser.model_rebuild()
 class UserInfos(ApiBaseResponse):
     
     result: Optional[ReadUser] = Field(description="Informations d'un utilisateur")
+
+class ListUserInfos(ApiBaseResponse):
+    
+    result: Optional[list[ReadUser]] = Field(description="Informations d'un utilisateur")

@@ -1,7 +1,7 @@
-from typing import Annotated, Optional
+from typing import Optional
 import logging
 
-from fastapi import Cookie, Request, Response, HTTPException, status
+from fastapi import Request, Response, HTTPException, status
 from app.core.config import ENVIRONMENT
 
 logger = logging.getLogger(__name__)
@@ -23,9 +23,9 @@ class CookieManager:
         key=id,
         value=value,
         max_age=age,
-        secure=True,
+        secure=not is_dev ,
         httponly=True,
-        samesite="strict" if is_dev else "none",
+        samesite="lax" if is_dev else "none",
         path="/",
       )
       
