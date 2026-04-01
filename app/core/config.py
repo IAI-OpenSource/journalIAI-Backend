@@ -59,3 +59,6 @@ MAIL_FROM: str = os.getenv("MAIL_FROM")
 MAIL_FROM_NAME: str = os.getenv("MAIL_FROM_NAME")
 MAIL_PORT: int = int(os.getenv("MAIL_PORT"))
 MAIL_SERVER: str = os.getenv("MAIL_SERVER")
+
+# Secret pour la stream HLS
+STREAM_JWT_SECRET: str = os.getenv("STREAM_JWT_SECRET")
