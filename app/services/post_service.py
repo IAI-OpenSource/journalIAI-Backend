@@ -2,7 +2,7 @@
 ## vous y trouverez les appels aux repositories (DB + Storage)
 
 import logging
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 from datetime import datetime
 
@@ -13,12 +13,16 @@ from app.repositories.post_repository import PostRepository
 from app.schemas.post_schemas import (
     CreatePost,
     ReadPost,
-    ReadPostList,
+    ReadPostList, PostClubSchema, PostEventSchema, PostAuthorSchema, PostMediaSchema,
 )
 
 from . import ServiceResult
 from ..cache.feed_cache import FeedCache
 from ..cache.helpers.base import CacheWrapper
+from ..core.stream_token import create_stream_token
+from ..db.models.enums import MediaType
+from ..db.models.post import Post
+from ..storage.post_read_storage import PostReadStorage
 
 logger = logging.getLogger(__name__)
 
@@ -63,9 +67,71 @@ class PostService:
             status_code=result.status_code,
         )
 
-    # Récupération d'un post par ID
+    @staticmethod
+    def _format_post_infos(post : Post, user_id: str) -> ReadPost:
+        """Formate les données d'un post brut de la DB en un schéma de réponse API enrichi."""
+        club_info: Optional[PostClubSchema] = None
+        event_info: Optional[PostEventSchema] = None
+        user_info: Optional[PostAuthorSchema] = None
+        medias_list: list[PostMediaSchema] = []
 
-    async def service_get_post(self, post_id: UUID) -> ServiceResult[ReadPost]:
+        if post.club:
+            club_info = PostClubSchema(
+                **post.club.__dict__
+            )
+            club_info.logo_url = PostReadStorage.generate_read_public_asset(post.club.logo_url)
+        if post.event:
+            event_info = PostEventSchema.model_validate(post.event, from_attributes=True)
+        if post.author:
+            user_info = PostAuthorSchema(
+                **post.author.__dict__
+            )
+            user_info.avatar_url=PostReadStorage.generate_read_public_asset(post.author.avatar_url)
+        if post.medias:
+            for media in post.medias:
+                medias_list.append(
+                    PostMediaSchema(
+                        id=media.id,
+                        thumbnail_url=PostReadStorage.generate_read_public_asset(media.thumbnail_url),
+                        width=media.width,
+                        media_type=media.media_type,
+                        blur_hash=media.blur_hash,
+                        duration=media.duration,
+                        created_at=media.created_at,
+                        display_order=media.display_order,
+                        hls_master_url=None if media.media_type == MediaType.IMAGE else
+                        PostReadStorage.generate_read_hls_url(media.media_url, create_stream_token(media.media_url, user_id)),
+                        height=media.height,
+                        image_medium_url= None if media.media_type == MediaType.VIDEO else
+                        PostReadStorage.generate_medium_post_image_url(media.media_url, create_stream_token(media.media_url, user_id)),
+                        image_high_url= None if media.media_type == MediaType.VIDEO else
+                        PostReadStorage.generate_high_quality_post_image_url(media.media_url, create_stream_token(media.media_url, user_id))
+                    )
+                )
+
+        return ReadPost(
+            created_at=post.created_at,
+            id=post.id,
+            club_id=post.club_id,
+            event_id=post.event_id,
+            author_id=post.author_id,
+            content=post.content,
+            target_classe_id=post.target_classe_id,
+            academic_year_id=post.academic_year,
+            post_type=post.post_type,
+            club_info=club_info,
+            event_info=event_info,
+            author_info=user_info,
+            medias=medias_list,
+            is_pinned=post.is_pinned,
+            like_count=post.like_count,
+            updated_at=post.updated_at,
+            comment_count=post.comment_count
+        )
+
+
+
+    async def service_get_post(self, post_id: UUID, user_id: UUID, user_class_id: Optional[UUID] = None,) -> ServiceResult[ReadPost]:
         """Récupère un post par son ID avec ses médias."""
         result = await self.post_repo.get_post_by_id(post_id=post_id)
 
@@ -76,11 +142,21 @@ class PostService:
                 status_code=result.status_code,
                 service_name=Messages.POST_SERVICE,
             )
+        target_classe_id = result.data.target_classe_id
 
-        post_read = ReadPost.model_validate(result.data)
+        if target_classe_id and user_class_id and  target_classe_id != user_class_id:
+            logger.warning("Accès non autorisé au post id=%s pour user_class_id=%s", post_id, user_class_id)
+            return ServiceResult.service_error(
+                message="Accès non autorisé à ce post",
+                status_code=403,
+                service_name=Messages.POST_SERVICE,
+            )
+
+        post_read = self._format_post_infos(result.data, user_id=str(user_id))
         return ServiceResult.service_success(
             data=post_read,
             status_code=result.status_code,
+            service_name=Messages.POST_SERVICE
         )
 
     # Feed paginé
@@ -91,17 +167,20 @@ class PostService:
         user_id: UUID,
         cursor: str | None = None,
         page_size: int = 20,
+        user_classe_id: Optional[UUID] = None,
     ) -> ServiceResult[ReadPostList]:
         """Retourne une page du feed (cursor-based pagination)."""
         
         seen_post_ids: List[UUID] = await self.feed_cache.get_daily_seen_post_ids(user_id=user_id)
-
+        userid_str = str(user_id)
         # TODO: Changer ce mock
         result = await self.post_repo.get_feed(
             academic_year_id=UUID("5f594ab3-2560-4e5b-adbe-f20e5dd8e193"),
             seen_post_ids=seen_post_ids,
             cursor=cursor,
             page_size=page_size,
+            user_id=user_id,
+            classe_id=user_classe_id
         )    
         
         if result.is_error():
@@ -114,10 +193,11 @@ class PostService:
         items = result.data["items"]
 
         feed = ReadPostList(
-            items=[ReadPost.model_validate(p) for p in items],
+            items=[self._format_post_infos(p, userid_str) for p in items],
             next_cursor=result.data["next_cursor"],
             has_more=result.data["has_more"],
         )
+
         return ServiceResult.service_success(
             data=feed,
             status_code=result.status_code,

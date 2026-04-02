@@ -6,10 +6,10 @@ import logging
 import json
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Optional, List, Sequence
+from typing import Optional, List, Any
 from uuid import UUID
 
-from sqlalchemy import insert, select, update, func,text
+from sqlalchemy import insert, select, update, func, Select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload, joinedload, with_loader_criteria
@@ -18,11 +18,12 @@ from app.db.models.post import Post
 from app.db.models.post_media import PostMedia
 from app.db.models.post_views import PostViews
 from app.repositories import CRUDResult
-from app.schemas.post_schemas import CreatePost, UpdatePost, ConfirmMediaUpload
-from . import CRUDResult
+from app.schemas.post_schemas import CreatePost, UpdatePost
 from app.globals.messages import Messages
 from .repositories_utils import RepositoriesUtils
-
+from ..db.models.club import Club
+from ..db.models.event import Event
+from ..db.models.user import User
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +64,56 @@ class PostRepository:
     db: AsyncSession
 
     # Posts
+    @staticmethod
+    def _get_posts_base_query(
+        filter_deleted_media: bool = True,
+    ) -> Select:
+        """
+        Squelette de base pour récupérer unr requete qui recup des posts avec toutes leurs infos utiles.
 
+        Args:
+            filter_deleted_media: Si True, exclut les médias soft-deleted via
+                                  with_loader_criteria (actif par défaut).
+
+        Returns:
+            Select: Statement SQLAlchemy prêt à recevoir des .where() / .limit() etc.
+        """
+        media_options: List[Any] = [selectinload(Post.medias)]
+        if filter_deleted_media:
+            media_options.append(
+                with_loader_criteria(PostMedia, PostMedia.deleted_at.is_(None))
+            )
+
+        return (
+            select(Post)
+            .options(
+                joinedload(Post.author).load_only(
+                    User.id,
+                    User.username,
+                    User.first_name,
+                    User.last_name,
+                    User.avatar_url,
+                    User.role,
+                    User.executive_role
+                ),
+
+                joinedload(Post.club).load_only(
+                    Club.id,
+                    Club.name,
+                    Club.slug,
+                    Club.logo_url,
+                ),
+                joinedload(Post.event).load_only(
+                    Event.id,
+                    Event.title,
+                    Event.slug,
+                    Event.start_date,
+                    Event.end_date,
+                    Event.status,
+                ),
+                *media_options,
+            )
+        )
 
     async def insert_post(
         self,
@@ -87,7 +137,6 @@ class PostRepository:
                 .values(
                     author_id=author_id,
                     academic_year_id=academic_year_id,
-
                 )
                 .returning(Post)
             )
@@ -109,14 +158,14 @@ class PostRepository:
         self, post_medias: List[PostMedia], in_transaction: bool
     ) -> CRUDResult[str]:
         """
-        Enregistre une liste de media liés à un post dans la bd
+        Enregistre une liste de medias liés à un post dans la bd
         Args:
             post_medias: Une liste d'objets PostMedia contenant les informations des medias à enregistrer
             in_transaction: Un booléen qui indique si la session doit être commit à la fin de l'opération.
              Utile pour les cas où on veut faire plusieurs opérations en une transaction
 
         Returns:
-            Un objet CRUDResult contenant la liste des media de post créés ou une erreur en cas d'échec.
+            Un objet CRUDResult contenant la liste des medias de post créés ou une erreur en cas d'échec.
         """
         try:
             self.db.add_all(post_medias)
@@ -169,7 +218,7 @@ class PostRepository:
             )
 
     async def get_post_by_id(self, post_id: UUID) -> CRUDResult[Post]:
-        """Récupère un post par son ID avec ses médias (selectinload).
+        """Récupère un post par son ID avec ses médias et toutes les infos nécessaires pour l'affichage.
 
         Args:
             post_id (UUID): ID du post.
@@ -178,16 +227,12 @@ class PostRepository:
             CRUDResult[Post]: Le post trouvé ou une erreur 404.
         """
         try:
-            stmt = (
-                select(Post)
-                .where(Post.id == post_id, Post.deleted_at.is_(None))
-                .options(
-                    selectinload(Post.media),
-                    with_loader_criteria(PostMedia, PostMedia.deleted_at.is_(None))
-                )
+            requete = self._get_posts_base_query()
+            requete = requete.where(
+                Post.id == post_id, Post.is_published == True
             )
 
-            result = await self.db.execute(stmt)
+            result = await self.db.execute(requete)
             post = result.scalar_one_or_none()
 
             if post is None:
@@ -213,11 +258,7 @@ class PostRepository:
         cursor: Optional[str] = None,
         page_size: int = DEFAULT_PAGE_SIZE,
     ) -> CRUDResult[dict]:
-        """Récupère un feed de posts paginé par curseur (cursor-based pagination).
-
-        Utilise l'index idx_posts_feed_pagination (created_at DESC, id DESC).
-        Retourne un dict avec les clés : items, next_cursor, has_more.
-
+        """Récupère un feed de posts paginé par curseur
         Args:
             user_id: Id de l'utilisateur
             seen_post_ids: Posts vu récupérés via Redis (pas encore dans bd)
@@ -230,41 +271,33 @@ class PostRepository:
             CRUDResult[dict]: Feed paginé ou une erreur.
         """
         try:
-            stmt = (
-                select(Post)
-                .where(
+            requete = self._get_posts_base_query()
+            requete = requete.where(
                     Post.academic_year_id == academic_year_id,
                     Post.deleted_at.is_(None),
                     Post.is_published.is_(True),
-                )
-                .options(
-                    selectinload(Post.media),
-                    with_loader_criteria(PostMedia, PostMedia.deleted_at.is_(None))
                 ).outerjoin(
                     PostViews,
                     (PostViews.post_id == Post.id) & (PostViews.user_id == user_id)
-                ).where(PostViews.post_id.is_(None))
-                .order_by(Post.created_at.desc(), Post.id.desc())
-                .limit(page_size + 1)  # +1 pour détecter has_more
-            )
+                ).where(
+                    PostViews.post_id.is_(None)
+                ).order_by(
+                Post.created_at.desc(), Post.id.desc()
+            ).limit(page_size + 1)  # +1 pour détecter has_more
 
             # Limiter les posts aux posts ciblant la classe de l'utilisateur ou sans cible de classe
             if classe_id:
-                stmt = stmt.where(
+                requete = requete.where(
                     Post.target_classe_id.in_([None, classe_id])
                 )
             
-            # Exclusion posts vus (spec §4 Étape 4B)
-            # Si liste vide → condition ignorée (spec §9.1)
             if seen_post_ids:
-                # Tronquer à 1000 pour éviter clause WHERE trop lourde (spec §9.5)
-                ids_to_exclude = seen_post_ids[:1000]
-                stmt = stmt.where(Post.id.not_in(ids_to_exclude))
+                ids_to_exclude = seen_post_ids[:50]
+                requete = requete.where(Post.id.not_in(ids_to_exclude))
 
-            # Appliquer le curseur si présent
             if cursor:
                 cursor_created_at, cursor_id = _decode_cursor(cursor)
-                stmt = stmt.where(
+                requete = requete.where(
                     (Post.created_at < cursor_created_at)
                     | (
                         (Post.created_at == cursor_created_at)
@@ -272,8 +305,11 @@ class PostRepository:
                     )
                 )
 
-            result = await self.db.execute(stmt)
-            posts = result.scalars().all()
+            result = await self.db.execute(requete)
+
+            # .unique() est obligatoire dès qu'on utilise joinedload
+            # pour dédupliquer les lignes produites par les LEFT JOIN
+            posts = result.unique().scalars().all()
 
             has_more = len(posts) > page_size
             items = list(posts[:page_size])
@@ -393,38 +429,6 @@ class PostRepository:
         except Exception as e:
             return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
 
-# Fallback PostgreSQL si Redis crash
-    # TODO: Reverifier cette logique, surtout le <NOW() - INTERVAL '7 days'>
-    async def get_seen_post_ids_from_db(
-            self, user_id: UUID
-        ) -> CRUDResult[Sequence[UUID]]:
-            """Récupère les posts vus depuis PostgreSQL (fallback Redis crash).
-    
-            Si Redis est down, on lit post_views depuis PostgreSQL
-            pour les 7 derniers jours. Données potentiellement incomplètes
-            (snapshot fait la nuit) mais le feed continue de fonctionner.
-            """
-            try:
-                stmt = (
-                    select(PostViews.post_id)
-                    .where(
-                        PostViews.user_id == user_id,
-                        PostViews.viewed_at >= text("NOW() - INTERVAL '7 days'"),
-                    )
-                )
-                result = await self.db.execute(stmt)
-                post_ids = result.scalars().all()
-    
-                logger.warning(
-                    "Fallback PostgreSQL seen_posts user=%s count=%d",
-                    user_id, len(post_ids),
-                )
-                return CRUDResult.crud_success(post_ids, status.HTTP_200_OK)
-    
-            except Exception as e:
-                return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
-
-
     async def count_new_posts_since(
             self,
             academic_year_id: UUID,
@@ -450,152 +454,3 @@ class PostRepository:
                 return CRUDResult.crud_success(count, status.HTTP_200_OK)
             except Exception as e:
                 return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
-
-
-
-    # PostMedia
-
-    async def insert_post_media(
-        self, post_id: UUID, media_data: ConfirmMediaUpload
-    ) -> CRUDResult[PostMedia]:
-        """Crée une entrée PostMedia après confirmation d'upload MinIO.
-
-        is_processed est False par défaut — le worker de traitement
-        génèrera le thumbnail et passera is_processed à True.
-
-        Args:
-            post_id (UUID): ID du post auquel rattacher le média.
-            media_data (ConfirmMediaUpload): Données de confirmation d'upload.
-
-        Returns:
-            CRUDResult[PostMedia]: Le média créé ou une erreur.
-        """
-        try:
-            stmt = (
-                insert(PostMedia)
-                .values(
-                    post_id=post_id,
-                    media_type=media_data.media_type,
-                    media_url=media_data.object_key,
-                    file_size=media_data.file_size,
-                    width=media_data.width,
-                    height=media_data.height,
-                    duration=media_data.duration,
-                    display_order=media_data.display_order,
-                )
-                .returning(PostMedia)
-            )
-
-            result = await self.db.execute(stmt)
-            media = result.scalar_one()
-            await self.db.commit()
-
-            logger.info("PostMedia créé avec succès ! id=%s", media.id)
-            return CRUDResult.crud_success(media, status.HTTP_201_CREATED)
-
-        except IntegrityError as ie:
-            return await RepositoriesUtils.traiter_integrity_error(
-                ie, self.db, logger, PostMedia
-            )
-
-        except Exception as e:
-            return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
-
-    async def mark_media_as_processed(
-        self, media_id: UUID, thumbnail_url: str
-    ) -> CRUDResult[PostMedia]:
-        """Marque un média comme traité et enregistre l'URL du thumbnail.
-
-        Appelé par le worker après génération du thumbnail MinIO.
-
-        Args:
-            media_id (UUID): ID du média traité.
-            thumbnail_url (str): Clé objet MinIO du thumbnail généré.
-
-        Returns:
-            CRUDResult[PostMedia]: Le média mis à jour ou une erreur.
-        """
-        try:
-            stmt = (
-                update(PostMedia)
-                .where(PostMedia.id == media_id, PostMedia.deleted_at.is_(None))
-                .values(is_processed=True, thumbnail_url=thumbnail_url)
-                .returning(PostMedia)
-            )
-
-            result = await self.db.execute(stmt)
-            media = result.scalar_one_or_none()
-
-            if media is None:
-                return CRUDResult.crud_error(
-                    Messages.MEDIA_NOT_FOUND,
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                )
-
-            await self.db.commit()
-            logger.info("PostMedia marqué comme traité ! id=%s", media_id)
-            return CRUDResult.crud_success(media, status.HTTP_200_OK)
-
-        except Exception as e:
-            return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
-
-    # PostViews
-
-    async def insert_post_view(
-        self, post_id: UUID, user_id: UUID
-    ) -> CRUDResult[str]:
-        """Enregistre la vue d'un post par un utilisateur.
-
-        La clé primaire composite (post_id, user_id) garantit l'unicité —
-        une deuxième vue du même utilisateur déclenche une IntegrityError
-        gérée silencieusement (idempotent).
-
-        Args:
-            post_id (UUID): ID du post vu.
-            user_id (UUID): ID de l'utilisateur qui a vu le post.
-
-        Returns:
-            CRUDResult[None]: Succès (même si déjà vu) ou erreur inattendue.
-        """
-        try:
-            stmt = insert(PostViews).values(post_id=post_id, user_id=user_id)
-            await self.db.execute(stmt)
-            await self.db.commit()
-
-            logger.info("Vue enregistrée post_id=%s user_id=%s", post_id, user_id)
-            return CRUDResult.crud_success("ok", status.HTTP_201_CREATED)
-
-        except IntegrityError as e:
-            # Post déjà vu par cet utilisateur — comportement idempotent attendu
-            await self.db.rollback()
-            logger.debug(
-                "Vue déjà enregistrée (idempotent) post_id=%s user_id=%s",
-                post_id,
-                user_id,
-            )
-            return CRUDResult.crud_success("None", status.HTTP_200_OK)
-
-        except Exception as e:
-            return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
-
-    async def batch_insert_post_views(
-        self, user_id: UUID, post_ids: list[UUID]
-    ) -> CRUDResult[int]:
-        """Insert batch de vues pour le snapshot Redis → PostgreSQL (spec §8.2).
- 
-        ON CONFLICT DO NOTHING assure l'idempotence si déjà snapé.
-        """
-        if not post_ids:
-            return CRUDResult.crud_success(0, status.HTTP_200_OK)
-        try:
-            rows = [{"user_id": user_id, "post_id": pid} for pid in post_ids]
-            stmt = (
-                insert(PostViews)
-                .values(rows)
-                .on_conflict_do_nothing(index_elements=["post_id", "user_id"])
-            )
-            result = await self.db.execute(stmt)
-            await self.db.commit()
-            return CRUDResult.crud_success(result.rowcount, status.HTTP_200_OK)
-        except Exception as e:
-            return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)

@@ -98,7 +98,7 @@ class Post(Base, IntegrityMapperMixin):
     club: Mapped[Optional["Club"]] = relationship("Club",lazy="noload", foreign_keys=[club_id], back_populates="posts", uselist=False, init=False)
     event: Mapped[Optional["Event"]] = relationship("Event",lazy="noload", foreign_keys=[event_id], back_populates="posts", uselist=False, init=False)
     comments: Mapped[list["Comment"]] = relationship("Comment",lazy="noload", back_populates="post", cascade="all, delete-orphan", uselist=True, init=False)
-    media: Mapped[list["PostMedia"]] = relationship("PostMedia",lazy="noload", back_populates="post", cascade="all, delete-orphan", uselist=True, init=False)
+    medias: Mapped[list["PostMedia"]] = relationship("PostMedia", lazy="noload", back_populates="post", cascade="all, delete-orphan", uselist=True, init=False)
     likes: Mapped[list["Like"]] = relationship("Like",lazy="noload", foreign_keys="Like.post_id", back_populates="post", cascade="all, delete-orphan", uselist=True, init=False)
     academic_year: Mapped["AcademicYear"] = relationship("AcademicYear",lazy="noload", back_populates="posts", uselist=False, init=False)
     classe: Mapped[Optional["Classe"]] = relationship("Classe",lazy="noload", back_populates="posts", foreign_keys=[target_classe_id], uselist=False, init=False)

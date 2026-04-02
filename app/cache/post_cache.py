@@ -21,7 +21,7 @@ class PostCache:
         Enregistre un intent d'upload de nmédia dans le cache pour les utilisateurs
         Args:
             user_id: Id de l'utilisateur
-            intent_id: Id de l'intent d'upload media
+            intent_id: Id de l'intent d'upload medias
             intent_data: Le données de l'intent d'upload à enregistrer, conformes au schéma CreateMediaUploadIntentFullData
 
         Returns:

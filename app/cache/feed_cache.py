@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 # Clé Redis : user:{user_id}:seen_posts
 def _seen_posts_key(user_id: UUID) -> CacheKey:
-    return CacheKeysFactory.get_cache_key(AvailableCacheKeys.USER_DAILY_POST_SEEN).set_arguments(user_id=str(user_id))
+    return CacheKeysFactory.get_cache_key(AvailableCacheKeys.USER_DAILY_POST_SEEN).set_arguments(id=str(user_id))
 
 def _daily_seen_posts_key() -> CacheKey:
     return CacheKeysFactory.get_cache_key(AvailableCacheKeys.USERS_HAS_SEEN_POST_ON_A_DAY).set_arguments()
@@ -114,7 +114,8 @@ class FeedCache:
 
         try:
             key = _daily_seen_posts_key()
-            await self.cache.add_to_a_set(key, [str(user_id)])
+            user_to_add = [str(user_id)]
+            await self.cache.add_to_a_set(key, *user_to_add)
 
         except Exception as e:
             logger.error(f"Erreur lors d'un insert d'user ({user_id}) dans le set journalier des users")

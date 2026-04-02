@@ -6,11 +6,10 @@ from datetime import datetime
 from typing import Optional, List
 from uuid import UUID
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field
 
-from app.db.models.enums import MediaType, PostType
+from app.db.models.enums import MediaType, PostType, UserRole, ExecutiveRoleType, EventStatus
 from app.schemas import ApiBaseResponse
-from app.storage.minio_config import BucketName
 
 
 # Schémas d'entrée (écriture)
@@ -71,22 +70,95 @@ class CreatePostView(BaseModel):
                     " est vu 💀, vous pouvez regrouper en batch de n post et envoyer au bon moment, bref un algo intelligent"
     )
 
-# Schémas de lecture (réponse)
+class PostAuthorSchema(BaseModel):
+    """Schéma pour les infos de l'auteur d'un post."""
 
-class ReadPostMedia(BaseModel):
+    id: UUID
+    username: str
+    first_name: str
+    last_name: str
+    avatar_url: Optional[str] = Field(
+        default=None,
+        description="URL de la photo de profil de l'auteur, si disponible.",
+    )
+    role: UserRole = Field(
+        description="Le role de l'auteur du post, qui peut influencer la façon dont vous allez affiche le post (ex: badge de modérateur, etc.)"
+    )
+    executive_role: Optional[ExecutiveRoleType] = Field(
+        default=None,
+        description="Le role éxecutif pour les membres du bureau executif, ce truc sera seulement là si `role`"
+                    " est à EXECUTIVE_MEMBER, sinon c'est null, vous pouvez aussi l'ignorer si vous voulez, c'est"
+                    " pas super important pour l'affichage du post, c'est juste un bonus d'infos sur l'auteur du post,"
+                    " mais n'ignorez pas🤣"
+    )
+
+    class Config:
+        from_attributes = True
+
+class PostClubSchema(BaseModel):
+    """Infos du club porteur du post (si applicable)."""
+
+
+    id: UUID
+    name: str
+    slug: str
+    logo_url: Optional[str] = Field(
+        default=None,
+        description="URL du logo du club, si disponible, à afficher à coté du nom du club quand vous affichez le post"
+    )
+
+    class Config:
+        from_attributes = True
+
+class PostEventSchema(BaseModel):
+    """Infos de l'événement lié au post (si applicable)."""
+
+    id: UUID
+    title: str
+    slug: str
+    start_date: datetime
+    end_date: Optional[datetime] = Field(None, description="Date de fin l'event")
+    status: EventStatus = Field(
+        description="Le status de l'event, qui peut influencer la façon dont vous allez afficher le post (ex: badge d'event à venir, etc.)"
+    )
+
+    class Config:
+        from_attributes = True
+
+class PostMediaSchema(BaseModel):
     """Schéma de lecture d'un média associé à un post."""
 
     id: UUID
     media_type: MediaType
-    media_url: str = Field(
-        description="Lien pour récuperer le média en question, au cas où c'est du HLS vous devriez"
-                    " faire des magouilles supplémmentaires coté player"
-    )
+
     thumbnail_url: Optional[str] = Field(
         default=None,
         description="Lien direct public pour récup la miniature du média",
     )
-    media_blur_hash: Optional[str] = Field(
+
+    hls_master_url: Optional[str] = Field(
+        default=None,
+        description="Lien pour récupérer le master playlist HLS du média, uniquement présent si"
+                    " `media_type` est `VIDEO`, ce lien est à utiliser pour les players vidéo supportant le HLS"
+                    ", à utiliser pour les players vidéo supportant le HLS"
+    )
+
+    image_medium_url: Optional[str] = Field(
+        default=None,
+        description="Lien pour récuperer l'image de qualité medium du média, uniquement présent si `media_type` est IMAGE, "
+                    "ce lien est à utiliser pour les affichages d'image classiques dans le feed, en cas d'aggrandissement "
+                    "vaut mieux passer sur `image_high_url` si disponible pour une meilleure qualité"
+    )
+
+    image_high_url: Optional[str] = Field(
+        default=None,
+        description="Lien pour récuperer l'image de qualité haute du média, uniquement présent si `media_type` est IMAGE, "
+                    "ce lien est à utiliser pour les affichages d'image en grand format (ex: dans la page de détail du"
+                    " post) pour une meilleure qualité, si ce lien n'est pas disponible vous pouvez utiliser"
+                    " `image_medium_url` qui est toujours disponible pour les images"
+    )
+
+    blur_hash: Optional[str] = Field(
         default=None,
         description="BlurHash du média pour affichage d'un placeholder flou pendant le chargement."
     )
@@ -119,34 +191,40 @@ class ReadPostMedia(BaseModel):
 class ReadPost(BaseModel):
     """Schéma de lecture complète d'un post (avec ses médias)."""
 
-    id: UUID
-    author_id: UUID
-    club_id: Optional[UUID]
-    event_id: Optional[UUID]
-    target_classe_id: Optional[UUID]
-    academic_year_id: Optional[UUID]
-
-    content: Optional[str]
+    id: UUID = Field(description="Id du post")
     post_type: PostType
-
-    like_count: int
-    comment_count: int
-
-    is_pinned: bool
-    is_published: bool
-
-    created_at: datetime
-    updated_at: datetime
-    published_at: Optional[datetime]
-
-    # Relations chargées avec selectinload dans le repository
-    media: list[ReadPostMedia] = Field(
+    author_id: UUID
+    content: Optional[str] = Field(None, description="Le contenu textuel du post, peut être null si le post est uniquement composé de médias.")
+    medias: list[PostMediaSchema] = Field(
         default_factory=list,
         description="Liste des médias attachés au post.",
     )
+    club_id: Optional[UUID] = Field(None, description="Id du club du post")
+    event_id: Optional[UUID] = Field(None, description="Id du event du post")
+    target_classe_id: Optional[UUID] = Field(None, description="Id de la classe auquelle le post est restreint")
+    academic_year_id: Optional[UUID] = Field(None, description="Id de l'année académique à laquelle le post est restreint")
 
-    def is_deleted(self) -> bool:
-        return self.deleted_at is not None
+
+    like_count: int = Field(description="Le nombre de lik sur le post")
+    comment_count: int = Field(description="Le nombre de comments sur le post")
+
+    is_pinned: bool = Field(description="Indique si le post est épinglé, pour l'instant on prends pas çà en compte")
+
+    created_at: datetime = Field(description="La date de création du post")
+    updated_at: datetime = Field(description="La date de dernierer modif du post")
+
+    author_info: PostAuthorSchema = Field(description="Informations sur l'auteur du post : nom, prénom..")
+
+    club_info: Optional[PostClubSchema] = Field(
+        default=None,
+        description="Informations sur le club lié au post, si applicable, sinon null"
+    )
+
+    event_info: Optional[PostEventSchema] = Field(
+        default=None,
+        description="Informations sur l'événement lié au post, si applicable, sinon null"
+    )
+
 
     class Config:
         from_attributes = True
@@ -156,9 +234,6 @@ ReadPost.model_rebuild()
 
 class ReadPostList(BaseModel):
     """Schéma de réponse paginée pour un feed de posts (cursor-based pagination).
-
-    Le curseur est construit côté serveur sous la forme :
-    base64(created_at.isoformat() + '|' + str(id))
     """
 
     items: list[ReadPost] = Field(description="Posts de la page courante.")
@@ -166,70 +241,7 @@ class ReadPostList(BaseModel):
         default=None,
         description="Curseur opaque à renvoyer pour obtenir la page suivante. NULL si dernière page.",
     )
-    has_more: bool = Field(description="Indique s'il existe une page suivante.")
-
-
-# Schémas pour l'upload de médias via MinIO (presigned URL)
-
-class RequestMediaUploadUrl(BaseModel):
-    """Schéma de demande d'URL d'upload présignée MinIO.
-
-    Étape 1 du flow : le client demande une URL, upload directement sur MinIO,
-    puis confirme via PostMediaConfirm.
-    """
-
-    filename: str = Field(description="Nom original du fichier (ex: photo.jpg).")
-    media_type: MediaType = Field(description="Type du média : IMAGE ou VIDEO.")
-    file_size: Optional[int] = Field(
-        default=None,
-        gt=0,
-        description="Taille du fichier en octets (optionnel, pour validation préalable).",
-    )
-
-
-class PresignedUploadUrlResponse(BaseModel):
-    """Réponse contenant l'URL présignée MinIO et la clé objet."""
-
-    upload_url: str = Field(description="URL PUT présignée MinIO. Valide 15 minutes.")
-    object_key: str = Field(
-        description="Clé objet à conserver et renvoyer lors de la confirmation."
-    )
-
-
-class ConfirmMediaUpload(BaseModel):
-    """Schéma de confirmation d'upload.
- 
-    Étape 3 du flow : le client confirme que l'upload a réussi.
-    Le service appellera object_exists() sur source_bucket / object_key
-    avant de créer l'entrée PostMedia — évite les entrées DB orphelines
-    si le client ment sur un upload qui aurait échoué.
-    """
- 
-    object_key: str = Field(
-        description="Clé objet renvoyée par PresignedUploadUrlResponse."
-    )
-    # Le client renvoie toujours POSTS_RAW_UPLOADS pour un post média.
-    # On le garde explicite pour ne pas le coder en dur côté service.
-    source_bucket: BucketName = Field(
-        default=BucketName.POSTS_RAW_UPLOADS,
-        description="Bucket dans lequel l'objet a été uploadé.",
-    )
-    media_type: MediaType
-    file_size: Optional[int] = Field(default=None, gt=0)
-    width: Optional[int] = Field(default=None, gt=0)
-    height: Optional[int] = Field(default=None, gt=0)
-    duration: Optional[int] = Field(
-        default=None,
-        gt=0,
-        description="Durée en secondes (uniquement pour les vidéos).",
-    )
-    display_order: int = Field(default=0, ge=0)
- 
-    @model_validator(mode="after")
-    def duration_only_for_video(self) -> "ConfirmMediaUpload":
-        if self.media_type == MediaType.IMAGE and self.duration is not None:
-            raise ValueError("La durée ne s'applique qu'aux vidéos.")
-        return self
+    has_more: bool = Field(description="Indique s'il existe encore d'autres post, si c'est false c'est terminéééé")
 
 
 # Réponses API enveloppées dans ApiBaseResponsez
@@ -237,22 +249,10 @@ class ConfirmMediaUpload(BaseModel):
 class PostInfos(ApiBaseResponse):
     """Réponse API pour un post unique."""
 
-    result: ReadPost = Field(description="Données du post.")
+    result: Optional[ReadPost] = Field(description="Données du post.")
 
 
 class PostListInfos(ApiBaseResponse):
     """Réponse API pour un feed paginé de posts."""
 
     result: Optional[ReadPostList] = Field(description="Page de posts avec curseur de pagination.")
-
-
-class PostMediaInfos(ApiBaseResponse):
-    """Réponse API pour un média de post."""
-
-    result: ReadPostMedia = Field(description="Données du média.")
-
-
-class PresignedUrlInfos(ApiBaseResponse):
-    """Réponse API contenant l'URL présignée MinIO."""
-
-    result: PresignedUploadUrlResponse = Field(description="URL d'upload présignée.")

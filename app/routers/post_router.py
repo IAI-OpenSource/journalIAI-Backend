@@ -141,7 +141,6 @@ async def create_post(
     """
     result = await post_service.service_create_post(
         author_id=current_user.id,
-        academic_year_id=academic_year_id,
         post_data=post_data,
     )
 
@@ -170,13 +169,14 @@ async def get_feed(
     current_user: Annotated[User, Depends(get_mock_user)],
     post_service: Annotated[PostService, Depends(get_post_service)],
     cursor: Annotated[str, Query(description="Le dernir curseur renvoyé")] = None,
-    page_size: Annotated[int, Query(description="Le nombre de post sue vous voulez (entre 0-20 max)", gt=0, lt=20)] = 10,
+    limit: Annotated[int, Query(description="Le nombre de post sue vous voulez (entre 0-20 max)", gt=0, lt=20)] = 10,
 ):
 
     result = await post_service.service_get_feed(
         user_id=current_user.id,
         cursor=cursor,
-        page_size=page_size,
+        page_size=limit,
+        user_classe_id=current_user.classe_id
     )
 
     return result.to_HTTP_api_base_response(response)
@@ -208,15 +208,8 @@ async def get_new_posts_count(
         academic_year_id=academic_year_id,
         since=since,
     )
-    if result.is_error():
-        return PostListInfos.error_response(
-            error_message=result.error,
-            status_code=result.status_code,
-            response=response,
-        )
-    return PostListInfos.success_response(
-        data=result.data, response=response, status_code=result.status_code,
-    )
+    return result.to_HTTP_api_base_response(response)
+
 # TODO : Ajouter optimisations Redis
 @router.get(
     "/{post_id}",
@@ -226,22 +219,12 @@ async def get_new_posts_count(
 async def get_post(
     post_id: UUID,
     response: Response,
+    current_user: Annotated[User, Depends(get_mock_user)],
     post_service: Annotated[PostService, Depends(get_post_service)],
 ):
-    result = await post_service.service_get_post(post_id=post_id)
+    result = await post_service.service_get_post(post_id=post_id, user_class_id=current_user.classe_id, user_id=current_user.id)
 
-    if result.is_error():
-        return PostInfos.error_response(
-            error_message=result.error,
-            status_code=result.status_code,
-            response=response,
-        )
-
-    return PostInfos.success_response(
-        data=result.data,
-        response=response,
-        status_code=result.status_code,
-    )
+    return result.to_HTTP_api_base_response(response)
 
 
 @router.post(

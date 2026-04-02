@@ -164,7 +164,7 @@ class MediaUploadsService:
         Logique métier pour finaliser un upload de média et lancer une tache de traitement dans le worker
         Args:
             current_user: L'utilisateur courant
-            intent_id: Id de l'intent d'upload media
+            intent_id: Id de l'intent d'upload medias
         Returns:
             ServiceResult indiquant le succès ou l'échec de l'opération, avec un message approprié
         """

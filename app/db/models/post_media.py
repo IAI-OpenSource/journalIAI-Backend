@@ -71,7 +71,7 @@ class PostMedia(Base, IntegrityMapperMixin):
     )
 
     # Relationships
-    post: Mapped["Post"] = relationship("Post", lazy="noload", foreign_keys=[post_id], back_populates="media", uselist=False, init=False)
+    post: Mapped["Post"] = relationship("Post", lazy="noload", foreign_keys=[post_id], back_populates="medias", uselist=False, init=False)
 
     # Messages d'erreur
     ERROR_MESSAGES = {
