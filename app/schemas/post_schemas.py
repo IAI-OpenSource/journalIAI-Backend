@@ -16,11 +16,7 @@ from app.storage.minio_config import BucketName
 # Schémas d'entrée (écriture)
 
 class CreatePost(BaseModel):
-    """Schéma de validation pour la création d'un post.
-
-    NB : author_id et academic_year_id sont injectés côté serveur
-    (token JWT + contexte académique actif), jamais envoyés par le client.
-    """
+    """Schéma de validation pour la création d'un post."""
 
     content: str = Field(
         default=None,
