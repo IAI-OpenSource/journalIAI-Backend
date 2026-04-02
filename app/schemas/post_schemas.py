@@ -3,7 +3,7 @@
 
 
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 from uuid import UUID
 
 from pydantic import BaseModel, Field, model_validator
@@ -19,7 +19,6 @@ class CreatePost(BaseModel):
     """Schéma de validation pour la création d'un post."""
 
     content: str = Field(
-        default=None,
         description="Contenu textuel du post",
     )
 
@@ -64,6 +63,13 @@ class UpdatePost(BaseModel):
         description="Modifier la classe ciblée.",
     )
 
+class CreatePostView(BaseModel):
+    """Schéma pour enregistrer des vues de post"""
+
+    posts_ids: List[UUID] = Field(
+        description="Les ids des posts vu, faites çà intelligemment, n'envoyez pas une requete à chaque fois qu'un post"
+                    " est vu 💀, vous pouvez regrouper en batch de n post et envoyer au bon moment, bref un algo intelligent"
+    )
 
 # Schémas de lecture (réponse)
 

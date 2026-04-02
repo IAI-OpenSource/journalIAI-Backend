@@ -498,7 +498,7 @@ class CacheWrapper:
 
         return await self._connection.sadd(self._format_cache_key(key), *values)
 
-    async def get_from_a_set(self, key: CacheKey) -> set:
+    async def get_from_a_set(self, key: CacheKey) -> set[Any]:
         """
         Récupère toutes les valeurs d'un ensemble (Set) Redis.
         Args:

@@ -87,7 +87,7 @@ class PostRepository:
                 .values(
                     author_id=author_id,
                     academic_year_id=academic_year_id,
-                    **post_data.model_dump(),
+
                 )
                 .returning(Post)
             )
@@ -208,6 +208,7 @@ class PostRepository:
         self,
         academic_year_id: UUID,
         seen_post_ids: list[UUID],
+        user_id: Optional[UUID],
         classe_id: Optional[UUID] = None,
         cursor: Optional[str] = None,
         page_size: int = DEFAULT_PAGE_SIZE,
@@ -218,7 +219,8 @@ class PostRepository:
         Retourne un dict avec les clés : items, next_cursor, has_more.
 
         Args:
-            seen_post_ids:
+            user_id: Id de l'utilisateur
+            seen_post_ids: Posts vu récupérés via Redis (pas encore dans bd)
             academic_year_id (UUID): Filtre sur l'année académique.
             cursor (Optional[str]): Curseur opaque de la page précédente.
             page_size (int): Nombre de posts par page.
@@ -238,7 +240,10 @@ class PostRepository:
                 .options(
                     selectinload(Post.media),
                     with_loader_criteria(PostMedia, PostMedia.deleted_at.is_(None))
-                )
+                ).outerjoin(
+                    PostViews,
+                    (PostViews.post_id == Post.id) & (PostViews.user_id == user_id)
+                ).where(PostViews.post_id.is_(None))
                 .order_by(Post.created_at.desc(), Post.id.desc())
                 .limit(page_size + 1)  # +1 pour détecter has_more
             )

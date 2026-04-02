@@ -16,12 +16,12 @@ from app.globals.routes_descriptions import (
 from app.schemas.post_schemas import (
     CreatePost,
     PostInfos,
-    PostListInfos,
+    PostListInfos, CreatePostView,
 )
 from app.schemas.post_upload_schemas import PostMediaUploadIntentResponse, CreateMediaUploadIntent, \
     PostMediaUploadCompleteResponse
 from app.services.media_upload_service import MediaUploadsService
-from fastapi import Depends, WebSocket, Query, WebSocketDisconnect, APIRouter, Response, Path
+from fastapi import Depends, WebSocket, Query, WebSocketDisconnect, APIRouter, Response
 from app.services.post_service import PostService
 
 router = APIRouter(prefix="/posts", tags=[ApiTags.POSTS])
@@ -126,7 +126,7 @@ async def ws_post_processing_info(
     "",
     response_model=PostInfos,
     status_code=201,
-    summary="Créer un post",
+    summary="Créer un post Tectuel Simple sans médias",
 )
 async def create_post(
     post_data: CreatePost,
@@ -243,18 +243,15 @@ async def get_post(
         status_code=result.status_code,
     )
 
-# ------------------------------------------------------------------
-# Enregistrement d'une vue
-# ------------------------------------------------------------------
-# TODO : Ajouter optimisations Redis
+
 @router.post(
-    "/{post_id}/view",
+    "/add-views",
     response_model=None,
     status_code=200,
-    summary="Enregistrer une vue sur un post",
+    summary="Marquer des posts comme vu par l'utilisateur"
 )
 async def record_view(
-    post_id: Annotated[UUID, Path(..., description="L'id du post vu")],
+    data: CreatePostView,
     response: Response,
     current_user: Annotated[User, Depends(get_mock_user)],
     post_service: Annotated[PostService, Depends(get_post_service)],
@@ -263,7 +260,7 @@ async def record_view(
     une deuxième vue du même utilisateur est ignorée silencieusement.
     """
     await post_service.service_record_view(
-        post_id=post_id,
+        post_ids=data.posts_ids,
         user_id=current_user.id,
     )
     response.status_code = 200

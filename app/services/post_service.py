@@ -94,14 +94,7 @@ class PostService:
     ) -> ServiceResult[ReadPostList]:
         """Retourne une page du feed (cursor-based pagination)."""
         
-        seen_post_ids: List[UUID] = await self.feed_cache.get_seen_post_ids(user_id=user_id)
-        if seen_post_ids is None:
-            logger.warning(
-                "Redis indisponible — fallback PostgreSQL user=%s", user_id
-            )
-            fallback = await self.post_repo.get_seen_post_ids_from_db(user_id=user_id)
-            # Si PostgreSQL aussi en erreur → feed sans exclusion (dégradé fonctionnel)
-            seen_post_ids = fallback.data if not fallback.is_error() else []
+        seen_post_ids: List[UUID] = await self.feed_cache.get_daily_seen_post_ids(user_id=user_id)
 
         # TODO: Changer ce mock
         result = await self.post_repo.get_feed(
@@ -128,6 +121,7 @@ class PostService:
         return ServiceResult.service_success(
             data=feed,
             status_code=result.status_code,
+            service_name=Messages.POST_SERVICE
         )
 
     
@@ -159,23 +153,18 @@ class PostService:
     # Enregistrement d'une vue
 
     async def service_record_view(
-        self, post_id: UUID, user_id: UUID
+        self, post_ids: List[UUID], user_id: UUID
     ) -> ServiceResult[str]:
-        """Enregistre la vue d'un post — opération idempotente."""
-        result = await self.post_repo.insert_post_view(
-            post_id=post_id,
-            user_id=user_id,
-        )
+        """Enregistre des vues de posts — opération idempotente."""
 
-        if result.is_error():
-            logger.error("Erreur enregistrement vue : %s", result.error)
-            return ServiceResult.service_error(
-                message=result.error,
-                status_code=result.status_code,
-                service_name=Messages.POST_SERVICE,
-            )
+        result = await self.feed_cache.mark_posts_as_seen(
+            user_id=user_id,
+            post_ids=post_ids
+        )
+        if result and result > 0:
+            await self.feed_cache.add_user_to_daily_seen_posts(user_id)
 
         return ServiceResult.service_success(
             data="ok",
-            status_code=result.status_code,
+            status_code=200,service_name=Messages.POST_SERVICE,
         )

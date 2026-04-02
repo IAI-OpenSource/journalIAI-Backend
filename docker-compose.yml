@@ -178,6 +178,23 @@ services:
       minio:
         condition: service_healthy
 
+  # Conteneur Beat pour les taches quotidiennes
+  beat:
+    build: .
+    container_name: journal_IAI_beat
+    command: celery -A app.worker.celery_app beat --loglevel=info
+    volumes:
+      - .:/app
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    restart: unless-stopped
+
+
 volumes:
   db_data:
   minio_data:

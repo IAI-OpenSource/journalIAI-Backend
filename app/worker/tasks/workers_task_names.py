@@ -12,3 +12,5 @@ class WorkersTaskNames:
 
     IMPORT_DATA_FROM_EXCEL: str = "regstration.import_from_excel"
 
+    SYNCHRONIZE_POST_VIEW: str = "synchronize_post_view"
+
