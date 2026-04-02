@@ -14,3 +14,4 @@ class ApiTags:
     ADMIN_MODERATEUR: str = "Routes ADMIN ou MODERATEUR"
     ALL_USERS: str = "Routes pour tous les utilisateurs"
     EVENT: str = "Routes events"
+    USER: str = "Route utilisateurs"
