@@ -1,26 +1,27 @@
-## fichier contenant les routes FastAPI pour les posts
-## pattern identique à auth.py : dépendances → service → réponse ApiBaseResponse
-
 from typing import Annotated
 from uuid import UUID
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.cache.helpers.base import CacheWrapper, get_redis
+from app.db.models.enums import SexeType
+from app.db.models.user import User
 from app.db.session import get_db
-from app.db.models.enums import MediaType
 from app.globals.api_tags import ApiTags
+from app.globals.routes_descriptions import (
+    MEDIA_INTENT_ROUTE_DESCRIPTION, MEDIA_INTENT_CONFIRM_ROUTE_DESCRIPTION, GET_FEED_ROUTE_DESCRIPTION,
+
+)
 from app.schemas.post_schemas import (
     CreatePost,
     PostInfos,
-    PostListInfos,
-    PostMediaInfos,
-    PresignedUrlInfos,
-    RequestMediaUploadUrl,
-    ConfirmMediaUpload,
+    PostListInfos, CreatePostView,
 )
+from app.schemas.post_upload_schemas import PostMediaUploadIntentResponse, CreateMediaUploadIntent, \
+    PostMediaUploadCompleteResponse
+from app.services.media_upload_service import MediaUploadsService
+from fastapi import Depends, WebSocket, Query, WebSocketDisconnect, APIRouter, Response
 from app.services.post_service import PostService
 
 router = APIRouter(prefix="/posts", tags=[ApiTags.POSTS])
@@ -37,8 +38,85 @@ def get_post_service(
     db: Annotated[AsyncSession, Depends(get_db)],
     cache: CacheWrapper = Depends(get_redis_cache),
 ) -> PostService:
-    return PostService(db)
+    return PostService(db, cache)
 
+def get_post_upload_service(
+    cache : CacheWrapper = Depends(get_redis), bd: AsyncSession = Depends(get_db)
+) -> MediaUploadsService:
+    return MediaUploadsService(cache=cache, bd=bd)
+
+def get_mock_user():
+    user = User(
+        last_name="Adjovi",
+        username="3f70c95e8e",
+        email="akou.adjovi57@test.com",
+        last_login_at=datetime.now(),
+        classe_id=UUID("74910788-e47d-483d-b24f-750c7b24e3d6"),
+        bio=None,
+        access_jeton_id=UUID("42fc6492-4300-432f-b106-1304cebf86db"),
+        avatar_url=None,
+        first_name="Akou",
+        password_hash="hashed_password",
+        sexe=SexeType.M
+    )
+    user.id = UUID("0a58318e-3a4f-4354-bb6a-fed21a2e710b")
+
+    return user
+
+# TODO: Revoir tout ce fichier quand l'auth sera dispo et re-tester, principalement verifier si l'utilisateur peut post
+
+@router.post(
+    path="/get-uploads-intent", name="Créer un post avec des médias (Images, Vidéos)",
+    response_model=PostMediaUploadIntentResponse, tags=[ApiTags.POSTS_CREATION],
+    description=MEDIA_INTENT_ROUTE_DESCRIPTION
+)
+async def post_unique_media_upload_intent(
+    request_data: CreateMediaUploadIntent, response: Response,
+    service: Annotated[MediaUploadsService, Depends(get_post_upload_service)],
+    current_user: Annotated[User, Depends(get_mock_user)]
+):
+    res = await service.service_process_media_upload_intent(current_user, request_data)
+
+    return res.to_HTTP_api_base_response(response)
+
+@router.post(
+    path="/complete_medias_post", name="Finaliser un post aves des médias",
+    tags=[ApiTags.POSTS_CREATION], response_model=PostMediaUploadCompleteResponse,
+    description=MEDIA_INTENT_CONFIRM_ROUTE_DESCRIPTION
+)
+async def complete_video_post(
+    response: Response,
+    intent_id:  Annotated[str, Query(..., description="L'id d'intent recupéré précedemment")],
+    service: Annotated[MediaUploadsService, Depends(get_post_upload_service)],
+    current_user: Annotated[User, Depends(get_mock_user)]
+):
+
+    verification = await service.service_verify_complete_media_upload(current_user, intent_id)
+
+    return verification.to_HTTP_api_base_response(response)
+
+
+@router.websocket(path="/ws/post_processing_info", name="Websocket de suivi du post-traitement d'une média uploadée")
+async def ws_post_processing_info(
+    websocket: WebSocket,
+    intent_id: str = Query(..., description="L'id d'intent d'upload de média pour lequel on veut suivre le post-traitement"),
+    service = Depends(get_post_upload_service), current_user: User = Depends(get_mock_user)
+):
+    """
+    Websocket pour suivre le post-traitement d'un média uploadée, vous devez vous connecter à ce
+    websocket après avoir confirmé l'upload de la média via l'endpoint `je mets çà après`, et fournir
+    l'id d'intent d'upload de média pour lequel vous voulez suivre le post-traitement, vous recevrez des
+    messages de suivi indiquant l'étape actuelle du post-traitement (verification, processing..), le pourcentage de
+    progression et un timestamp, en cas d'échec vous recevrez un message d'erreur dans le champ `error_message`
+    et le suivi sera terminé
+    """
+
+    await websocket.accept()
+
+    try:
+        await service.service_listen_media_processing_intent(current_user, intent_id, websocket)
+    except WebSocketDisconnect:
+        pass
 
 # ------------------------------------------------------------------
 # Routes Posts
@@ -48,14 +126,12 @@ def get_post_service(
     "",
     response_model=PostInfos,
     status_code=201,
-    summary="Créer un post",
+    summary="Créer un post Tectuel Simple sans médias",
 )
 async def create_post(
     post_data: CreatePost,
     response: Response,
-    # TODO : remplacer ces UUID par les dépendances JWT quand auth sera prête
-    author_id: UUID,
-    academic_year_id: UUID,
+    current_user: Annotated[User, Depends(get_mock_user)],
     post_service: Annotated[PostService, Depends(get_post_service)],
 ):
     """Crée un nouveau post.
@@ -64,8 +140,7 @@ async def create_post(
     une fois le middleware d'authentification branché.
     """
     result = await post_service.service_create_post(
-        author_id=author_id,
-        academic_year_id=academic_year_id,
+        author_id=current_user.id,
         post_data=post_data,
     )
 
@@ -82,48 +157,29 @@ async def create_post(
         status_code=result.status_code,
     )
 
-
+# TODO : Ajouter optimisations Redis
 @router.get(
     "/feed",
     response_model=PostListInfos,
     summary="Récupérer le feed paginé",
+    description=GET_FEED_ROUTE_DESCRIPTION
 )
 async def get_feed(
     response: Response,
-    academic_year_id: UUID,
-    user_id:UUID,
-    cursor: str | None = None,
-    page_size: int = 20,
-    post_service: PostService = Depends(get_post_service),
+    current_user: Annotated[User, Depends(get_mock_user)],
+    post_service: Annotated[PostService, Depends(get_post_service)],
+    cursor: Annotated[str, Query(description="Le dernir curseur renvoyé")] = None,
+    limit: Annotated[int, Query(description="Le nombre de post sue vous voulez (entre 0-20 max)", gt=0, lt=20)] = 10,
 ):
-    """Retourne une page du feed.
- 
-    Les posts déjà vus par cet utilisateur sont automatiquement exclus
-    grâce au cache Redis (SET user:{id}:seen_posts).
- 
-    - Première page : cursor absent
-    - Page suivante : passer next_cursor reçu dans la réponse précédente
-    - Pull-to-refresh : appeler sans cursor (efface le contexte de pagination)
-    """
+
     result = await post_service.service_get_feed(
-        user_id=user_id,
-        academic_year_id=academic_year_id,
+        user_id=current_user.id,
         cursor=cursor,
-        page_size=page_size,
+        page_size=limit,
+        user_classe_id=current_user.classe_id
     )
 
-    if result.is_error():
-        return PostListInfos.error_response(
-            error_message=result.error,
-            status_code=result.status_code,
-            response=response,
-        )
-
-    return PostListInfos.success_response(
-        data=result.data,
-        response=response,
-        status_code=result.status_code,
-    )
+    return result.to_HTTP_api_base_response(response)
 
 
 @router.get(
@@ -134,7 +190,7 @@ async def get_new_posts_count(
     response: Response,
     academic_year_id: UUID,
     since: datetime,
-    post_service: PostService = Depends(get_post_service),
+    post_service: Annotated[PostService, Depends(get_post_service)]
 ):
     """Compte les posts créés après `since`. Polling toutes les 60s.
  
@@ -152,16 +208,9 @@ async def get_new_posts_count(
         academic_year_id=academic_year_id,
         since=since,
     )
-    if result.is_error():
-        return PostListInfos.error_response(
-            error_message=result.error,
-            status_code=result.status_code,
-            response=response,
-        )
-    return PostListInfos.success_response(
-        data=result.data, response=response, status_code=result.status_code,
-    )
+    return result.to_HTTP_api_base_response(response)
 
+# TODO : Ajouter optimisations Redis
 @router.get(
     "/{post_id}",
     response_model=PostInfos,
@@ -170,131 +219,31 @@ async def get_new_posts_count(
 async def get_post(
     post_id: UUID,
     response: Response,
-    post_service: PostService = Depends(get_post_service),
+    current_user: Annotated[User, Depends(get_mock_user)],
+    post_service: Annotated[PostService, Depends(get_post_service)],
 ):
-    result = await post_service.service_get_post(post_id=post_id)
+    result = await post_service.service_get_post(post_id=post_id, user_class_id=current_user.classe_id, user_id=current_user.id)
 
-    if result.is_error():
-        return PostInfos.error_response(
-            error_message=result.error,
-            status_code=result.status_code,
-            response=response,
-        )
-
-    return PostInfos.success_response(
-        data=result.data,
-        response=response,
-        status_code=result.status_code,
-    )
-
-
-# ------------------------------------------------------------------
-# Routes Médias (flow upload en 3 étapes)
-# ------------------------------------------------------------------
-
-@router.post(
-    "/{post_id}/media/upload-url",
-    response_model=PresignedUrlInfos,
-    summary="Étape 1 — Demander une URL d'upload MinIO",
-)
-async def request_upload_url(
-    post_id: UUID,
-    upload_request: RequestMediaUploadUrl,
-    response: Response,
-    post_service: PostService = Depends(get_post_service),
-):
-    """Génère une presigned PUT URL valable 15 minutes.
-
-    Le client doit ensuite faire un PUT directement sur cette URL
-    avec le fichier binaire en body — sans passer par l'API.
-    Une fois l'upload terminé, appeler /confirm pour créer l'entrée DB.
-
-    Retourne :
-    - upload_url : URL PUT présignée MinIO (pointe vers MINIO_PUBLIC_URL)
-    - object_key : clé à conserver et renvoyer lors de la confirmation
-    """
-    result = await post_service.service_request_upload_url(
-        post_id=post_id,
-        filename=upload_request.filename,
-        media_type=upload_request.media_type,
-    )
-
-    if result.is_error():
-        return PresignedUrlInfos.error_response(
-            error_message=result.error,
-            status_code=result.status_code,
-            response=response,
-        )
-
-    return PresignedUrlInfos.success_response(
-        data=result.data,
-        response=response,
-        status_code=result.status_code,
-    )
+    return result.to_HTTP_api_base_response(response)
 
 
 @router.post(
-    "/{post_id}/media/confirm",
-    response_model=PostMediaInfos,
-    status_code=201,
-    summary="Étape 3 — Confirmer l'upload et déclencher le worker",
-)
-async def confirm_media_upload(
-    post_id: UUID,
-    media_data: ConfirmMediaUpload,
-    response: Response,
-    post_service: PostService = Depends(get_post_service),
-):
-    """Confirme qu'un upload MinIO a réussi.
-
-    Le service :
-    1. Vérifie que l'objet existe dans MinIO (évite les entrées DB orphelines)
-    2. Crée l'entrée PostMedia en base (is_processed=False)
-    3. Déclenche le worker Celery pour conversion WebP + thumbnail
-
-    Le champ is_processed passera à True une fois le worker terminé.
-    """
-    result = await post_service.service_confirm_media_upload(
-        post_id=post_id,
-        media_data=media_data,
-    )
-
-    if result.is_error():
-        return PostMediaInfos.error_response(
-            error_message=result.error,
-            status_code=result.status_code,
-            response=response,
-        )
-
-    return PostMediaInfos.success_response(
-        data=result.data,
-        response=response,
-        status_code=result.status_code,
-    )
-
-
-# ------------------------------------------------------------------
-# Enregistrement d'une vue
-# ------------------------------------------------------------------
-
-@router.post(
-    "/{post_id}/view",
+    "/add-views",
     response_model=None,
     status_code=200,
-    summary="Enregistrer une vue sur un post",
+    summary="Marquer des posts comme vu par l'utilisateur"
 )
 async def record_view(
-    post_id: UUID,
+    data: CreatePostView,
     response: Response,
-    # TODO : injecter user_id depuis JWT
-    user_id: UUID,
-    post_service: PostService = Depends(get_post_service),
+    current_user: Annotated[User, Depends(get_mock_user)],
+    post_service: Annotated[PostService, Depends(get_post_service)],
 ):
     """Enregistre la vue d'un post. Opération idempotente —
     une deuxième vue du même utilisateur est ignorée silencieusement.
     """
     await post_service.service_record_view(
-        post_id=post_id,
-        user_id=user_id,
+        post_ids=data.posts_ids,
+        user_id=current_user.id,
     )
     response.status_code = 200

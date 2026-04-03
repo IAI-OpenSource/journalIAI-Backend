@@ -38,6 +38,8 @@ class Messages:
     EVENT_UPDATE_SUCCES = "Event mis a jour avec succès"
     EVENT_CREATE_SUCCES = "Event créé avec succès"
     EVENT_ALREADY_EXISTS = 'Evenement deja existant'
+    MEDIA_NOT_FOUND = "Media non trouvé."
+    POST_NOT_FOUND = "Post non trouvé."
 
     ERROR_UPLOAD_URL_GENERATION = "Erreur Inconnue lors de la génération des URL d'upload"
     VIDEO_UPLOAD_INTENT_SAVED = "Intent d'upload video enregistré avec succès"

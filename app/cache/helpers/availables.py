@@ -57,5 +57,11 @@ class AvailableCacheKeys(str, Enum):
 
     FILE_UPLOAD_PROGRESS_STREAM_KEY = "upload_progress_stream:{user_id}:{intent_id}" # Clé pour le stream sur l'anvancement du traitemenr d'un upload
 
+    USER_DAILY_POST_SEEN = BaseCacheEntity.USER + ":daily_seen_posts"  # Clé pour les posts vus par un utilisateur (pour le suivi de la lecture du feed)
+
+    USERS_HAS_SEEN_POST_ON_A_DAY = "daily_post_views_set"
+
+
+
     ## Clés pour le OTP
     USER_OTP = BaseCacheEntity.OTP 

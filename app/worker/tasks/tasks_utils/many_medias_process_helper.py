@@ -10,7 +10,7 @@ from app.globals.messages import Messages
 from app.schemas.post_upload_schemas import FileToUploadSchema
 from app.storage.bucket_files_utils import BucketFilesUtils
 from app.storage.minio_config import BucketName
-from app.storage.post_video_storage import PostUploadStorage
+from app.storage.post_upload_storage import PostUploadStorage
 from app.worker.tasks.async_loop_manager import task_async_loop_manager
 from app.worker.tasks.tasks_utils.base import ProcessingStep, ProcessingResult
 from app.worker.tasks.tasks_utils.common_media_utils import generate_blurhash_str

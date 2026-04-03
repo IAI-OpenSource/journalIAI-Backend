@@ -51,7 +51,7 @@ class ClubMember(Base, IntegrityMapperMixin):
         Index(IDX_CLUB_MEMBERS_ROLE_IN_CLUB, "club_id", "role_in_club", postgresql_where=(deleted_at == None) & (role_in_club.in_(["LEAD", "CO_LEAD"]))),
         Index(IDX_CLUB_MEMBERS_DELETED_AT, "deleted_at", postgresql_where=(deleted_at != None)),
         # Contrainte d'unicité
-        Index(UQ_CLUB_MEMBERS_CLUB_USER, "club_id", "user_id", unique=True),
+        Index(UQ_CLUB_MEMBERS_CLUB_USER, "club_id", "user_id", unique=True, postgresql_where=(deleted_at != None)),
     )
 
     # Relationships

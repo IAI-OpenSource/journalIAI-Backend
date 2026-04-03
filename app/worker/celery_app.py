@@ -1,4 +1,5 @@
 from celery import Celery
+from celery.schedules import crontab
 
 from app.core.config import REDIS_URL
 from app.worker.tasks import add_all_tasks
@@ -20,3 +21,10 @@ celery_app.conf.update(
 
 add_all_tasks()
 celery_app.autodiscover_tasks(["app.worker.tasks"])
+
+celery_app.conf.beat_schedule = {
+    'synchronisation-vues_posts_redis-bd': {
+        'task': 'synchronize_post_view',
+        'schedule': crontab(hour=2, minute=00), # Tous les jours à 2h00
+    }
+}

@@ -91,11 +91,13 @@ def get_video_metadata(local_path: str) -> ProcessingResult[dict[str, Any]]:
 
 def get_target_qualities(height: int) -> list[dict]:
     """Retourne la liste des paliers HLS à générer selon la source."""
+
+    # J'ai enlevé le 1080 pour le moment
     all_qualities = [
         {"name": "360p", "height": 360, "vrate": "800k", "crf": 28},
         {"name": "480p", "height": 480, "vrate": "1400k", "crf": 26},
         {"name": "720p", "height": 720, "vrate": "2800k", "crf": 23},
-        {"name": "1080p", "height": 1080, "vrate": "5000k", "crf": 20},
+        # {"name": "1080p", "height": 1080, "vrate": "5000k", "crf": 20},
     ]
 
     # On ne garde que les qualités inférieures ou égales à la source
@@ -108,7 +110,7 @@ def get_target_qualities(height: int) -> list[dict]:
     to_return = to_return[-1:]
 
     # On retourne la qualité la plus basse au cas ou y'a 0 match
-    return to_return or all_qualities[0]
+    return to_return or [all_qualities[0]]
 
 
 def generate_thumbnail(local_raw_path: str, output_dir: str, ss_time: int) -> Optional[str]:

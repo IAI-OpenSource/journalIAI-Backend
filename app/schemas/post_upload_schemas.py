@@ -7,6 +7,8 @@ from uuid import UUID
 
 from app.db.models.enums import MediaType
 from app.schemas import ApiBaseResponse
+from app.schemas.post_schemas import CreatePost
+
 
 class FileToUploadSchema(BaseModel):
     """Schéma de validation pour les informations d'un fichier à uploader, contenant le nom du fichier, sa taille et son type de média"""
@@ -22,28 +24,17 @@ class FileToUploadSchema(BaseModel):
         return self.media_type == MediaType.VIDEO
 
 #TODO: REndre la doc beaucoup plus claire et enlever quelques petites incohérences
-class CreateMediaUploadIntent(BaseModel):
+class CreateMediaUploadIntent(CreatePost):
     """Schéma de validation pour un intent d'upload de fichier, contenant les informations nécessaires pour initier des uploads de fichiers, comme le nom du fichier, son type et sa taille"""
     files: List[FileToUploadSchema] = Field(
         description="La liste des fichiers à uploader, actuellement limité à un 10 fichiers",
         min_length=1,
         max_length=10
     )
-    event_id: Optional[UUID] = Field(None, description="L'ID de l'événement auquel le post est associé, si applicable")
-    club_id: Optional[UUID] = Field(None, description="L'ID du club auquel le post est associé, si applicable")
-    content: Optional[str] = Field(None, description="Le contenu textuel associé au post")
-    for_current_academic_year: Optional[bool] = Field(
-        description="Indique si le post doit etre limité à l'année académique en cours, si true alors"
-                    " le post ne sera visible que pendant l'année académique en cours, sinon le post sera"
-                    " visible sans limite de temps"
-    )
-    only_for_a_class: Optional[bool] = Field(
-        description="Indique si le post doit etre limité seulement aux étudiants d'une classe précise, si `true` "
-                    "le post sera visible uniquement par eux sinon le post sera visible pour tous les étudiants"
-                    " de l'école, QUAND CE ATTRIBUT EST A `true` `for_current_academic_year` LE DEVIENT AUSSI AUTOMATIQUEMENT "
-                    "DONC PLUS LA PEINE DE LE PASSER (`for_current_academic_year` SERA TOUJOURS `true` QUAND `only_for_a_class` EST `true`)"
-                    "CET ATTRIBUT NE PEUT ETRE MIS A `true` QUE POUR LES DELEGUES DES SALLES, SI LE USER N'EST PAS DELEGUE D'UNE SALLE "
-                    "LA REQUETE RENVERRA UNE BELLE `ERREUR 404`"
+
+    content: Optional[str] = Field(
+        default=None,
+        description="Contenu textuel du post",
     )
 
     @model_validator(mode='after')
