@@ -14,8 +14,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.enums import UserRole
 from app.repositories.registration_repository import RegistrationRepository
-from app.schemas.global_schemas import GlobalStringMessage, StringMessage
-from app.schemas.registration_schemas import CreateMultileRegistration, CreateRegistration, FindRegistration, ReadRegistration
+from app.schemas.global_schemas import StringMessage
+from app.schemas.registration_schemas import CreateRegistration, FindRegistration, ReadRegistration
 from app.globals.messages import Messages as msg
 from app.utils.jetons_utils import JetonUtils
 

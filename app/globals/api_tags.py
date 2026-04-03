@@ -16,3 +16,5 @@ class ApiTags:
     EVENT: str = "Routes events"
     ACADEMIC_YEAR: str = "Routes années académiques"
     CLASSE: str = "Routes classes"
+    USER: str = "Route utilisateurs"
+

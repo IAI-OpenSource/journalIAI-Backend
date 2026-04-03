@@ -75,3 +75,6 @@ class Messages:
     ## Message envoi de mail
     MAIL_SERVICE = "Service email"
     MAIL_ERROR = "Erreur de Connection pour l'envoi du mail"
+    
+    #OTP service
+    OTP_SERVICE = "Service OTP"

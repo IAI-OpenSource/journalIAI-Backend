@@ -30,7 +30,6 @@ def get_registration_service(db: AsyncSession = Depends(get_db)) -> Registration
 @router.post(
   "/add",
   response_model=GlobalStringMessage,
-  tags=[ApiTags.ADMIN_MODERATEUR]
 )
 async def create_registration(
   response: Response,
@@ -47,7 +46,6 @@ async def create_registration(
 @router.post(
   "/one",
   response_model=RegistrationInfos,
-  tags=[ApiTags.ADMIN_MODERATEUR]
 )
 async def get_registration(
   response: Response,
@@ -63,7 +61,6 @@ async def get_registration(
 @router.post(
   "/students/import",
   response_model=GlobalStringMessage,
-  tags=[ApiTags.ADMIN_MODERATEUR]
 )
 async def imports_students(
   response: Response,

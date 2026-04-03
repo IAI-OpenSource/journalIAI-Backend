@@ -89,7 +89,7 @@ class UserCache:
       logger.exception(f"Erreur de connexion à redis {e.__class__.__name__}: {e}")     
     
     
-  async def get_user_from_cache(self, user_id: UUID, user_model: ReadUser) -> Optional[ReadUser]:
+  async def get_user_from_cache(self, user_id: UUID, user_model: type[ReadUser]) -> Optional[ReadUser]:
     """fonction permettant de récupérer les infos d'un utilisateur du cache. 
       Ici on récupère tout l'utilisateur conformement a la validation de ReadUser
 
@@ -112,11 +112,13 @@ class UserCache:
 
       if user_in_cache is None:
         self.message = msg.CACHE_USER_NOT_FOUND
+        return None
       
-      return user_in_cache
+      return ReadUser.model_validate(user_in_cache)
     
     except redis.ConnectionError as e:
       logger.exception(f"Erreur de connexion à redis {e.__class__.__name__}: {e}")
+      return None
       
       
   async def set_user_otp_code_in_cache(self, user_mail: EmailStr, otp: str, ttl: int):
@@ -140,6 +142,33 @@ class UserCache:
       )
             
     except redis.ConnectionError as e:
-      logger.exception(f"Erreur de connexion à redis {e.__class__.__name__}: {e}")     
+      logger.exception(f"Erreur de connexion à redis {e.__class__.__name__}: {e}")   
+      
+      
+  async def get_user_otp_in_cache(self, email: EmailStr) -> Optional[dict] :
+    """fonction pour récupérer le code otp stocké dans le cache
+
+    Args:
+        email (EmailStr): on prend le email pour constituer la clé 
+
+    Returns:
+        Optional[str]: retourne None ou le code
+    """
+    
+    try:
+      
+      cache_key = self.create_user_otp_cache_key(email=email)
+      
+      cache_data = await self.user_cache.get_dict_from_cache(
+        key=cache_key,
+      )
+      
+      return cache_data
+            
+    except redis.ConnectionError as e:
+      logger.exception(f"Erreur de connexion à redis {e.__class__.__name__}: {e}")   
+      return None
+     
+    
 
 
