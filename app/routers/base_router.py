@@ -1,10 +1,11 @@
 from fastapi import APIRouter
 from app.routers.event_router import routeur as event_router
-
+from app.routers.classe_router import router as classe_router
 from app.routers.club_router import router as club_router
 from app.routers.post_video_upload_router import router as post_video_upload_router
 from app.routers.registration_jeton_router import router as registration_router
 from app.routers.auth_router import router as authentification_router
+from app.routers.academic_year_router import router as academic_year_router
 from app.routers.user_router import router as user_router
 
 v1_api_router = APIRouter(prefix="/v1")
@@ -21,4 +22,6 @@ v1_api_router.include_router(post_video_upload_router)
 v1_api_router.include_router(router=registration_router)
 v1_api_router.include_router(router=club_router)
 v1_api_router.include_router(router=authentification_router)
+v1_api_router.include_router(router=academic_year_router)
+v1_api_router.include_router(router=classe_router)
 v1_api_router.include_router(router=user_router)
