@@ -22,8 +22,6 @@ class CreateUser(BaseModel):
       BaseModel (_type_): Hérite de base model
   """
   
-  last_name: str = Field(description="Nom de l'utilisateur")
-  first_name: str = Field(description="Prénom de l'utiisateur")
   email: EmailStr
   username: str = Field(description="Nom d'utilisateur")
   password: str
@@ -85,3 +83,7 @@ ReadUser.model_rebuild()
 class UserInfos(ApiBaseResponse):
     
     result: Optional[ReadUser] = Field(description="Informations d'un utilisateur")
+
+class ListUserInfos(ApiBaseResponse):
+    
+    result: Optional[list[ReadUser]] = Field(description="Informations d'un utilisateur")

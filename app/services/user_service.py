@@ -5,6 +5,7 @@ import logging
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
+from app.schemas.global_schemas import StringMessage
 from app.utils.security_utils import verify_password
 from app.cache.helpers.base import CacheWrapper
 from app.cache.user_cache import UserCache
@@ -66,15 +67,15 @@ class UserService:
     )
         
     return ServiceResult.service_success(
-      data=user.data, 
+      data=ReadUser.model_validate(user.data), 
       status_code=user.status_code,
       service_name=msg.USER_SERVICE
     )
 
 
 
-  async def service_create_user(self, user_data: CreateUser) -> ServiceResult[ReadUser]:
-    """logique métier pour inserer un utilisateur dans la bd (genre à la création de compte que)
+  async def service_create_user(self, user_data: CreateUser) -> ServiceResult[StringMessage]:
+    """logique métier pour inserer un utilisateur dans la bd (genre à la création de compte quoi)
 
     Args:
         user_data (CreateUser): On prend les données validé et envoyer par le front
@@ -100,9 +101,15 @@ class UserService:
         user=read_user,
         ttl=CacheDurartion.USER_DURATION.value
       )
+      
+      await self.user_cache.set_user_in_cache(
+        user_id=db_user.data.id,
+        user=read_user,
+        ttl=CacheDurartion.USER_DURATION
+      )
 
       return ServiceResult.service_success(
-        data=read_user,
+        data=StringMessage(message=msg.ACCOUNT_CREATED_SUCCESSFULLY),
         status_code=db_user.status_code,
         service_name=msg.USER_SERVICE
       )
@@ -112,6 +119,27 @@ class UserService:
       return ServiceResult.service_error(
         message=f"Erreur de {e.__class__.__name__}: {e}",
       )
+      
+  
+  async def service_get_all_users(self) -> ServiceResult[list[ReadUser]]:
+    """Logique métier pour gérer la récupération de tous les utilisateurs"""
+
+    users_repo = await self.user_repo.get_all_users()
+
+    if users_repo.is_error():
+      return ServiceResult.service_error(
+        message=users_repo.error,
+        status_code=users_repo.status_code,
+        service_name=msg.USER_SERVICE
+      )
+      
+    ##TODO: implémeter le cache et filtrer la liste via le soft delete. Je veux tester les dependance de role d'abord
+
+    return ServiceResult.service_success(
+      data=[ReadUser.model_validate(user) for user in users_repo.data],
+      status_code=users_repo.status_code,
+      service_name=msg.USER_SERVICE
+    )
       
     
     

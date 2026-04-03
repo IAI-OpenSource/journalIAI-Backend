@@ -5,8 +5,10 @@ from dataclasses import dataclass
 import logging
 from uuid import UUID
 
+from pydantic import EmailStr
+
 from app.utils.security_utils import hasher_password
-from sqlalchemy import insert, select
+from sqlalchemy import func, insert, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
@@ -45,8 +47,6 @@ class UserRepository:
         select(RegistrationJeton)
         .where(
           RegistrationJeton.jeton == user_data.jeton.jeton,
-          RegistrationJeton.last_name == user_data.last_name.upper(),
-          RegistrationJeton.first_name == user_data.first_name.capitalize()
         )
       )
       
@@ -66,6 +66,8 @@ class UserRepository:
       data_to_insert["classe_id"] = user_registration.classe_id
       data_to_insert["access_jeton_id"] = user_registration.id
       data_to_insert["sexe"] = user_registration.sexe
+      data_to_insert["last_name"] = user_registration.last_name.upper()
+      data_to_insert["first_name"] = user_registration.first_name.capitalize()
       
       stmt2 = (
         insert(User)
@@ -73,8 +75,8 @@ class UserRepository:
         .returning(User)
       )
       
-      result = await self.db.execute(stmt2)
-      user = result.scalar_one()
+      result_2 = await self.db.execute(stmt2)
+      user = result_2.scalars().one()
       await self.db.commit()
       await self.db.refresh(user, attribute_names=["classe"])
 
@@ -122,7 +124,7 @@ class UserRepository:
       return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
 
 
-  async def get_user_by_email(self, login_data: LoginData) -> CRUDResult[User]:
+  async def get_user_by_email(self, email: EmailStr) -> CRUDResult[User]:
     """function dao pour trouver un utilisateur a partir de son email
 
     Args:
@@ -137,7 +139,7 @@ class UserRepository:
       stmt = (
         select(User)
         .options(joinedload(User.classe))
-        .where(User.email == login_data.email)
+        .where(User.email == email)
       )
       result = await self.db.execute(stmt)
       user = result.scalar_one_or_none()
@@ -154,3 +156,21 @@ class UserRepository:
 
     except Exception as e:
       return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
+    
+    
+  async def get_all_users(self) -> CRUDResult[list[User]]:
+    """fonction repository pour récupérer tout les utisateur/étudiants
+
+    Returns:
+        CRUDResult[list[User]]: retourne une liste de tous les étudiants
+    """
+    
+    stmt= (
+      select(User)
+      .options(joinedload(User.classe))
+    )
+    
+    result = await self.db.execute(stmt)
+    users = list(result.scalars().all())
+    
+    return CRUDResult.crud_success(data=users)

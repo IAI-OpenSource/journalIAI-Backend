@@ -20,6 +20,9 @@ class CacheKeysFactory:
         AvailableCacheKeys.EVENT_LIST:      CacheKey.new_key(AvailableCacheKeys.EVENT_LIST, 1),      # cursor + limit
         AvailableCacheKeys.EVENT_BY_STATUS: CacheKey.new_key(AvailableCacheKeys.EVENT_BY_STATUS, 1), # status
         AvailableCacheKeys.CLUB_MEMBERS: CacheKey.new_key(AvailableCacheKeys.CLUB_MEMBERS, 1),
+        AvailableCacheKeys.CLUB_MEMBER_LIST:   CacheKey.new_key(AvailableCacheKeys.CLUB_MEMBER_LIST, 1),
+        AvailableCacheKeys.CLUB_MEMBER_OBJECT: CacheKey.new_key(AvailableCacheKeys.CLUB_MEMBER_OBJECT, 1),
+        AvailableCacheKeys.CLUB_MEMBER_PAGINATED: CacheKey.new_key(AvailableCacheKeys.CLUB_MEMBER_PAGINATED, 1),
         AvailableCacheKeys.EVENT_OBJECT: CacheKey.new_key(AvailableCacheKeys.EVENT_OBJECT, 1),
         AvailableCacheKeys.SESSION_OBJECT: CacheKey.new_key(AvailableCacheKeys.SESSION_OBJECT, 1),
         AvailableCacheKeys.NOTIFICATION_OBJECT: CacheKey.new_key(AvailableCacheKeys.NOTIFICATION_OBJECT, 1),
@@ -31,6 +34,8 @@ class CacheKeysFactory:
         AvailableCacheKeys.FILE_UPLOAD_PROGRESS_STREAM_KEY: CacheKey.new_key(AvailableCacheKeys.FILE_UPLOAD_PROGRESS_STREAM_KEY, 2),
         AvailableCacheKeys.USER_DAILY_POST_SEEN: CacheKey.new_key(AvailableCacheKeys.USER_DAILY_POST_SEEN, 1),
         AvailableCacheKeys.USERS_HAS_SEEN_POST_ON_A_DAY: CacheKey.new_key(AvailableCacheKeys.USERS_HAS_SEEN_POST_ON_A_DAY, 0),
+        AvailableCacheKeys.ACADEMIC_YEAR_OBJECT: CacheKey.new_key(AvailableCacheKeys.ACADEMIC_YEAR_OBJECT, 1),
+        AvailableCacheKeys.CLASSE_OBJECT: CacheKey.new_key(AvailableCacheKeys.CLASSE_OBJECT, 1)
     }
 
     @classmethod

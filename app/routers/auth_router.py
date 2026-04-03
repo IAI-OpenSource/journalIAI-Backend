@@ -2,11 +2,13 @@
 
 from typing import Annotated
 from app.cache.helpers.base import CacheWrapper, get_redis
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 from app.globals.api_tags import ApiTags
-from app.schemas.user_schemas import CreateUser, UserInfos
+from app.schemas.global_schemas import GlobalStringMessage, VerifyOTPData
+from app.schemas.user_schemas import CreateUser, LoginData, UserInfos
+from app.services.auth_service import AuthService
 from app.services.user_service import UserService
 
 
@@ -24,11 +26,19 @@ def get_user_service(
 ) -> UserService:
   return UserService(db, cache)
 
+def get_auth_service(
+  response: Response,
+  request: Request,
+  db: Annotated[AsyncSession, Depends(get_db)],
+  cache: CacheWrapper = Depends(get_redis_cache),
+) -> AuthService:
+  return AuthService(db, cache, response, request)
 
+
+## ------------ Route pour créer un compte ------------ ##
 @router.post(
   "/register",
-  response_model=UserInfos,
-  tags=[ApiTags.ALL_USERS]
+  response_model=GlobalStringMessage,
 )
 async def register(
   user_data:CreateUser,
@@ -37,17 +47,88 @@ async def register(
 ):
   """Route pour Inscription utilisateur: Création de compte"""
 
-  db_user = await user_service.service_create_user(user_data=user_data)
+  service_result = await user_service.service_create_user(user_data=user_data)
 
-  if db_user.is_error():
-    return UserInfos.error_response(
-      error_message=db_user.error,
-      status_code=db_user.status_code,
+  if service_result.is_error():
+    return GlobalStringMessage.error_response(
+      error_message=service_result.error,
+      status_code=service_result.status_code,
       response=response
     )
 
-  return UserInfos.success_response(
-    data=db_user.data,
+  return GlobalStringMessage.success_response(
+    data=service_result.data,
+    status_code=service_result.status_code,
     response=response,
-    status_code=db_user.status_code
   )
+  
+
+## ------------- Route pour request le code OTP : Etape 1 de la connexion ------------ ##
+@router.post(
+  "/request-otp",
+  response_model=GlobalStringMessage
+)
+async def login_request_otp(
+  login_data: LoginData,
+  response: Response,
+  auth_service: Annotated[AuthService, Depends(get_auth_service)]
+):
+  """Route d'authentification pour demander le OTP"""
+
+  auth_service_result = await auth_service.service_find_user_by_email(login_data=login_data)
+
+  return auth_service_result.to_HTTP_api_base_response(reponse=response)
+
+
+
+## -------------- Route pour vérifier le OTP : Etape 2 de la connexion ------------- ## 
+@router.post(
+  "/verify-otp",
+  response_model=GlobalStringMessage
+)
+async def login_verify_otp(
+  otp_verify_data: VerifyOTPData,
+  response: Response,
+  auth_service: Annotated[AuthService, Depends(get_auth_service)]
+):
+  """Route d'authentification pour verifier le OTP"""
+
+  auth_service_result = await auth_service.verify_user_otp_code(otp_verify_data=otp_verify_data)
+
+  return auth_service_result.to_HTTP_api_base_response(reponse=response)
+
+
+
+## ------------- Route pour refresh le token et générer un nouveau access -------------- ## 
+@router.post(
+  "/refresh",
+  response_model=GlobalStringMessage
+)
+async def refresh_token(
+  response: Response,
+  auth_service: Annotated[AuthService, Depends(get_auth_service)]
+):
+  """Route d'authentification pour verifier le OTP"""
+
+  auth_service_result = await auth_service.service_manage_refresh()
+
+  return auth_service_result.to_HTTP_api_base_response(reponse=response)
+
+
+
+## ------------- Route pour logout / se déconnecter -------------- ##
+@router.post(
+  "/logout",
+  response_model=GlobalStringMessage
+)
+async def logout(
+  response: Response,
+  auth_service: Annotated[AuthService, Depends(get_auth_service)]
+):
+  """Route d'authentification pour logout / se déconnecter"""
+
+  auth_service_result = auth_service.service_logout_account()
+
+  return auth_service_result.to_HTTP_api_base_response(reponse=response)
+
+

@@ -117,7 +117,7 @@ class EventService:
 
    
 
-    async def service_find_all_event(self) -> ServiceResult[PaginatedEventListReponse]:
+    async def service_find_all_event(self) -> ServiceResult[SimpleEventListResponse]:
         """Récupère tous les events."""
 
         events = await self.event_repo.get_event()
@@ -131,7 +131,7 @@ class EventService:
             )
         
         validated = [EventRead.model_validate(e) for e in events.data]
-        response = PaginatedEventListReponse(events=validated, next_cursor=None)
+        response = SimpleEventListResponse(events=validated)
 
         return ServiceResult.service_success(data=response, status_code=200, service_name=msg.EVENT_SERVICE)
 
