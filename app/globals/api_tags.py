@@ -9,6 +9,7 @@ class ApiTags:
     ADMINISTRATEUR: str = "Routes Administrateur"
     ETUDIANT: str = "Routes étudiants"
     POSTS: str = "Routes Posts"
+    POSTS_CREATION: str = "Routes Créations de Posts"
     UPLOADS: str = "Routes Uploads"
     JETON_ENREGISTREMENT: str = "Routes pour les jetons"
     ADMIN_MODERATEUR: str = "Routes ADMIN ou MODERATEUR"

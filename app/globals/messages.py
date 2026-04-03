@@ -48,15 +48,18 @@ class Messages:
     EVENT_UPDATE_SUCCES = "Event mis a jour avec succès"
     EVENT_CREATE_SUCCES = "Event créé avec succès"
     EVENT_ALREADY_EXISTS = 'Evenement deja existant'
+    MEDIA_NOT_FOUND = "Media non trouvé."
+    POST_NOT_FOUND = "Post non trouvé."
 
+
+    ERROR_UPLOAD_URL_GENERATION = "Erreur Inconnue lors de la génération des URL d'upload"
     CLUB_MEMBER_SERVICE = "Service Club Member"
     ALREADY_EXISTS = "Le memebre existe deja"
     MEMBER_DELETE_SUCCESS = "Membre supprimer avec sucsess"
-
-    ERROR_UPLOAD_URL_GENERATION = "Erreur lors de la génération de l'URL d'upload"
     VIDEO_UPLOAD_INTENT_SAVED = "Intent d'upload video enregistré avec succès"
     ERROR_MEDIA_UPLOAD_INTENT_NOT_FOUND = "Intent d'upload média expirée ou inexistant"
-    
+    ERROR_FILE_NOT_UPLOADED = "Le fichier {file_name} n'a pas été complètement uploadé ou est innacessible"
+    ERROR_FILE_TOO_LARGE = "Le fichier dépasse la taille maximale autorisée de 100Mo."
     # Messages des noms des services 
     INSERT_SESSSION = "Service: Insertion Session"
     DELETE_SESSION = "Service: Suppression Session"
@@ -67,6 +70,7 @@ class Messages:
     UNAUTHORIZED_JETON = "Ce Jeton est invalide"
     USER_SERVICE = "Service Utilisateur"
     CLUB_SERVICE = "Service Club"
+    POST_SERVICE = "Service Post"
     ACADEMIC_YEAR_SERVICE = "Service Année Académique"
     CLASSE_SERVICE = "Service Classe"
     

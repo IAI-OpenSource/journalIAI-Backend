@@ -10,7 +10,7 @@ from app.storage.minio_client import MinioClientFactory
 from app.storage.minio_config import BucketName
 
 logger = getLogger(__name__)
-
+# TODO: Ajouter asyncio.to_thread à ces fonctions pour les rendre asynchrones
 class PostUploadStorage:
 
     @staticmethod
