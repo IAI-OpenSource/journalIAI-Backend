@@ -2,6 +2,7 @@
 ## vous y trouverez les appels aux repositories (DB + Storage)
 
 import logging
+import time
 from typing import List, Optional
 from uuid import UUID
 from datetime import datetime
@@ -22,7 +23,7 @@ from ..cache.helpers.base import CacheWrapper
 from ..core.stream_token import create_stream_token
 from ..db.models.enums import MediaType
 from ..db.models.post import Post
-from ..storage.post_read_storage import PostReadStorage
+from ..storage.post_read_storage import MediaReadStorage
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +70,7 @@ class PostService:
 
     @staticmethod
     def _format_post_infos(post : Post, user_id: str) -> ReadPost:
-        """Formate les données d'un post brut de la DB en un schéma de réponse API enrichi."""
+        """Formate les données d'un post model brut de la DB en le schéma réponse ReadPost"""
         club_info: Optional[PostClubSchema] = None
         event_info: Optional[PostEventSchema] = None
         user_info: Optional[PostAuthorSchema] = None
@@ -79,20 +80,21 @@ class PostService:
             club_info = PostClubSchema(
                 **post.club.__dict__
             )
-            club_info.logo_url = PostReadStorage.generate_read_public_asset(post.club.logo_url)
+            club_info.logo_url = MediaReadStorage.generate_read_public_asset(post.club.logo_url)
         if post.event:
             event_info = PostEventSchema.model_validate(post.event, from_attributes=True)
         if post.author:
             user_info = PostAuthorSchema(
                 **post.author.__dict__
             )
-            user_info.avatar_url=PostReadStorage.generate_read_public_asset(post.author.avatar_url)
+            user_info.avatar_url=MediaReadStorage.generate_read_public_asset(post.author.avatar_url)
         if post.medias:
             for media in post.medias:
+                bucket, key = media.media_url.split("/", 1)
                 medias_list.append(
                     PostMediaSchema(
                         id=media.id,
-                        thumbnail_url=PostReadStorage.generate_read_public_asset(media.thumbnail_url),
+                        thumbnail_url=MediaReadStorage.generate_read_public_asset(media.thumbnail_url),
                         width=media.width,
                         media_type=media.media_type,
                         blur_hash=media.blur_hash,
@@ -100,12 +102,12 @@ class PostService:
                         created_at=media.created_at,
                         display_order=media.display_order,
                         hls_master_url=None if media.media_type == MediaType.IMAGE else
-                        PostReadStorage.generate_read_hls_url(media.media_url, create_stream_token(media.media_url, user_id)),
+                        MediaReadStorage.generate_read_hls_url(key, create_stream_token(key, user_id, bucket)),
                         height=media.height,
                         image_medium_url= None if media.media_type == MediaType.VIDEO else
-                        PostReadStorage.generate_medium_post_image_url(media.media_url, create_stream_token(media.media_url, user_id)),
+                        MediaReadStorage.generate_medium_post_image_url(key, create_stream_token(key, user_id, bucket)),
                         image_high_url= None if media.media_type == MediaType.VIDEO else
-                        PostReadStorage.generate_high_quality_post_image_url(media.media_url, create_stream_token(media.media_url, user_id))
+                        MediaReadStorage.generate_high_quality_post_image_url(key, create_stream_token(key, user_id, bucket))
                     )
                 )
 
@@ -174,6 +176,7 @@ class PostService:
         seen_post_ids: List[UUID] = await self.feed_cache.get_daily_seen_post_ids(user_id=user_id)
         userid_str = str(user_id)
         # TODO: Changer ce mock
+        s = time.perf_counter()
         result = await self.post_repo.get_feed(
             academic_year_id=UUID("5f594ab3-2560-4e5b-adbe-f20e5dd8e193"),
             seen_post_ids=seen_post_ids,
@@ -181,7 +184,8 @@ class PostService:
             page_size=page_size,
             user_id=user_id,
             classe_id=user_classe_id
-        )    
+        )
+        logger.warning("Temps de réponse BD : %s secondes", time.perf_counter() - s)
         
         if result.is_error():
             logger.error("Erreur récupération feed : %s", result.error)
@@ -191,12 +195,14 @@ class PostService:
                 service_name=Messages.POST_SERVICE,
             )
         items = result.data["items"]
-
+        s = time.perf_counter()
         feed = ReadPostList(
             items=[self._format_post_infos(p, userid_str) for p in items],
             next_cursor=result.data["next_cursor"],
             has_more=result.data["has_more"],
         )
+        logger.warning("Temps de génération de liens dynamiqye : %s secondes", time.perf_counter() - s)
+
 
         return ServiceResult.service_success(
             data=feed,

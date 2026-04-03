@@ -102,7 +102,7 @@ services:
 
   # Reverse Proxy Nginx
   nginx:
-    image: openresty/openresty:alpine
+    build: ./nginx
     container_name: journal_IAI_nginx
     restart: always
     ports:
@@ -120,6 +120,8 @@ services:
       start_period: 3s
     environment:
       STREAM_JWT_SECRET: ${STREAM_JWT_SECRET}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
     depends_on:
       api:
         condition: service_healthy
