@@ -14,6 +14,9 @@ class BaseCacheEntity:
     FEED = "feed:user:{id}"
     LIKE = "entity:like:{id}"
     OTP = "entity:otp:{email}"
+    CLUB_MEMBER = "entity:club_member:{id}"
+    ACADEMIC_YEAR = "entity:academic_year:{id}"
+    CLASSE = "entity:classe:{id}"
 
 class AvailableCacheKeys(str, Enum):
     """Definis toutes les clés de cache utilisées dans l'application, organisées par entité et par type de données"""
@@ -31,8 +34,12 @@ class AvailableCacheKeys(str, Enum):
 
     # Clés de cache pour les clubs
     CLUB_OBJECT = BaseCacheEntity.CLUB  # Clé pour un club spécifique
-    CLUB_MEMBERS = BaseCacheEntity.CLUB + ":members"  # Clé pour les membres d'un club
+    CLUB_MEMBERS = BaseCacheEntity.CLUB + ":members"  # Liste des membres d'un club (par club_id)
+    CLUB_MEMBER_LIST = BaseCacheEntity.CLUB_MEMBER + ":list"  # Liste paginée des membres
+    CLUB_MEMBER_OBJECT = BaseCacheEntity.CLUB_MEMBER 
+    CLUB_MEMBER_PAGINATED = BaseCacheEntity.CLUB_MEMBER + ":paginated"
 
+    
     # Clés de cache pour les événements
     EVENT_OBJECT = BaseCacheEntity.EVENT  # Clé pour un événement spécifique
     EVENT_LIST = BaseCacheEntity.EVENT + ":list"               # pagination
@@ -57,5 +64,15 @@ class AvailableCacheKeys(str, Enum):
 
     FILE_UPLOAD_PROGRESS_STREAM_KEY = "upload_progress_stream:{user_id}:{intent_id}" # Clé pour le stream sur l'anvancement du traitemenr d'un upload
 
+    USER_DAILY_POST_SEEN = BaseCacheEntity.USER + ":daily_seen_posts"  # Clé pour les posts vus par un utilisateur (pour le suivi de la lecture du feed)
+
+    USERS_HAS_SEEN_POST_ON_A_DAY = "daily_post_views_set"
+
+
+
     ## Clés pour le OTP
     USER_OTP = BaseCacheEntity.OTP 
+
+    ACADEMIC_YEAR_OBJECT = BaseCacheEntity.ACADEMIC_YEAR
+
+    CLASSE_OBJECT = BaseCacheEntity.CLASSE

@@ -60,3 +60,6 @@ MAIL_FROM: str = os.getenv("MAIL_FROM") or  ""
 MAIL_FROM_NAME: str = os.getenv("MAIL_FROM_NAME") or ""
 MAIL_PORT: int = int(os.getenv("MAIL_PORT", "465"))
 MAIL_SERVER: str = os.getenv("MAIL_SERVER") or ""
+
+# Secret pour la stream HLS
+STREAM_JWT_SECRET: str = os.getenv("STREAM_JWT_SECRET")

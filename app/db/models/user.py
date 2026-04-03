@@ -145,3 +145,5 @@ class User(Base, IntegrityMapperMixin):
         format_unique_constraint_name(role): f"Il existe déjà un {role.value.replace('_', ' ').lower()} actif."
         for role in ExecutiveRoleType
     })
+
+    # TODO: Ajouter contrainte pour unseul delegue par classe

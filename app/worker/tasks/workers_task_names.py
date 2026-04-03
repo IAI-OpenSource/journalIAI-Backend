@@ -1,7 +1,5 @@
-from dataclasses import dataclass
 
 
-@dataclass
 class WorkersTaskNames:
     """
     Classe pour centraliser les noms des tâches Celery utilisées dans l'application pour éviter les erreurs de frappe
@@ -10,9 +8,9 @@ class WorkersTaskNames:
 
     SAVE_AUDIT_LOG: str = "audit_log.create"
 
-    PROCESS_VIDEO: str = "uploads.process_video"
-
-    PROCESS_IMAGE: str = "uploads.process_image"
+    PROCESS_MEDIAS_UPLOAD: str = "uploads.process_medias_upload"
 
     IMPORT_DATA_FROM_EXCEL: str = "regstration.import_from_excel"
+
+    SYNCHRONIZE_POST_VIEW: str = "synchronize_post_view"
 

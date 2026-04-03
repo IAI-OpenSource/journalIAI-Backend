@@ -63,7 +63,7 @@ class PostMedia(Base, IntegrityMapperMixin):
     __table_args__ = (
         Index(IDX_POST_MEDIA_POST_ID, "post_id", "display_order", postgresql_where=(deleted_at == None)),
         Index(IDX_POST_MEDIA_IS_PROCESSED, "is_processed", postgresql_where=(deleted_at == None) & (is_processed == False)),
-        Index(IDX_POST_MEDIA_DELETED_AT, "deleted_at", postgresql_where=(deleted_at != None)),
+        Index(IDX_POST_MEDIA_DELETED_AT, "deleted_at"),
         CheckConstraint("file_size IS NULL OR file_size > 0", name=CHK_POST_MEDIA_FILE_SIZE),
         CheckConstraint("(width IS NULL AND height IS NULL) OR (width > 0 AND height > 0)", name=CHK_POST_MEDIA_DIMENSIONS),
         CheckConstraint("(media_type = 'VIDEO' AND (duration IS NULL OR duration > 0)) OR (media_type = 'IMAGE' AND duration IS NULL)", name=CHK_POST_MEDIA_DURATION),
@@ -71,7 +71,7 @@ class PostMedia(Base, IntegrityMapperMixin):
     )
 
     # Relationships
-    post: Mapped["Post"] = relationship("Post", foreign_keys=[post_id], back_populates="media", uselist=False, init=False)
+    post: Mapped["Post"] = relationship("Post", lazy="noload", foreign_keys=[post_id], back_populates="medias", uselist=False, init=False)
 
     # Messages d'erreur
     ERROR_MESSAGES = {
