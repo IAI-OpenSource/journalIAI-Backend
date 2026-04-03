@@ -27,6 +27,7 @@ class Messages:
     INVALID_SESSION = "Session invalide"
     DELETE_FAILED = "Erreur lors de la suppression"
     LOGIN_NOT_FOUND = "Utilisateur ou Mot de passe incorrect"
+    USER_UPDATED = "Utilisateur mis à jour avec succès"
 
     EVENT_SERVICE = "Service Events"
     EVENT_NOT_FOUND = "Event non trouvé."
@@ -42,6 +43,9 @@ class Messages:
     ERROR_UPLOAD_URL_GENERATION = "Erreur lors de la génération de l'URL d'upload"
     VIDEO_UPLOAD_INTENT_SAVED = "Intent d'upload video enregistré avec succès"
     ERROR_MEDIA_UPLOAD_INTENT_NOT_FOUND = "Intent d'upload média expirée ou inexistant"
+
+    DELETED_USER = "Utilisateur déjà supprimé" 
+    USER_FOUNDED = "Utilisateur récupérer avec succès !"
     
     # Messages des noms des services 
     INSERT_SESSSION = "Service: Insertion Session"

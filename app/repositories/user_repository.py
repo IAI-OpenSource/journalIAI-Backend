@@ -15,7 +15,7 @@ from sqlalchemy.orm import joinedload
 
 from app.db.models.registration_jeton import RegistrationJeton
 from app.db.models.user import User
-from app.schemas.user_schemas import CreateUser, LoginData
+from app.schemas.user_schemas import CreateUser, LoginData, UpdateUserData
 from . import CRUDResult
 from app.globals.messages import Messages as msg
 from app.globals.status_codes import StatusCode as status
@@ -63,6 +63,7 @@ class UserRepository:
       # etape 2: on récupère certaines données du jeton pour complèter avant d'inserer
       data_to_insert = user_data.model_dump(exclude={"password", "jeton"})
       data_to_insert["role"] = user_registration.role
+      data_to_insert["executive_role"] = user_registration.executive_role
       data_to_insert["classe_id"] = user_registration.classe_id
       data_to_insert["access_jeton_id"] = user_registration.id
       data_to_insert["sexe"] = user_registration.sexe
@@ -77,6 +78,9 @@ class UserRepository:
       
       result_2 = await self.db.execute(stmt2)
       user = result_2.scalars().one()
+      
+      ## marquer user_registration comme desormais déjà utilisé
+      user_registration.soft_delete()
       await self.db.commit()
       await self.db.refresh(user, attribute_names=["classe"])
 
@@ -113,8 +117,53 @@ class UserRepository:
       if user is None:
         logger.info("Utilisateur non Trouvé")
         return CRUDResult.crud_error(msg.USER_NOT_FOUND, status_code=status._404_STATUS_NOT_FOUND.value)
+
+      if user.deleted_at:
+        logger.info(msg.DELETED_USER)
+        return CRUDResult.crud_error(msg.USER_NOT_FOUND, status_code=status._403_STATUS_FORBIDEN.value)
       
-      logger.info("Utilisateur récupérer avec succès !")
+      
+      logger.info(msg.USER_FOUNDED)
+      return CRUDResult.crud_success(data=user)
+      
+    except IntegrityError as ie:
+      return await RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, User)
+
+    except Exception as e:
+      return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
+    
+    
+    
+  async def get_user_by_jeton_id(self, jeton_id: UUID) -> CRUDResult[User]:
+    """function dao pour trouver un utilisateur a partir du id de son jeton
+
+    Args:
+        jeton_id (UUID): ID du jeton de l'utilisateur
+
+    Returns:
+        CRUDResult[Session]: _description_
+    """
+    
+    try:
+      
+      stmt = (
+        select(User)
+        .options(joinedload(User.classe))
+        .where(User.access_jeton_id == jeton_id)
+      )
+      result = await self.db.execute(stmt)
+      user = result.scalar_one_or_none()
+      
+      if user is None:
+        logger.info("Utilisateur non Trouvé")
+        return CRUDResult.crud_error(msg.USER_NOT_FOUND, status_code=status._404_STATUS_NOT_FOUND.value)
+
+      if user.deleted_at:
+        logger.info(msg.DELETED_USER)
+        return CRUDResult.crud_error(msg.USER_NOT_FOUND, status_code=status._403_STATUS_FORBIDEN.value)
+      
+      
+      logger.info(msg.USER_FOUNDED)
       return CRUDResult.crud_success(user)
       
     except IntegrityError as ie:
@@ -174,3 +223,51 @@ class UserRepository:
     users = list(result.scalars().all())
     
     return CRUDResult.crud_success(data=users)
+  
+  
+  async def update_user(self, user_id: UUID, user_update_data: UpdateUserData) -> CRUDResult[User]:
+    """fonction repository pour mettre à jour quelques infos d'un user
+
+    Args:
+        user_id (UUID): le ID du user pour le chercher dans la bd
+        user_update_data (UpdateUserData): les nouvelles informations
+
+    Returns:
+        CRUDResult[User]: retourne le nouveau user mis a jour
+    """
+
+    try:
+      
+      old_user = await self.get_user_by_id(user_id=user_id)
+
+      if old_user.is_error():
+        return CRUDResult.crud_error(
+          message=old_user.error,
+          status_code=old_user.status_code
+        )
+        
+      if user_update_data.username:
+        old_user.data.username = user_update_data.username 
+      
+      if user_update_data.bio:
+        old_user.data.bio = user_update_data.bio 
+      
+      if user_update_data.avatar_url:
+        old_user.data.avatar_url = user_update_data.avatar_url 
+      
+      if user_update_data.sexe:
+        old_user.data.sexe = user_update_data.sexe 
+        
+      await self.db.commit()
+
+      logger.info("Utilisateur mis à jour avec succès")
+      return CRUDResult.crud_success(
+        data=old_user.data,
+        status_code=status._200_STATUS_SUCCESS.value
+      )
+
+    except IntegrityError as ie:
+      return await RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, User)
+
+    except Exception as e:
+      return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)

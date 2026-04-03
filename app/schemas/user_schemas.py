@@ -43,6 +43,23 @@ class LoginData(BaseModel):
     
     
     
+class UpdateUserData(BaseModel):
+    """schéma de validation des données pour permettre à un utilisateur de mettre à jour 
+        ses propres informations. NB: Seul les champs modifiable sont présents
+
+    Args:
+        BaseModel (_type_): Hérite de BaseModel
+
+    Returns: 
+        _type_: Retourne rien, sert juste a la validation
+    """    
+    
+    username: Optional[str] = None
+    bio: Optional[str] = None
+    avatar_url: Optional[str] = None
+    sexe: Optional[SexeType] = None
+    
+    
   
 class ReadUser(BaseModel):
     """Schémas de validation des infos 'un utilisateur

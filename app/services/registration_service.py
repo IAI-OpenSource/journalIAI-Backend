@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.models.enums import UserRole
 from app.repositories.registration_repository import RegistrationRepository
 from app.schemas.global_schemas import StringMessage
-from app.schemas.registration_schemas import CreateRegistration, FindRegistration, ReadRegistration
+from app.schemas.registration_schemas import CreateRegistration, FindRegistration, JetonUpdateData, ReadRegistration
 from app.globals.messages import Messages as msg
 from app.utils.jetons_utils import JetonUtils
 
@@ -109,7 +109,21 @@ class RegistrationService:
       message=f'Les erreurs: {res_import["errors"]}',
     )
       
-    
+  
+  async def service_update_registration(self, reg_id: UUID, reg_update_data: JetonUpdateData) -> ServiceResult[StringMessage]:
+    """Logique métier pour mettre à jour le role d'un jeton"""
+
+    repo_result = await self.resgistration_repo.update_registration_jeton(reg_id=reg_id, reg_update_data=reg_update_data)
+
+    if repo_result.is_error():
+      return ServiceResult.service_error(
+        message=repo_result.error,
+        status_code=repo_result.status_code
+      )
         
-        
+    return ServiceResult.service_success(
+      data=StringMessage(message="Jeton mis à jour avec succès"),
+      status_code=repo_result.status_code,
+      service_name=msg.REGISTRATION_JETON
+    )
     

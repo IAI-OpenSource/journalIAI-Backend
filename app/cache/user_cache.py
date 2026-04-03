@@ -170,5 +170,24 @@ class UserCache:
       return None
      
     
+  async def delete_user_from_cache(self, user_id: UUID):
+      """fonction permettant de supprimer les infos d'un utilisateur du cache. 
+        
+      Args:
+          user_id (UUID): On prend le ID de l'utilisateu pour constituer la clé du cache
 
+      Returns:
+          None 
+      """
 
+      try:
+        
+        cache_key = self.create_user_cache_key(user_id)
+        
+        await self.user_cache.delete_in_cache(key=cache_key)
+      
+      except redis.ConnectionError as e:
+        logger.exception(f"Erreur de connexion à redis {e.__class__.__name__}: {e}")   
+      
+    
+  
