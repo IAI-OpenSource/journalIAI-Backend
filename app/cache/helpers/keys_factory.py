@@ -20,6 +20,9 @@ class CacheKeysFactory:
         AvailableCacheKeys.EVENT_LIST:      CacheKey.new_key(AvailableCacheKeys.EVENT_LIST, 1),      # cursor + limit
         AvailableCacheKeys.EVENT_BY_STATUS: CacheKey.new_key(AvailableCacheKeys.EVENT_BY_STATUS, 1), # status
         AvailableCacheKeys.CLUB_MEMBERS: CacheKey.new_key(AvailableCacheKeys.CLUB_MEMBERS, 1),
+        AvailableCacheKeys.CLUB_MEMBER_LIST:   CacheKey.new_key(AvailableCacheKeys.CLUB_MEMBER_LIST, 1),
+        AvailableCacheKeys.CLUB_MEMBER_OBJECT: CacheKey.new_key(AvailableCacheKeys.CLUB_MEMBER_OBJECT, 1),
+        AvailableCacheKeys.CLUB_MEMBER_PAGINATED: CacheKey.new_key(AvailableCacheKeys.CLUB_MEMBER_PAGINATED, 1),
         AvailableCacheKeys.EVENT_OBJECT: CacheKey.new_key(AvailableCacheKeys.EVENT_OBJECT, 1),
         AvailableCacheKeys.SESSION_OBJECT: CacheKey.new_key(AvailableCacheKeys.SESSION_OBJECT, 1),
         AvailableCacheKeys.NOTIFICATION_OBJECT: CacheKey.new_key(AvailableCacheKeys.NOTIFICATION_OBJECT, 1),
