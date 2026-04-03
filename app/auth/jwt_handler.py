@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, UTC
 from jose import jwt, JWTError
 
 from app.core.config import (
-    JWT_EXPIRES_MINUTES, ALGORITHM
+    JWT_EXPIRES_SECONDES, ALGORITHM
 )
 
 
@@ -18,7 +18,7 @@ class JWTManager:
   def create_access_token(
     data_to_encode: dict, 
     cle: str,
-    expire_delta: timedelta | None = None) -> str | dict[str, JWTError] :
+    expire_delta: timedelta | None = None) -> str :
     
       """function pour generer un access token
         Args:
@@ -35,7 +35,7 @@ class JWTManager:
       to_encode = (data_to_encode.copy()) ## on fait une copy des données a encoder
 
       expiration_time = datetime.now(UTC) + (
-        expire_delta or timedelta(minutes=JWT_EXPIRES_MINUTES)
+        expire_delta or timedelta(minutes=JWT_EXPIRES_SECONDES)
       )  ## on defini le durée du token avant expiration
 
       to_encode.update(
@@ -52,7 +52,7 @@ class JWTManager:
 
       except JWTError as err:
         logger.exception(f"Error {err.__class__.__name__} : {err}")
-        return {"message": err}
+        raise JWTError({"message": err})
 
   
   @staticmethod

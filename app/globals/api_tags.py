@@ -15,3 +15,7 @@ class ApiTags:
     ALL_USERS: str = "Routes pour tous les utilisateurs"
     EVENT: str = "Routes events"
     CLUB_MEMBER : str = "Routes Club members"
+    ACADEMIC_YEAR: str = "Routes années académiques"
+    CLASSE: str = "Routes classes"
+    USER: str = "Route utilisateurs"
+

@@ -15,8 +15,8 @@ class BaseCacheEntity:
     LIKE = "entity:like:{id}"
     OTP = "entity:otp:{email}"
     CLUB_MEMBER = "entity:club_member:{id}"
-
-
+    ACADEMIC_YEAR = "entity:academic_year:{id}"
+    CLASSE = "entity:classe:{id}"
 
 class AvailableCacheKeys(str, Enum):
     """Definis toutes les clés de cache utilisées dans l'application, organisées par entité et par type de données"""
@@ -66,3 +66,7 @@ class AvailableCacheKeys(str, Enum):
 
     ## Clés pour le OTP
     USER_OTP = BaseCacheEntity.OTP 
+
+    ACADEMIC_YEAR_OBJECT = BaseCacheEntity.ACADEMIC_YEAR
+
+    CLASSE_OBJECT = BaseCacheEntity.CLASSE

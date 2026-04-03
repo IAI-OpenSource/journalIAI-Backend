@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.session import Session
 from app.schemas.session_schemas import CreateSession
+from app.utils.security_utils import hasher_password
 from . import CRUDResult
 from app.globals.messages import Messages as msg
 from app.globals.status_codes import StatusCode as status
@@ -40,7 +41,7 @@ class SessionRepository:
       
       stmt = (
         insert(Session)
-        .values(**session_data.model_dump())
+        .values(**session_data.model_dump(exclude={"ref_token"}), refresh_token_hash=hasher_password(session_data.ref_token))
         .returning(Session)
       )
       

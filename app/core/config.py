@@ -34,8 +34,8 @@ REFRESH_TOKEN_SECRET_KEY: str = os.getenv("REFRESH_TOKEN_SECRET_KEY", "refresh-c
 ALGORITHM: str = os.getenv("ALGORITHM", "HS256")
 
 # Minutes par défauts après lequel les tokens JWT s'expirent
-JWT_EXPIRES_MINUTES: int = int(os.getenv("JWT_EXPIRES_MINUTES", 15))
-REFRESH_TOKEN_EXPIRES_MINUTES: int = int(os.getenv("REFRESH_TOKEN_EXPIRES_MINUTES", 7 * 24 * 60))
+JWT_EXPIRES_SECONDES: int = int(os.getenv("JWT_EXPIRES_SECONDES", 300))
+REFRESH_TOKEN_EXPIRES_SECONDES: int = int(os.getenv("REFRESH_TOKEN_EXPIRES_SECONDES", 7 * 24 * 3600))
 
 ## les IDs des cookies
 JWT_COOKIE_ACCESS_ID: str = "_SECURE_TOKEN" ## encoder ID de le session
