@@ -18,7 +18,7 @@ from app.db.models.post import Post
 from app.db.models.post_media import PostMedia
 from app.db.models.post_views import PostViews
 from app.repositories import CRUDResult
-from app.schemas.post_schemas import CreatePost, UpdatePost
+from app.schemas.post_schemas import CreatePost, UpdatePost, CreatePostFullData
 from app.globals.messages import Messages
 from .repositories_utils import RepositoriesUtils
 from ..db.models.club import Club
@@ -115,17 +115,15 @@ class PostRepository:
             )
         )
 
-    async def insert_post(
+    async def insert_text_post(
         self,
         author_id: UUID,
-        academic_year_id: UUID,
-        post_data: CreatePost,
+        post_data: CreatePostFullData,
     ) -> CRUDResult[Post]:
         """Crée un nouveau post en base de données.
 
         Args:
             author_id (UUID): ID de l'auteur, injecté depuis le token JWT.
-            academic_year_id (UUID): Année académique active, injectée côté serveur.
             post_data (CreatePost): Données validées du post.
 
         Returns:
@@ -136,7 +134,11 @@ class PostRepository:
                 insert(Post)
                 .values(
                     author_id=author_id,
-                    academic_year_id=academic_year_id,
+                    event_id=post_data.event_id,
+                    club_id=post_data.club_id,
+                    content=post_data.content,
+                    target_classe_id=post_data.classe_id,
+                    academic_year_id=post_data.academic_year_id,
                 )
                 .returning(Post)
             )

@@ -7,6 +7,7 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.schemas.global_schemas import StringMessage
 from app.utils.security_utils import verify_password
+from fastapi import status
 from app.cache.helpers.base import CacheWrapper
 from app.cache.user_cache import UserCache
 from app.globals.status_codes import StatusCode
@@ -96,16 +97,11 @@ class UserService:
     try:
       
       read_user = ReadUser.model_validate(db_user.data)
+
       await self.user_cache.set_user_in_cache(
         user_id=read_user.id, 
         user=read_user,
         ttl=CacheDurartion.USER_DURATION.value
-      )
-      
-      await self.user_cache.set_user_in_cache(
-        user_id=db_user.data.id,
-        user=read_user,
-        ttl=CacheDurartion.USER_DURATION
       )
 
       return ServiceResult.service_success(
@@ -115,9 +111,10 @@ class UserService:
       )
 
     except Exception as e:
-      logger.info(f"CRASH SERVICE: {str(e)}")
+      logger.info(f"CRASH SERVICE {e.__class__.__name__} : {str(e)}")
       return ServiceResult.service_error(
-        message=f"Erreur de {e.__class__.__name__}: {e}",
+        message=msg.INTERNAL_SERVER_ERROR,
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
       )
       
   

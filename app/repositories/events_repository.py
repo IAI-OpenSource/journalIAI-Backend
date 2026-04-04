@@ -65,7 +65,7 @@ class EventRepository:
 
             if event_by_id is None:
                 logger.info(f"Aucun event trouvé pour l'id {event_id}")
-                return CRUDResult.crud_error(msg.NOT_FOUND, status_code=404)
+                return CRUDResult.crud_error(msg.EVENT_NOT_FOUND, status_code=404)
 
             logger.info("Event récupéré avec succès !")
             return CRUDResult.crud_success(event_by_id)

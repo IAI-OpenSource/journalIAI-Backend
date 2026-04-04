@@ -37,6 +37,10 @@ class CreatePost(BaseModel):
                     "LA REQUETE RENVERRA UNE BELLE `ERREUR 404`"
     )
 
+class CreatePostFullData(CreatePost):
+    academic_year_id: Optional[UUID] = Field(None)
+    classe_id: Optional[UUID] = Field(None)
+
 
 class UpdatePost(BaseModel):
     """Schéma de validation pour la mise à jour partielle d'un post.

@@ -2,13 +2,15 @@ from typing import Optional
 import logging
 
 from fastapi import Request, Response, HTTPException, status
+from starlette.requests import HTTPConnection
+
 from app.core.config import ENVIRONMENT
 
 logger = logging.getLogger(__name__)
 
 class CookieManager:
   
-  def __init__(self, response: Response, request: Request):
+  def __init__(self, response: Response, request: HTTPConnection):
     self.response = response
     self.request =  request
     
