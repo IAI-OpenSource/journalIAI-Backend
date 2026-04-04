@@ -37,6 +37,7 @@ class RoleDepends:
   only_those_can_post_authorize = RoleChecker([
       UserRole.DELEGATE,
       UserRole.CLUB_LEADER,
+      UserRole.EXECUTIVE_MEMBER,
       ExecutiveRoleType.DELEGUE_GENERAL,
       ExecutiveRoleType.SECRETAIRE_GENERAL_ADJOINT,
       ExecutiveRoleType.SECRETAIRE_GENERAL,

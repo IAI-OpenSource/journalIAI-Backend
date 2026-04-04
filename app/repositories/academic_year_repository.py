@@ -58,7 +58,7 @@ class AcademicYearRepository:
 
             if academic_year is None:
                 logger.info("Active academic year not found")
-                return CRUDResult.crud_error(msg.ACADEMIC_YEAR_NOT_FOUND, 404)
+                return CRUDResult.crud_error(msg.ACTIVE_ACADEMIC_YEAR_NOT_FOUND, 404)
             
             logger.info(f"Active academic year with id {academic_year.id} retrieved successfully")
             return CRUDResult.crud_success(academic_year, 200)
