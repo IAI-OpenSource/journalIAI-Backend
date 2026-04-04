@@ -29,7 +29,7 @@ def get_registration_service(db: AsyncSession = Depends(get_db)) -> Registration
 
 @router.post(
   "/add",
-  response_model=GlobalStringMessage,
+  response_model=RegistrationInfos,
 )
 async def create_registration(
   response: Response,

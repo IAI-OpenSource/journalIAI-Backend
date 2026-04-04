@@ -87,7 +87,7 @@ class RegistrationRepository:
         insert(RegistrationJeton)
         .values(
           jeton=jeton,
-          first_name=reg_data.first_name.capitalize(),
+          first_name=reg_data.first_name.title(),
           last_name=reg_data.last_name.upper(),
           role=reg_data.role,
           executive_role=reg_data.executive_role,

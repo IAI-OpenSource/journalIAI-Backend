@@ -32,14 +32,14 @@ class RegistrationService:
     self.resgistration_repo = RegistrationRepository(self.db)
 
   
-  async def service_create_registration(self, registration_data: CreateRegistration) -> ServiceResult[StringMessage]:
+  async def service_create_registration(self, registration_data: CreateRegistration) -> ServiceResult[ReadRegistration]:
       """Logique Métier pour la création d'une régistration de jeton"""
 
       reg_repo = await self.resgistration_repo.insert_registration(reg_data=registration_data)
       
       if reg_repo.is_success():
         return ServiceResult.service_success(
-          data=StringMessage(message=f"Jeton céer pour l'étudiant {reg_repo.data.last_name}"),
+          data=ReadRegistration.model_validate(reg_repo.data),
           status_code=reg_repo.status_code,
           service_name=msg.REGISTRATION_JETON
         )
