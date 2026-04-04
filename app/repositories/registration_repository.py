@@ -278,5 +278,19 @@ class RegistrationRepository:
 
 
     
-    
-  
+  async def get_all_jetons(self) -> CRUDResult[list[RegistrationJeton]]:
+      """fonction repository pour récupérer tout les jetons
+
+      Returns:
+          CRUDResult[list[RegistrationJeton]]: retourne une liste de tous les jetons
+      """
+      
+      stmt= (
+        select(RegistrationJeton)
+        .options(joinedload(RegistrationJeton.classe))
+      )
+      
+      result = await self.db.execute(stmt)
+      jetons = list(result.scalars().all())
+      
+      return CRUDResult.crud_success(data=jetons)

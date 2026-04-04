@@ -11,7 +11,7 @@ from app.db.session import get_db
 from app.globals.api_tags import ApiTags
 from app.schemas import ApiBaseResponse
 from app.schemas.global_schemas import GlobalStringMessage, StringMessage
-from app.schemas.registration_schemas import CreateRegistration, FindRegistration, JetonUpdateData, ReadRegistration, RegistrationInfos
+from app.schemas.registration_schemas import CreateRegistration, FindRegistration, JetonUpdateData, ListRegistrationInfos, ReadRegistration, RegistrationInfos
 from app.services.registration_service import RegistrationService
 from app.worker.tasks.excel_task import import_students_task
 
@@ -94,3 +94,30 @@ async def imports_students(
   import_students_task.delay(file_base64=file_base64, classe_id=classe_id)
   
   return GlobalStringMessage.success_response(data=StringMessage(message="Lecture du fichier en arrière plan"), response=response)
+
+
+
+@router.get(
+  "/all",
+  response_model=ListRegistrationInfos,
+)
+async def all_jetons(
+  response: Response,
+  reg_service: Annotated[RegistrationService, Depends(get_registration_service)]
+):
+  """Route pour avoir tout les jetons de la db"""
+
+  service_result = await reg_service.service_get_all_jetons()
+
+  if service_result.is_error():
+    return ListRegistrationInfos.error_response(
+      error_message=service_result.error,
+      status_code=service_result.status_code,
+      response=response
+    )
+    
+  return ListRegistrationInfos.success_response(
+    data=service_result.data,
+    status_code=service_result.status_code,
+    response=response,
+  )

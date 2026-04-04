@@ -95,4 +95,10 @@ ReadRegistration.model_rebuild()
 class RegistrationInfos(ApiBaseResponse):
     """Modele de validations des registrations coté routers"""
 
-    result: ReadRegistration = Field(description="Infos d'une registration de jeton")
+    result: Optional[ReadRegistration] = Field(description="Infos d'une registration de jeton")
+
+
+class ListRegistrationInfos(ApiBaseResponse):
+    """Modele de validations des registrations coté routers"""
+
+    result: Optional[list[ReadRegistration]] = Field(description="Infos d'une registration de jeton")
