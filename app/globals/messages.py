@@ -11,6 +11,10 @@ class Messages:
 
     # Messages spécifiques
     USER_NOT_FOUND = "Utilisateur non trouvé."
+    USER_NOT_IN_CLUB = "L'utilisateur n'est pas membre du club."
+    USER_CANNOT_POST_IN_CLASSE = "Vous n'avez pas les droits pour poster dans cette classe"
+    USER_CANNOT_POST_IN_CLUB = "Vous n'avez pas les droits pour poster dans ce club"
+    ACTIVE_ACADEMIC_YEAR_NOT_FOUND = "Impossible de trouver l'année académique active, vérifier si une année académique ctive existe"
     CLUB_NOT_FOUND = "Club non trouvé."
     ACADEMIC_YEAR_NOT_FOUND = "Année académique non trouvée."
     CLASSE_NOT_FOUND = "Classe non trouvée."

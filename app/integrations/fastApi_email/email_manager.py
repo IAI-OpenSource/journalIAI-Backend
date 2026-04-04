@@ -4,6 +4,7 @@ from logging import getLogger
 import traceback
 
 from fastapi_mail import FastMail, MessageSchema, MessageType
+from fastapi_mail.errors import ConnectionErrors
 from pydantic import NameEmail
 
 from app.schemas.global_schemas import SendOTPEmail, StringMessage
@@ -59,7 +60,7 @@ class EmailServiceManager:
         service_name=msg.MAIL_SERVICE
       )
      
-    except ConnectionError as ce:
+    except ConnectionErrors as ce:
       logging.error(f"Erreur {ce.__class__.__name__}: {ce}")
       traceback.print_exc()
       return ServiceResult.service_error(

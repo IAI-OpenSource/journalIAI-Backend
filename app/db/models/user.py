@@ -23,8 +23,6 @@ FK_USERS_CLASSE = "fk_users_classe"
 CHK_USERS_BIO_LENGTH = "chk_users_bio_length"
 CHK_USERS_EXEC_ROLE_VALID = "chk_users_exec_role_valid"
 IDX_USERS_CREATED_AT_ID = "idx_users_created_at_id"
-IDX_USERS_EMAIL = "idx_users_email"
-IDX_USERS_USERNAME = "idx_users_username"
 IDX_USERS_ROLE = "idx_users_role"
 IDX_USERS_CAN_POST = "idx_users_can_post"
 IDX_USERS_CLASSE = "idx_users_classe"
@@ -52,8 +50,8 @@ class User(Base, IntegrityMapperMixin):
 
     # Attributs
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4, init=False)
-    email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
-    username: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
+    email: Mapped[str] = mapped_column(String(255), nullable=False)
+    username: Mapped[str] = mapped_column(String(50), nullable=False)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
 
     # Informations personnelles
@@ -100,8 +98,8 @@ class User(Base, IntegrityMapperMixin):
     # Index
     __table_args__ = (
         Index(IDX_USERS_CREATED_AT_ID, "created_at", "id", postgresql_where=(deleted_at == None)),
-        Index(IDX_USERS_EMAIL, "email", postgresql_where=(deleted_at == None)),
-        Index(IDX_USERS_USERNAME, "username", postgresql_where=(deleted_at == None)),
+        Index(UQ_USERS_EMAIL, "email", unique=True, postgresql_where=(deleted_at == None)),
+        Index(UQ_USERS_USERNAME, "username", unique=True, postgresql_where=(deleted_at == None)),
         Index(IDX_USERS_ROLE, "role", postgresql_where=(deleted_at == None)),
         Index(IDX_USERS_CAN_POST, "can_post", postgresql_where=(deleted_at == None) & (can_post == True)),
         Index(IDX_USERS_CLASSE, "classe_id", postgresql_where=(deleted_at == None)),

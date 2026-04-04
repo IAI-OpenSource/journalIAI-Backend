@@ -4,6 +4,7 @@ from uuid import UUID
 from fastapi import Depends, status, HTTPException, Response, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.requests import HTTPConnection
 
 from app.cache.helpers.base import CacheWrapper
 from app.db.models.enums import ExecutiveRoleType, UserRole
@@ -18,9 +19,9 @@ from app.services.user_service import UserService
 from app.globals.status_codes import StatusCode as custom_status
 
 
-class UserAuthDependencies:
+class _UserAuthDependencies:
   
-    def __init__(self, db: AsyncSession, response: Response, request: Request, cache: CacheWrapper):
+    def __init__(self, db: AsyncSession, response: Response, request: HTTPConnection, cache: CacheWrapper):
       self.db = db
       self.cookie = CookieManager(response=response, request=request)
       self.session_service = SessionService(self.db, cache)
@@ -34,7 +35,7 @@ class UserAuthDependencies:
 
 
           Args:
-              self: Comme argument on prend par défaut l'objet UserAuthDependencies()
+              self: Comme argument on prend par défaut l'objet _UserAuthDependencies()
               comme ça on a accès a une session de la bd et une instance cookie de la 
               class CookieManager()
 
@@ -91,16 +92,16 @@ class UserAuthDependencies:
 ### fonction utilitaires pour gérer la classe UserAuthDepends
 
 # Fonction pour instancier ta classe avec tout ce qu'il faut
-def get_user_auth_deps(
-    request: Request,
+def _get_user_auth_deps(
+    request: HTTPConnection,
     response: Response,
     db: AsyncSession = Depends(get_db),
     cache: CacheWrapper = Depends(get_redis_cache)
-) -> UserAuthDependencies:
-    return UserAuthDependencies(db=db, response=response, request=request, cache=cache)
+) -> _UserAuthDependencies:
+    return _UserAuthDependencies(db=db, response=response, request=request, cache=cache)
 
 # Dépendance finale pour récupérer le user
 async def get_current_user(
-    auth_deps: UserAuthDependencies = Depends(get_user_auth_deps)
+    auth_deps: _UserAuthDependencies = Depends(_get_user_auth_deps)
 ) -> Optional[ReadUser]:
     return await auth_deps.get_current_user()

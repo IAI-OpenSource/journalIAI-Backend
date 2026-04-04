@@ -88,7 +88,7 @@ class ClubMemberRepository:
         except Exception as e:
             return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
 
-    async def get_member_by_club_and_user(self, club_id: UUID, user_id: UUID) -> CRUDResult:
+    async def get_member_by_club_and_user(self, club_id: UUID, user_id: UUID) -> CRUDResult[ClubMember]:
         """
         Vérifie si un utilisateur est déjà membre d'un club.
 
@@ -110,7 +110,7 @@ class ClubMemberRepository:
             member = result.scalar_one_or_none()
 
             if member is None:
-                return CRUDResult.crud_error(msg.NOT_FOUND, status_code=404)
+                return CRUDResult.crud_error(msg.USER_NOT_IN_CLUB, status_code=404)
 
             return CRUDResult.crud_success(member)
 
