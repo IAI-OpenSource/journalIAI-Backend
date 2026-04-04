@@ -2,7 +2,6 @@ import secrets
 from logging import getLogger
 from time import time
 from typing import List
-from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import status, WebSocket, WebSocketDisconnect
@@ -11,14 +10,15 @@ from app.cache.helpers.base import CacheWrapper
 from app.cache.post_cache import PostCache
 from app.db.models.post import Post
 from app.db.models.post_media import PostMedia
-from app.db.models.user import User
 from app.globals.messages import Messages
 from app.globals.others_constants import OtherConstants
 from app.repositories.post_repository import PostRepository
 from app.schemas.post_upload_schemas import CreateMediaUploadIntent, UploadURLSchema, MediaUploadCompleteSchema, \
     WsPostProcessingInfoSchema, WsPostProcessingInfoSchemaSteps, CreateMediaUploadIntentFullData, FileInUploadURLSchema, \
     AvailableUploadMethod
+from app.schemas.user_schemas import ReadUser
 from app.services import ServiceResult
+from app.services.post_service import PostService
 from app.storage.post_upload_storage import PostUploadStorage
 from app.worker.celery_app import celery_app
 from app.worker.tasks.workers_task_names import WorkersTaskNames
@@ -30,20 +30,19 @@ def generate_random_intent_id(longueur: int) -> str:
     """Genere un ID unique pour un intent d'upload média."""
     return secrets.token_hex(longueur)
 
-def get_mock_data() -> tuple[UUID, UUID]:
-    """Génére des données mock pour les tests"""
-    return UUID("5f594ab3-2560-4e5b-adbe-f20e5dd8e193"), UUID("74910788-e47d-483d-b24f-750c7b24e3d6")
 
 # TODO: Ajouter des commentaires clairs pour se retrouver après
 class MediaUploadsService:
 
     def __init__(self, cache: CacheWrapper, bd: AsyncSession):
+        self._raw_bd = bd
+        self._raw_cache = cache
         self._cache = PostCache(cache)
         self._bd = PostRepository(bd)
 
 
     async def service_process_media_upload_intent(
-        self, current_user: User, intent_data: CreateMediaUploadIntent
+        self, current_user: ReadUser, intent_data: CreateMediaUploadIntent
     ) -> ServiceResult[UploadURLSchema]:
         """
         Logique métier pour process un intent d'upload média
@@ -91,25 +90,10 @@ class MediaUploadsService:
         logger.info(f"URLs d'upload générées avec succès pour l'intent d'upload {random_intent_id}")
 
 
-        # TODO: Revoir ces mocks data et cette logique apres
-        # TODO: Verifier la véracité des données quand AnneeAcademique et Club seront pret
         full_data = CreateMediaUploadIntentFullData.model_validate(intent_data.model_dump(), from_attributes=True)
-        if full_data.club_id:
-            full_data.academic_year_id, full_data.classe_id = None, None     # Sécurisation
-
-        elif full_data.only_for_a_class:
-            # Alors on doit mettre l'année académique et la classe
-            # On recupere la classe et lannée
-            full_data.academic_year_id, full_data.classe_id = get_mock_data()
-            full_data.club_id = None        # Sécurisation
-
-        elif full_data.for_current_academic_year:
-            full_data.academic_year_id = get_mock_data()[0]     # Mock de l'année académique courante
-            full_data.classe_id = None        # Sécurisation
-
-        else:
-            full_data.academic_year_id = None
-            full_data.classe_id = None
+        await PostService.verify_post_can_been_processed(
+            self._raw_bd, self._raw_cache, full_data, current_user
+        )
 
         await self._cache.save_media_upload_intent(str(current_user.id), random_intent_id, full_data)
 
@@ -159,7 +143,7 @@ class MediaUploadsService:
             return ServiceResult.service_error(message=error, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-    async def service_verify_complete_media_upload(self, current_user: User, intent_id: str) -> ServiceResult[MediaUploadCompleteSchema]:
+    async def service_verify_complete_media_upload(self, current_user: ReadUser, intent_id: str) -> ServiceResult[MediaUploadCompleteSchema]:
         """
         Logique métier pour finaliser un upload de média et lancer une tache de traitement dans le worker
         Args:
@@ -228,7 +212,7 @@ class MediaUploadsService:
         )
 
 
-    async def service_listen_media_processing_intent(self, current_user: User, intent_id: str, ws: WebSocket) -> None:
+    async def service_listen_media_processing_intent(self, current_user: ReadUser, intent_id: str, ws: WebSocket) -> None:
         """
         Suis l'avancée d'un intent d'upload de média en écoutant les messages de progression du post-traitement du
         média dans le cache, et retourne les infos de progression à l'utilisateur via le websocket

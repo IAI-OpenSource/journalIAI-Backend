@@ -40,12 +40,12 @@ def map_row(row: dict) -> dict:
 
 @dataclass
 class JetonUtils:
-  
+  _JETON_PREFIX = "IAI-"
   @classmethod
   def generate_code_jeton(cls, length: int) -> str:
     """function pour générer lejeton de token"""
     code = secrets.token_hex(length // 2).upper()
-    return code
+    return cls._JETON_PREFIX + code
 
 
   @classmethod
