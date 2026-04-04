@@ -3,7 +3,7 @@ Modèle pour la table registration_jeton.
 Jetons d'inscription pré-générés pour les étudiants.
 """
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Optional
 from uuid import UUID
 
@@ -12,7 +12,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 from app.db.models.mixins.integrity_error_mixin import IntegrityMapperMixin
-from app.db.models.enums import UserRole, SexeType
+from app.db.models.enums import ExecutiveRoleType, UserRole, SexeType
 
 # Noms des contraintes
 UQ_REGISTRATION_JETON_JETON = "uq_registration_jeton_jeton"
@@ -35,6 +35,7 @@ class RegistrationJeton(Base, IntegrityMapperMixin):
     first_name: Mapped[str] = mapped_column(String(100), nullable=False)
     last_name: Mapped[str] = mapped_column(String(100), nullable=False)
     role: Mapped[UserRole] = mapped_column(SQLEnum(UserRole), default=UserRole.STUDENT, nullable=False, init=False)
+    executive_role: Mapped[Optional[ExecutiveRoleType]] = mapped_column(SQLEnum(ExecutiveRoleType), nullable=True, init=False)
     sexe: Mapped[SexeType] = mapped_column(SQLEnum(SexeType), nullable=False)
 
     classe_id: Mapped[UUID] = mapped_column(
@@ -62,3 +63,10 @@ class RegistrationJeton(Base, IntegrityMapperMixin):
         UQ_REGISTRATION_JETON_JETON: "Ce jeton d'inscription a déjà été utilisé.",
         FK_JETON_CLASSE: "La classe associée au jeton d'inscription n'existe pas.",
     }
+    
+    
+    ## fonctions utilitaire sur la table
+    
+    ## 1: soft delete
+    def soft_delete(self):
+        self.used_at = datetime.now(UTC)

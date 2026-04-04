@@ -5,13 +5,13 @@ from app.worker.celery_app import celery_app
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
-from fastapi import APIRouter, Depends, File, Form, Response, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Path, Response, UploadFile
 
 from app.db.session import get_db
 from app.globals.api_tags import ApiTags
 from app.schemas import ApiBaseResponse
 from app.schemas.global_schemas import GlobalStringMessage, StringMessage
-from app.schemas.registration_schemas import CreateRegistration, FindRegistration, ReadRegistration, RegistrationInfos
+from app.schemas.registration_schemas import CreateRegistration, FindRegistration, JetonUpdateData, ReadRegistration, RegistrationInfos
 from app.services.registration_service import RegistrationService
 from app.worker.tasks.excel_task import import_students_task
 
@@ -56,6 +56,24 @@ async def get_registration(
   db_reg = await reg_service.service_get_registration_by_jeton(find_registration_data=find_reg_data)
   
   return db_reg.to_HTTP_api_base_response(response)
+
+
+
+@router.post(
+  "/update/{reg_id}",
+  response_model=GlobalStringMessage,
+)
+async def update_registration(
+  response: Response,
+  reg_id: Annotated[UUID, Path(..., description="Id du jeton a mettre à jour")],
+  update_reg_data: JetonUpdateData,
+  reg_service: Annotated[RegistrationService, Depends(get_registration_service)]):
+  """Route pour récupérer 1 seul jeton"""
+  
+  db_reg = await reg_service.service_update_registration(reg_id=reg_id, reg_update_data=update_reg_data)
+  
+  return db_reg.to_HTTP_api_base_response(response)
+
 
 
 @router.post(

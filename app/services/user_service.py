@@ -12,7 +12,7 @@ from app.cache.helpers.base import CacheWrapper
 from app.cache.user_cache import UserCache
 from app.globals.status_codes import StatusCode
 from app.repositories.user_repository import UserRepository
-from app.schemas.user_schemas import CreateUser, LoginData, ReadUser
+from app.schemas.user_schemas import CreateUser, LoginData, ReadUser, UpdateUserData
 from app.globals.messages import Messages as msg
 from app.globals.cache_duration import CacheDurartion 
 
@@ -104,6 +104,7 @@ class UserService:
         ttl=CacheDurartion.USER_DURATION.value
       )
 
+
       return ServiceResult.service_success(
         data=StringMessage(message=msg.ACCOUNT_CREATED_SUCCESSFULLY),
         status_code=db_user.status_code,
@@ -137,6 +138,31 @@ class UserService:
       status_code=users_repo.status_code,
       service_name=msg.USER_SERVICE
     )
+    
+    
+  async def service_update_user(self, user_id: UUID, update_user_data: UpdateUserData) -> ServiceResult[StringMessage]:
+    """Logique métier pour mettre à jour les informations d'un utilisateur"""
+
+    new_user = await self.user_repo.update_user(user_id=user_id, user_update_data=update_user_data)
+
+    if new_user.is_error():
+      return ServiceResult.service_error(
+        message=new_user.error,
+        status_code=new_user.status_code,
+        service_name=msg.USER_SERVICE
+      )
       
+    ## comme opération à réusssi il faut supprimer l'ancien dans le cache
+    ## et ajouter le nouveau
+    await self.user_cache.delete_user_from_cache(user_id=user_id)
+    await self.user_cache.set_user_in_cache(
+      user_id=new_user.data.id,
+      user=ReadUser.model_validate(new_user.data),
+      ttl=CacheDurartion.USER_DURATION.value
+    )
     
-    
+    return ServiceResult.service_success(
+      data=StringMessage(message=msg.USER_UPDATED),
+      status_code=new_user.status_code,
+      service_name=msg.USER_SERVICE
+    )

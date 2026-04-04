@@ -23,7 +23,8 @@ class RoleDepends:
       ExecutiveRoleType.VICE_CACA,
       ExecutiveRoleType.TRESORIER_GENERAL,
       ExecutiveRoleType.VICE_TRESORIER_GENERAL,
-      ExecutiveRoleType.CONSEILLER,
+      ExecutiveRoleType.CONSEILLER_1,
+      ExecutiveRoleType.CONSEILLER_2,
     ])
 
   only_admin_authorize = RoleChecker([
@@ -46,5 +47,6 @@ class RoleDepends:
       ExecutiveRoleType.VICE_CACA,
       ExecutiveRoleType.TRESORIER_GENERAL,
       ExecutiveRoleType.VICE_TRESORIER_GENERAL,
-      ExecutiveRoleType.CONSEILLER,
+      ExecutiveRoleType.CONSEILLER_1,
+      ExecutiveRoleType.CONSEILLER_2,
     ])
