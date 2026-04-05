@@ -11,7 +11,7 @@ from pydantic import EmailStr
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.cookie_handler import CookieManager
 from app.auth.jwt_handler import JWTManager
-from app.core.config import ACCESS_SECRET_KEY, JWT_COOKIE_ACCESS_ID, JWT_EXPIRES_SECONDES, SID_REF_COOKIE
+from app.core.config import ACCESS_SECRET_KEY, JWT_COOKIE_ACCESS_ID, JWT_EXPIRES_SECONDES, SID_REF_COOKIE, REFRESH_TOKEN_EXPIRES_SECONDES
 from app.db.models.user import User
 from app.integrations.fastApi_email.email_manager import EmailServiceManager
 from app.schemas.global_schemas import SendOTPEmail, StringMessage, VerifyOTPData
@@ -167,7 +167,7 @@ class AuthService:
 
       ## maintenant on les stock dans les cookie pour gérer les requettes avec ça
       self.cookie_manager.add_cookie(id=JWT_COOKIE_ACCESS_ID, value=access_token, age=JWT_EXPIRES_SECONDES)
-      self.cookie_manager.add_cookie(id=SID_REF_COOKIE, value=ref_token, age=24*3600) ## age c'est pr test
+      self.cookie_manager.add_cookie(id=SID_REF_COOKIE, value=ref_token, age=REFRESH_TOKEN_EXPIRES_SECONDES) 
       
       ##TODO : avant d'aller en prod, implementer suppression du cache ici
       return ServiceResult.service_success(

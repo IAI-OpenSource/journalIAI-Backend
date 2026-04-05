@@ -1,11 +1,12 @@
 import base64
-from typing import Annotated
+from typing import Annotated, Optional
 from uuid import UUID
+from app.auth.role_depends import RoleDepends
 from app.worker.celery_app import celery_app
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
-from fastapi import APIRouter, Depends, File, Form, Path, Response, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Path, Query, Response, UploadFile
 
 from app.db.session import get_db
 from app.globals.api_tags import ApiTags
@@ -29,6 +30,7 @@ def get_registration_service(db: AsyncSession = Depends(get_db)) -> Registration
 
 @router.post(
   "/add",
+  dependencies=[Depends(RoleDepends.only_managers_authorize)],
   response_model=RegistrationInfos,
 )
 async def create_registration(
@@ -45,6 +47,7 @@ async def create_registration(
 
 @router.post(
   "/one",
+  dependencies=[Depends(RoleDepends.only_managers_authorize)],
   response_model=RegistrationInfos,
 )
 async def get_registration(
@@ -61,6 +64,7 @@ async def get_registration(
 
 @router.post(
   "/update/{reg_id}",
+  dependencies=[Depends(RoleDepends.only_managers_authorize)],
   response_model=GlobalStringMessage,
 )
 async def update_registration(
@@ -78,6 +82,7 @@ async def update_registration(
 
 @router.post(
   "/students/import",
+  dependencies=[Depends(RoleDepends.only_managers_authorize)],
   response_model=GlobalStringMessage,
 )
 async def imports_students(
@@ -99,15 +104,47 @@ async def imports_students(
 
 @router.get(
   "/all",
+  dependencies=[Depends(RoleDepends.only_managers_authorize)],
   response_model=ListRegistrationInfos,
 )
 async def all_jetons(
   response: Response,
-  reg_service: Annotated[RegistrationService, Depends(get_registration_service)]
+  reg_service: Annotated[RegistrationService, Depends(get_registration_service)],
+  for_back: Annotated[Optional[str], Query(description="ce paramètre concerne le backend. vous pouvez forget")] = None
 ):
   """Route pour avoir tout les jetons de la db"""
 
-  service_result = await reg_service.service_get_all_jetons()
+  service_result = await reg_service.service_get_all_jetons(for_back=for_back)
+
+  if service_result.is_error():
+    return ListRegistrationInfos.error_response(
+      error_message=service_result.error,
+      status_code=service_result.status_code,
+      response=response
+    )
+    
+  return ListRegistrationInfos.success_response(
+    data=service_result.data,
+    status_code=service_result.status_code,
+    response=response,
+  )
+  
+  
+  
+@router.get(
+  "/all/by-classe/{classe_id}",
+  dependencies=[Depends(RoleDepends.only_managers_authorize)],
+  response_model=ListRegistrationInfos,
+)
+async def all_jetons_by_classe(
+  response: Response,
+  reg_service: Annotated[RegistrationService, Depends(get_registration_service)],
+  classe_id: Annotated[UUID, Path(..., description="Id de la classe. celui çi est obligatoire")],
+  for_back: Annotated[Optional[str], Query(description="ce paramètre concerne le backend. vous pouvez forget")] = None
+):
+  """Route pour avoir tout les jetons de la db"""
+
+  service_result = await reg_service.service_get_all_jetons_by_classe(classe_id=classe_id, for_back=for_back)
 
   if service_result.is_error():
     return ListRegistrationInfos.error_response(

@@ -13,11 +13,11 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
-from app.db.models.enums import UserRole
+from app.core.config import QUERY_ACCESS
 from app.db.models.registration_jeton import RegistrationJeton
+from app.db.models.enums import UserRole
 from app.globals.status_codes import StatusCode
 from app.repositories.repositories_utils import RepositoriesUtils
-from app.repositories.user_repository import UserRepository
 from app.schemas.registration_schemas import CreateRegistration, FindRegistration, JetonUpdateData
 from . import CRUDResult
 from app.globals.messages import Messages as msg
@@ -278,17 +278,53 @@ class RegistrationRepository:
 
 
     
-  async def get_all_jetons(self) -> CRUDResult[list[RegistrationJeton]]:
+  async def get_all_jetons(self, for_back: Optional[str] = None) -> CRUDResult[list[RegistrationJeton]]:
       """fonction repository pour récupérer tout les jetons
 
       Returns:
           CRUDResult[list[RegistrationJeton]]: retourne une liste de tous les jetons
       """
       
-      stmt= (
-        select(RegistrationJeton)
-        .options(joinedload(RegistrationJeton.classe))
-      )
+      if for_back is not None and for_back == QUERY_ACCESS:
+        stmt= (
+          select(RegistrationJeton)
+          .options(joinedload(RegistrationJeton.classe))
+        )
+      else:
+        stmt= (
+          select(RegistrationJeton)
+          .options(joinedload(RegistrationJeton.classe))
+          .where(RegistrationJeton.used_at == None)
+        )
+      
+      result = await self.db.execute(stmt)
+      jetons = list(result.scalars().all())
+      
+      return CRUDResult.crud_success(data=jetons)
+  
+  
+  async def get_all_jetons_by_classe(self, classe_id: UUID, for_back: Optional[str] = None) -> CRUDResult[list[RegistrationJeton]]:
+      """fonction repository pour récupérer tout les jetons d'une classe donnée
+
+      Returns:
+          CRUDResult[list[RegistrationJeton]]: retourne une liste de tous les jetons
+      """
+      
+      if for_back is not None and for_back == QUERY_ACCESS:
+        stmt= (
+          select(RegistrationJeton)
+          .options(joinedload(RegistrationJeton.classe))
+          .where(RegistrationJeton.classe_id == classe_id)
+        )
+      else:
+        stmt= (
+          select(RegistrationJeton)
+          .options(joinedload(RegistrationJeton.classe))
+          .where(
+            RegistrationJeton.classe_id == classe_id,
+            RegistrationJeton.used_at == None
+          )
+        )
       
       result = await self.db.execute(stmt)
       jetons = list(result.scalars().all())

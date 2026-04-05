@@ -2,11 +2,14 @@
 ## vous y trouverez les requetes base de donnée
 
 from dataclasses import dataclass
+from datetime import UTC, datetime
 import logging
+from typing import Optional
 from uuid import UUID
 
 from pydantic import EmailStr
 
+from app.core.config import QUERY_ACCESS
 from app.repositories.registration_repository import RegistrationRepository
 from app.schemas.registration_schemas import FindRegistration
 from app.utils.security_utils import hasher_password
@@ -15,7 +18,6 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
-from app.db.models.registration_jeton import RegistrationJeton
 from app.db.models.user import User
 from app.schemas.user_schemas import CreateUser, LoginData, UpdateUserData
 from . import CRUDResult
@@ -203,17 +205,25 @@ class UserRepository:
       return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
     
     
-  async def get_all_users(self) -> CRUDResult[list[User]]:
+  async def get_all_users(self, for_back: Optional[str]) -> CRUDResult[list[User]]:
     """fonction repository pour récupérer tout les utisateur/étudiants
 
     Returns:
         CRUDResult[list[User]]: retourne une liste de tous les étudiants
     """
     
-    stmt= (
-      select(User)
-      .options(joinedload(User.classe))
-    )
+    if for_back is not None and for_back == QUERY_ACCESS:
+      stmt= (
+        select(User)
+        .options(joinedload(User.classe))
+      )
+    else:
+      stmt= (
+        
+        select(User)
+        .options(joinedload(User.classe))
+        .where(User.deleted_at == None)
+      )
     
     result = await self.db.execute(stmt)
     users = list(result.scalars().all())
@@ -253,6 +263,8 @@ class UserRepository:
       
       if user_update_data.sexe:
         old_user.data.sexe = user_update_data.sexe 
+
+      old_user.data.updated_at = datetime.now(UTC)
         
       await self.db.commit()
 

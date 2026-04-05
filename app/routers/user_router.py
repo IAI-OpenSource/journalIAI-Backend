@@ -1,7 +1,7 @@
-from typing import Annotated
+from typing import Annotated, Optional
 from app.auth.dependencies import get_current_user
 from app.cache.helpers.base import CacheWrapper, get_redis
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 from app.globals.api_tags import ApiTags
@@ -38,11 +38,12 @@ def get_user_service(
 )
 async def all_users(
   response: Response,
-  user_service: Annotated[UserService, Depends(get_user_service)]
+  user_service: Annotated[UserService, Depends(get_user_service)],
+  for_back: Annotated[Optional[str], Query(description="ce paramètre concerne le backend. vous pouvez forget")] = None
 ):
   """Route pour avoir tout les utilisateurs de la db"""
 
-  service_result = await user_service.service_get_all_users()
+  service_result = await user_service.service_get_all_users(for_back=for_back)
 
   if service_result.is_error():
     return ListUserInfos.error_response(
@@ -63,6 +64,7 @@ async def all_users(
 @router.get(
   "/user-profil-data",
   response_model=UserInfos,
+  dependencies=[Depends(RoleDepends.all_authorize)],
   tags=[ApiTags.ADMINISTRATEUR]
 )
 async def get_current_user_data(
@@ -90,6 +92,7 @@ async def get_current_user_data(
 ## ---------------- Route pour mettre à jour les infos d'un utilisateur ------------------- ## 
 @router.post(
   "/update",
+  dependencies=[Depends(RoleDepends.all_authorize)],
   response_model=GlobalStringMessage
 )
 async def update_user_infos(
