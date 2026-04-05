@@ -48,3 +48,8 @@ class RoleDepends:
       ExecutiveRoleType.VICE_TRESORIER_GENERAL,
       ExecutiveRoleType.CONSEILLER
     ])
+  
+  only_managers_authorize = RoleChecker([
+      UserRole.MODERATOR,
+      UserRole.ADMIN,
+    ])

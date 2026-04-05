@@ -2,18 +2,22 @@
 ## vous y trouverez les requetes base de donnée
 
 from dataclasses import dataclass
+from datetime import UTC, datetime
 import logging
+from typing import Optional
 from uuid import UUID
 
 from pydantic import EmailStr
 
+from app.core.config import QUERY_ACCESS
+from app.repositories.registration_repository import RegistrationRepository
+from app.schemas.registration_schemas import FindRegistration
 from app.utils.security_utils import hasher_password
 from sqlalchemy import func, insert, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
-from app.db.models.registration_jeton import RegistrationJeton
 from app.db.models.user import User
 from app.schemas.user_schemas import CreateUser, LoginData, UpdateUserData
 from . import CRUDResult
@@ -43,32 +47,26 @@ class UserRepository:
     try:
       
       ## etape 1: on cherche si le jeton est le bon
-      stmt1 = (
-        select(RegistrationJeton)
-        .where(
-          RegistrationJeton.jeton == user_data.jeton.jeton,
-        )
+      
+      user_registration = await RegistrationRepository(db=self.db).get_registration_by_jeton(
+        find_reg_data=user_data.jeton
       )
       
-      result = await self.db.execute(stmt1)
-      user_registration = result.scalar_one_or_none()
-      
-      if user_registration is None:
-        logger.info("Cet utilisateurs n'existe pas dans la DB de IAI")
+      if user_registration.is_error():
         return CRUDResult.crud_error(
-          message=f"Usurpateur de Jeton. {msg.USER_NOT_FOUND}",
-          status_code=status._404_STATUS_NOT_FOUND.value
+          message=f"{user_registration.error} : Usurpateur de Jeton",
+          status_code=user_registration.status_code
         )
       
       # etape 2: on récupère certaines données du jeton pour complèter avant d'inserer
       data_to_insert = user_data.model_dump(exclude={"password", "jeton"})
-      data_to_insert["role"] = user_registration.role
-      data_to_insert["executive_role"] = user_registration.executive_role
-      data_to_insert["classe_id"] = user_registration.classe_id
-      data_to_insert["access_jeton_id"] = user_registration.id
-      data_to_insert["sexe"] = user_registration.sexe
-      data_to_insert["last_name"] = user_registration.last_name.upper()
-      data_to_insert["first_name"] = user_registration.first_name.title()
+      data_to_insert["role"] = user_registration.data.role
+      data_to_insert["executive_role"] = user_registration.data.executive_role
+      data_to_insert["classe_id"] = user_registration.data.classe_id
+      data_to_insert["access_jeton_id"] = user_registration.data.id
+      data_to_insert["sexe"] = user_registration.data.sexe
+      data_to_insert["last_name"] = user_registration.data.last_name.upper()
+      data_to_insert["first_name"] = user_registration.data.first_name.title()
       
       stmt2 = (
         insert(User)
@@ -80,7 +78,7 @@ class UserRepository:
       user = result_2.scalars().one()
       
       ## marquer user_registration comme desormais déjà utilisé
-      user_registration.soft_delete()
+      user_registration.data.soft_delete()
       await self.db.commit()
       await self.db.refresh(user, attribute_names=["classe"])
 
@@ -207,17 +205,25 @@ class UserRepository:
       return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
     
     
-  async def get_all_users(self) -> CRUDResult[list[User]]:
+  async def get_all_users(self, for_back: Optional[str]) -> CRUDResult[list[User]]:
     """fonction repository pour récupérer tout les utisateur/étudiants
 
     Returns:
         CRUDResult[list[User]]: retourne une liste de tous les étudiants
     """
     
-    stmt= (
-      select(User)
-      .options(joinedload(User.classe))
-    )
+    if for_back is not None and for_back == QUERY_ACCESS:
+      stmt= (
+        select(User)
+        .options(joinedload(User.classe))
+      )
+    else:
+      stmt= (
+        
+        select(User)
+        .options(joinedload(User.classe))
+        .where(User.deleted_at == None)
+      )
     
     result = await self.db.execute(stmt)
     users = list(result.scalars().all())
@@ -257,6 +263,8 @@ class UserRepository:
       
       if user_update_data.sexe:
         old_user.data.sexe = user_update_data.sexe 
+
+      old_user.data.updated_at = datetime.now(UTC)
         
       await self.db.commit()
 

@@ -23,7 +23,10 @@ class CreateRegistration(BaseModel):
   first_name: str = Field(description="Prenom de l'utilisateur")
   last_name: str = Field(description="Nom de l'etudiant")
   role: UserRole = Field(description="role de l'utilisateur")
-  executive_role: Optional[ExecutiveRoleType] = Field(description="role exécutif de l'utilisateur. Peut etre None si le user est un STUDENT")
+  executive_role: Optional[ExecutiveRoleType] = Field(
+      default=None,
+        description="role exécutif de l'utilisateur. Peut etre None si le user est un STUDENT ou ADMIN"
+    )
   sexe: SexeType 
   classe_id: UUID = Field(description="ID de la Classe de l'utilisateur")
 
@@ -95,4 +98,10 @@ ReadRegistration.model_rebuild()
 class RegistrationInfos(ApiBaseResponse):
     """Modele de validations des registrations coté routers"""
 
-    result: ReadRegistration = Field(description="Infos d'une registration de jeton")
+    result: Optional[ReadRegistration] = Field(description="Infos d'une registration de jeton")
+
+
+class ListRegistrationInfos(ApiBaseResponse):
+    """Modele de validations des registrations coté routers"""
+
+    result: Optional[list[ReadRegistration]] = Field(description="Infos d'une registration de jeton")

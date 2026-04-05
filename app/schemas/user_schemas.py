@@ -84,7 +84,7 @@ class ReadUser(BaseModel):
     is_verified: bool
     deleted_at: Optional[datetime] = None
     created_at: datetime
-    updated_at: datetime
+    updated_at: Optional[datetime] = None
     last_login_at: Optional[datetime] = None
     
     def is_deleted(self) -> bool:

@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from io import BytesIO
 import logging
 import traceback
-from typing import Union
+from typing import Optional, Union
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -32,14 +32,14 @@ class RegistrationService:
     self.resgistration_repo = RegistrationRepository(self.db)
 
   
-  async def service_create_registration(self, registration_data: CreateRegistration) -> ServiceResult[StringMessage]:
+  async def service_create_registration(self, registration_data: CreateRegistration) -> ServiceResult[ReadRegistration]:
       """Logique Métier pour la création d'une régistration de jeton"""
 
       reg_repo = await self.resgistration_repo.insert_registration(reg_data=registration_data)
       
       if reg_repo.is_success():
         return ServiceResult.service_success(
-          data=StringMessage(message=f"Jeton céer pour l'étudiant {reg_repo.data.last_name}"),
+          data=ReadRegistration.model_validate(reg_repo.data),
           status_code=reg_repo.status_code,
           service_name=msg.REGISTRATION_JETON
         )
@@ -127,3 +127,44 @@ class RegistrationService:
       service_name=msg.REGISTRATION_JETON
     )
     
+    
+  async def service_get_all_jetons(self, for_back: Optional[str] = None) -> ServiceResult[list[ReadRegistration]]:
+    """Logique métier pour gérer la récupération de tous les jetons"""
+
+    reg_repo = await self.resgistration_repo.get_all_jetons(for_back=for_back)
+
+    if reg_repo.is_error():
+      return ServiceResult.service_error(
+        message=reg_repo.error,
+        status_code=reg_repo.status_code,
+        service_name=msg.REGISTRATION_JETON
+      )
+      
+    ##TODO: implémeter le cache et filtrer la liste via le soft delete. Je veux tester les dependance de role d'abord
+
+    return ServiceResult.service_success(
+      data=[ReadRegistration.model_validate(jeton) for jeton in reg_repo.data],
+      status_code=reg_repo.status_code,
+      service_name=msg.REGISTRATION_JETON
+    )
+    
+  
+  async def service_get_all_jetons_by_classe(self, classe_id: UUID, for_back: Optional[str] = None) -> ServiceResult[list[ReadRegistration]]:
+    """Logique métier pour gérer la récupération de tous les jetons d'une classe donnée"""
+
+    reg_repo = await self.resgistration_repo.get_all_jetons_by_classe(classe_id=classe_id, for_back=for_back)
+
+    if reg_repo.is_error():
+      return ServiceResult.service_error(
+        message=reg_repo.error,
+        status_code=reg_repo.status_code,
+        service_name=msg.REGISTRATION_JETON
+      )
+      
+    ##TODO: implémeter le cache et filtrer la liste via le soft delete. Je veux tester les dependance de role d'abord
+
+    return ServiceResult.service_success(
+      data=[ReadRegistration.model_validate(jeton) for jeton in reg_repo.data],
+      status_code=reg_repo.status_code,
+      service_name=msg.REGISTRATION_JETON
+    )

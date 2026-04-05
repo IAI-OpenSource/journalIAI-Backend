@@ -34,7 +34,7 @@ REFRESH_TOKEN_SECRET_KEY: str = os.getenv("REFRESH_TOKEN_SECRET_KEY", "refresh-c
 ALGORITHM: str = os.getenv("ALGORITHM", "HS256")
 
 # Minutes par défauts après lequel les tokens JWT s'expirent
-JWT_EXPIRES_SECONDES: int = int(os.getenv("JWT_EXPIRES_SECONDES", 1500))
+JWT_EXPIRES_SECONDES: int = int(os.getenv("JWT_EXPIRES_SECONDES", 3600))
 REFRESH_TOKEN_EXPIRES_SECONDES: int = int(os.getenv("REFRESH_TOKEN_EXPIRES_SECONDES", 7 * 24 * 3600))
 
 ## les IDs des cookies
@@ -63,3 +63,6 @@ MAIL_SERVER: str = os.getenv("MAIL_SERVER") or ""
 
 # Secret pour la stream HLS
 STREAM_JWT_SECRET: str = os.getenv("STREAM_JWT_SECRET", "")
+
+## Query access
+QUERY_ACCESS: str = os.getenv("QUERY_ACCESS", "IAI-1234")

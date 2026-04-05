@@ -2,6 +2,7 @@
 ## fichier contenant le service/logique métier de la table user
 ## vous y trouverez les appels fonctions de repository
 import logging
+from typing import Optional
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -119,10 +120,10 @@ class UserService:
       )
       
   
-  async def service_get_all_users(self) -> ServiceResult[list[ReadUser]]:
+  async def service_get_all_users(self, for_back: Optional[str] = None) -> ServiceResult[list[ReadUser]]:
     """Logique métier pour gérer la récupération de tous les utilisateurs"""
 
-    users_repo = await self.user_repo.get_all_users()
+    users_repo = await self.user_repo.get_all_users(for_back=for_back)
 
     if users_repo.is_error():
       return ServiceResult.service_error(
