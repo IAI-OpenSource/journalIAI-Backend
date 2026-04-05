@@ -1,4 +1,6 @@
 from fastapi import APIRouter, Depends, Response
+
+from app.auth.role_depends import RoleDepends
 from app.cache.helpers.base import get_redis
 from app.globals.api_tags import ApiTags
 from app.schemas import ApiBaseResponse
@@ -9,7 +11,7 @@ from app.db.session import get_db
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
 
-router = APIRouter(prefix="/clubs", tags=[ApiTags.CLUB])
+router = APIRouter(prefix="/clubs", tags=[ApiTags.CLUB], dependencies=[Depends(RoleDepends.all_authorize)])
 
 #TODO: Ajouter une pagination cursor-based
 @router.get("/{club_id}", response_model=ApiBaseResponse[ClubResponse], status_code=200)

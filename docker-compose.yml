@@ -112,8 +112,7 @@ services:
       - ./nginx/lua:/etc/nginx/lua:ro           # dossier pour les scripts Lua
       - ./nginx/cache:/var/cache/nginx # Le dossier de cache persistant
     healthcheck:
-      test: [ "CMD-SHELL",
-    "wget -qO- --header='Host: api.iai-journal.test' http://nginx/health || exit 1" ]
+      test: [ "CMD-SHELL", "wget -qO- --header='Host: api.iai-journal.test' http://nginx/health || exit 1" ]
       interval: 30s
       timeout: 5s
       retries: 3

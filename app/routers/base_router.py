@@ -1,4 +1,5 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+from app.auth.role_depends import RoleDepends
 from app.routers.event_router import routeur as event_router
 from app.routers.club_member_router import routeur as club_member_router
 from app.routers.classe_router import router as classe_router
@@ -9,7 +10,7 @@ from app.routers.auth_router import router as authentification_router
 from app.routers.academic_year_router import router as academic_year_router
 from app.routers.user_router import router as user_router
 
-v1_api_router = APIRouter(prefix="/v1")
+v1_api_router = APIRouter(prefix="/v1", dependencies=[Depends(RoleDepends.all_authorize)])
 
 @v1_api_router.get("/hello")
 async def hello():
