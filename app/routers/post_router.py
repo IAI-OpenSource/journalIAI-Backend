@@ -85,7 +85,7 @@ async def complete_video_post(
 
 @router.websocket(
     path="/ws/post_processing_info",
-    name="Websocket de suivi du post-traitement d'une média uploadée",
+    name="Websocket de suivi du post-traitement d'une création de post",
     dependencies=[Depends(RoleDepends.only_those_can_post_authorize)]
 )
 async def ws_post_processing_info(
