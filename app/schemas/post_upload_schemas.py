@@ -105,8 +105,19 @@ class WsPostProcessingInfoSchema(BaseModel):
 
 class PostMediaUploadIntentResponse(ApiBaseResponse):
 
-    result: Optional[UploadURLSchema]
+    result: Optional[UploadURLSchema] = Field(
+        default=None,
+        description="Présent seulement si la création de l'intent d'upload a réussi, contient l'id "
+                    "de l'intent d'upload à réutiliser pour les prochaines étapes, et la liste des fichiers"
+                    " à uploader avec leur url d'upload respective"
+    )
 
 class PostMediaUploadCompleteResponse(ApiBaseResponse):
 
-    result: Optional[MediaUploadCompleteSchema]
+    result: Optional[MediaUploadCompleteSchema] = Field(
+        default=None,
+        description="Présent seulement si la vérification de complétion de l'upload a réussi, contient l'id"
+                    " du job de post-traitement lancé pour traiter le média uploadée,"
+                    " vous pouvez utiliser cet id pour suivre l'état de traitement du post"
+                    " via le websocket de suivi"
+    )

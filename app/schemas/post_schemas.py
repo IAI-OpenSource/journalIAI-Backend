@@ -253,10 +253,10 @@ class ReadPostList(BaseModel):
 class PostInfos(ApiBaseResponse):
     """Réponse API pour un post unique."""
 
-    result: Optional[ReadPost] = Field(description="Données du post.")
+    result: Optional[ReadPost] = Field(default=None, description="Données du post.")
 
 
 class PostListInfos(ApiBaseResponse):
     """Réponse API pour un feed paginé de posts."""
 
-    result: Optional[ReadPostList] = Field(description="Page de posts avec curseur de pagination.")
+    result: Optional[ReadPostList] = Field(default=None,description="Page de posts avec curseur de pagination.")
