@@ -84,7 +84,12 @@ async def create_event(
     return result.to_HTTP_api_base_response(reponse)
 
 
-@routeur.put("/{event_id}", name="Mettre à jour un event", response_model=EventInfo)
+@routeur.put(
+    "/{event_id}",
+    name="Mettre à jour un event",
+    response_model=EventInfo,
+    dependencies=[Depends(RoleDepends.only_admin_authorize)]
+)
 async def update_event(
     event_id: Annotated[UUID, Path(description="L'identifiant de l'event à mettre à jour")],
     payload: EventUpdate,
@@ -96,7 +101,12 @@ async def update_event(
     return result.to_HTTP_api_base_response(reponse)
 
 
-@routeur.delete("/{event_id}", name="Supprimer un event", response_model=GlobalStringMessage)
+@routeur.delete(
+    "/{event_id}",
+    name="Supprimer un event",
+    response_model=GlobalStringMessage,
+    dependencies=[Depends(RoleDepends.only_admin_authorize)]
+)
 async def delete_event(
     event_id: Annotated[UUID, Path(description="L'identifiant de l'event à supprimer")],
     reponse: Response,

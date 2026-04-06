@@ -24,3 +24,7 @@ grâce au cache Redis (SET user:{id}:seen_posts).
 CREATE_TEXT_POST_ROUTE_DESCRIPTION: str ="""Crée un nouveau post Textuel, sans médias. Pour les posts avec médias c'est 
 pas ici
 """
+
+GET_POST_ROUTE_DESCRIPTION: str = ("Récupère un post par son ID, le résultat inclut les informations du post ainsi que"
+                                   " les médias associés (s'il y en a) et les informations de vue pour l'utilisateur"
+                                   " courant (si connecté)")

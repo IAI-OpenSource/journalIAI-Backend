@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, Response, Query, Path
 
-from app.cache.helpers.base import get_redis
+from app.auth.role_depends import RoleDepends
+from app.cache.helpers.base import get_redis, CacheWrapper
 from app.globals.api_tags import ApiTags
 from app.schemas.global_schemas import GlobalStringMessage
 from app.services.club_member_service import ClubMemberService
@@ -17,26 +18,30 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
 from typing import Any, Annotated, Optional
 
-routeur = APIRouter(prefix="/clubs/{club_id}/members", tags=[ApiTags.CLUB_MEMBER])
+routeur = APIRouter(prefix="/clubs/{club_id}/members", tags=[ApiTags.CLUB_MEMBER], dependencies=[RoleDepends.all_authorize])
 
 
 # IMPORTANT : les routes statiques (/paginated, /role) doivent être déclarées
 # AVANT les routes dynamiques (/{member_id}) pour éviter les conflits FastAPI
 
+def get_club_member_service(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    redis: Annotated[CacheWrapper, Depends(get_redis)],
+) -> ClubMemberService:
+    return ClubMemberService(db, redis)
 
 @routeur.get(
     "/",
     name="Récupérer tous les membres d'un club",
     response_model=ApiClubMemberListResponse,
+    deprecated=True
 )
 async def get_members_by_club(
     club_id: Annotated[UUID, Path(description="L'identifiant du club")],
     reponse: Response,
-    db: AsyncSession = Depends(get_db),
-    redis=Depends(get_redis),
+    service: Annotated[ClubMemberService, Depends(get_club_member_service)]
 ) -> Any:
     """Endpoint pour récupérer tous les membres actifs d'un club."""
-    service = ClubMemberService(db, redis)
     result = await service.service_get_members_by_club(club_id=club_id)
     return result.to_HTTP_api_base_response(reponse)
 
@@ -49,8 +54,7 @@ async def get_members_by_club(
 async def get_members_paginated(
     club_id: Annotated[UUID, Path(description="L'identifiant du club")],
     reponse: Response,
-    db: AsyncSession = Depends(get_db),
-    redis=Depends(get_redis),
+    service: Annotated[ClubMemberService, Depends(get_club_member_service)],
     cursor: Annotated[
         Optional[UUID],
         Query(description="L'identifiant du dernier membre récupéré (Optionnel)"),
@@ -64,7 +68,6 @@ async def get_members_paginated(
     Le client peut fournir un `cursor` (ID du dernier membre récupéré) et une `limit`
     pour contrôler le nombre de membres retournés. Si aucun cursor n'est fourni,
     la pagination commence depuis le début de la liste."""
-    service = ClubMemberService(db, redis)
     result = await service.service_get_members_paginated(club_id=club_id, cursor=cursor, limit=limit)
     return result.to_HTTP_api_base_response(reponse)
 
@@ -78,11 +81,9 @@ async def get_members_by_role(
     club_id: Annotated[UUID, Path(description="L'identifiant du club")],
     role: Annotated[ClubMembersType, Path(description="Le rôle par lequel filtrer les membres")],
     reponse: Response,
-    db: AsyncSession = Depends(get_db),
-    redis=Depends(get_redis),
+    service: Annotated[ClubMemberService, Depends(get_club_member_service)]
 ) -> Any:
     """Endpoint pour récupérer les membres d'un club en filtrant par rôle."""
-    service = ClubMemberService(db, redis)
     result = await service.service_get_members_by_role(club_id=club_id, role=role)
     return result.to_HTTP_api_base_response(reponse)
 
@@ -93,14 +94,12 @@ async def get_members_by_role(
     response_model=ClubMemberInfo,
 )
 async def get_member_by_id(
-    club_id: Annotated[UUID, Path(description="L'identifiant du club")],
     member_id: Annotated[UUID, Path(description="L'identifiant du membre à récupérer")],
     reponse: Response,
-    db: AsyncSession = Depends(get_db),
-    redis=Depends(get_redis),
+    service: Annotated[ClubMemberService, Depends(get_club_member_service)]
+
 ) -> Any:
     """Endpoint pour récupérer un membre par son ID."""
-    service = ClubMemberService(db, redis)
     result = await service.service_get_member_by_id(member_id=member_id)
     return result.to_HTTP_api_base_response(reponse)
 
@@ -115,12 +114,10 @@ async def add_member(
     club_id: Annotated[UUID, Path(description="L'identifiant du club")],
     payload: ClubMemberCreate,
     reponse: Response,
-    db: AsyncSession = Depends(get_db),
-    redis=Depends(get_redis),
+    service: Annotated[ClubMemberService, Depends(get_club_member_service)]
 ) -> Any:
     """Endpoint pour ajouter un membre à un club.
     Le club_id est toujours celui de l'URL — le champ éventuel dans le body est ignoré."""
-    service = ClubMemberService(db, redis)
     payload = payload.model_copy(update={"club_id": club_id})
     result = await service.service_add_member(member_data=payload)
     return result.to_HTTP_api_base_response(reponse)
@@ -136,11 +133,9 @@ async def update_member_role(
     member_id: Annotated[UUID, Path(description="L'identifiant du membre à mettre à jour")],
     payload: ClubMemberUpdate,
     reponse: Response,
-    db: AsyncSession = Depends(get_db),
-    redis=Depends(get_redis),
+    service: Annotated[ClubMemberService, Depends(get_club_member_service)]
 ) -> Any:
     """Endpoint pour mettre à jour le rôle d'un membre dans un club."""
-    service = ClubMemberService(db, redis)
     result = await service.service_update_member_role(club_id=club_id, member_id=member_id, data=payload)
     return result.to_HTTP_api_base_response(reponse)
 
@@ -154,10 +149,8 @@ async def remove_member(
     club_id: Annotated[UUID, Path(description="L'identifiant du club")],
     member_id: Annotated[UUID, Path(description="L'identifiant du membre à retirer")],
     reponse: Response,
-    db: AsyncSession = Depends(get_db),
-    redis=Depends(get_redis),
+    service: Annotated[ClubMemberService, Depends(get_club_member_service)]
 ) -> Any:
     """Endpoint pour retirer un membre d'un club (soft delete)."""
-    service = ClubMemberService(db, redis)
     result = await service.service_remove_member(club_id=club_id, member_id=member_id)
     return result.to_HTTP_api_base_response(reponse)

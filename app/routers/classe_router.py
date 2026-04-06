@@ -63,7 +63,11 @@ async def update_classe(
     return result.to_HTTP_api_base_response(reponse)
  
  
-@router.delete("/{classe_id}", response_model=GlobalStringMessage, dependencies=[Depends(RoleDepends.only_admin_authorize)])
+@router.delete(
+    "/{classe_id}",
+    response_model=GlobalStringMessage,
+    dependencies=[Depends(RoleDepends.only_admin_authorize)]
+)
 async def delete_classe(
     classe_id: Annotated[UUID, Path()],
     reponse: Response,
