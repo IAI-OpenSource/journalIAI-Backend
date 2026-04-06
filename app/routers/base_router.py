@@ -1,5 +1,4 @@
-from fastapi import APIRouter, Depends
-from app.auth.role_depends import RoleDepends
+from fastapi import APIRouter
 from app.routers.event_router import routeur as event_router
 from app.routers.club_member_router import routeur as club_member_router
 from app.routers.classe_router import router as classe_router
