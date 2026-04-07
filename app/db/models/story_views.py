@@ -12,7 +12,7 @@ FK_VIEWED_STORIES_USER = "fk_viewed_story_user"
 FK_VIEWED_STORIES_STORY = "fk_viewed_story_story"
 IDX_VIEWED_AT = "viewed_at_story_index"
 PK_STORY_VIEWS = "pk_story_views"
-
+IDX_STORY_VIEWS_FEED_PAGINATION = "idx_story_view_feed_pagination"
 
 class StoryViews(Base, IntegrityMapperMixin):
     """Vu des stories"""
@@ -29,7 +29,8 @@ class StoryViews(Base, IntegrityMapperMixin):
     # Index
     __table_args__ = (
         Index(IDX_VIEWED_AT, "viewed_at"),
-        PrimaryKeyConstraint("story_id", "user_id", name=PK_STORY_VIEWS)
+        PrimaryKeyConstraint("story_id", "user_id", name=PK_STORY_VIEWS),
+        Index(IDX_STORY_VIEWS_FEED_PAGINATION, "story_id", "viewed_at")
     )
 
     # Relationships
