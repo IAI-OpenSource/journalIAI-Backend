@@ -9,7 +9,7 @@ from app.worker.tasks.workers_task_names import WorkersTaskNames
 
 
 from uuid import UUID
-from celery.utils.log import get_task_logger # Plus propre que print pour les workers
+from celery.utils.log import get_task_logger 
 
 logger = get_task_logger(__name__)
 
@@ -18,7 +18,6 @@ def import_students_task(self, file_base64: str, classe_id: str):
     """Tâche Celery avec remontée d'état pour le front-end"""
     
     async def process():
-        # Conversion sécurisée de l'ID de classe
         c_id = UUID(classe_id) if isinstance(classe_id, str) else classe_id
         
         async with AsyncSessionLocal() as db:
@@ -35,22 +34,11 @@ def import_students_task(self, file_base64: str, classe_id: str):
     try:
         logger.info(f"Lancement de l'importation pour la classe {classe_id}")
         
-        # Exécution de la boucle async
         result = task_async_loop_manager.run_async(process())
         
-        # --- GESTION DU RÉSULTAT ---
         if result.is_error():
-            # On met à jour l'état pour que le front puisse lire l'erreur
-            self.update_state(
-                state='FAILURE',
-                meta={
-                    'exc_type': 'ImportError',
-                    'exc_message': [result.error],
-                    'custom_message': result.error # Ton message user-friendly
-                }
-            )
             # On raise pour que Celery marque la tâche comme "FAILED"
-            raise Exception(result.error)
+            raise RuntimeError(result.error)
 
         logger.info(f"Importation réussie : {result.data.message}")
         

@@ -20,6 +20,7 @@ IDX_REGISTRATION_JETON_JETON = "idx_registration_jeton_jeton"
 IDX_REGISTRATION_JETON_UNUSED = "idx_registration_jeton_unused"
 IDX_REGISTRATION_JETON_CLASSE = "idx_registration_jeton_classe"
 FK_JETON_CLASSE = "fk_registration_jeton_classe"
+UQ_USERS_EMAIL = "uq_registration_jeton_email"
 
 class RegistrationJeton(Base, IntegrityMapperMixin):
     """Jetons pré-générés pour l'inscription des étudiants."""
@@ -36,6 +37,7 @@ class RegistrationJeton(Base, IntegrityMapperMixin):
     last_name: Mapped[str] = mapped_column(String(100), nullable=False)
     role: Mapped[UserRole] = mapped_column(SQLEnum(UserRole), default=UserRole.STUDENT, nullable=False, init=False)
     executive_role: Mapped[Optional[ExecutiveRoleType]] = mapped_column(SQLEnum(ExecutiveRoleType), nullable=True, init=False)
+    email: Mapped[str] = mapped_column(String(255), nullable=False)
     sexe: Mapped[SexeType] = mapped_column(SQLEnum(SexeType), nullable=False)
 
     classe_id: Mapped[UUID] = mapped_column(
@@ -53,6 +55,7 @@ class RegistrationJeton(Base, IntegrityMapperMixin):
         Index(IDX_REGISTRATION_JETON_JETON, "jeton", postgresql_where=(used_at == None)),
         Index(IDX_REGISTRATION_JETON_UNUSED, "used_at", postgresql_where=(used_at == None)),
         Index(IDX_REGISTRATION_JETON_CLASSE, "classe_id", "added_at"),
+        Index(UQ_USERS_EMAIL, "email", unique=True, postgresql_where=(used_at == None)),
     )
 
     # Relationships

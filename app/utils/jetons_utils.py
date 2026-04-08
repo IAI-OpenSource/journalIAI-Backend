@@ -15,6 +15,7 @@ COLUMN_MAPPING = {
     "prenom": "first_name",
     "nom": "last_name",
     "sexe": "sexe",
+    "email": "email"
   }
 
 def normalize_key(key: str) -> str:

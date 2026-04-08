@@ -39,7 +39,7 @@ class PDFExportUtils:
         c.drawString(2*cm, y, "NOM")
         c.drawString(7*cm, y, "PRÉNOM")
         c.drawString(11*cm, y, "CODE JETON")
-        c.drawString(16.8*cm, y, "SIGNATURE")
+        c.drawString(16.7*cm, y, "SIGNATURE")
         
         c.line(2*cm, y - 0.2*cm, width - 2*cm, y - 0.2*cm)
         y -= 0.8*cm
