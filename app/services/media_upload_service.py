@@ -53,6 +53,20 @@ class MediaUploadsService:
         Returns:
             ServiceResult indiquant le succès ou l'échec de l'opération, avec un message approprié
         """
+
+        full_data = CreateMediaUploadIntentFullData.model_validate(intent_data.model_dump(), from_attributes=True)
+
+        verif = await PostService.verify_post_can_been_processed(
+            self._raw_bd, self._raw_cache, full_data, current_user
+        )
+
+        if verif.is_error():
+            return ServiceResult.service_error(
+                message=verif.error,
+                status_code=verif.status_code,
+                service_name=Messages.POST_SERVICE
+            )
+
         random_intent_id = generate_random_intent_id(16)
 
         files_to_upload: List[FileInUploadURLSchema] = []
@@ -88,12 +102,6 @@ class MediaUploadsService:
             return ServiceResult.service_error(message=Messages.ERROR_UPLOAD_URL_GENERATION, status_code=500)
 
         logger.info(f"URLs d'upload générées avec succès pour l'intent d'upload {random_intent_id}")
-
-
-        full_data = CreateMediaUploadIntentFullData.model_validate(intent_data.model_dump(), from_attributes=True)
-        await PostService.verify_post_can_been_processed(
-            self._raw_bd, self._raw_cache, full_data, current_user
-        )
 
         await self._cache.save_media_upload_intent(str(current_user.id), random_intent_id, full_data)
 

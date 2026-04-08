@@ -30,7 +30,7 @@ from ..db.models.enums import MediaType, ClubMembersType, UserRole
 from ..db.models.post import Post
 from ..schemas.post_upload_schemas import CreateMediaUploadIntentFullData
 from ..schemas.user_schemas import ReadUser
-from ..storage.post_read_storage import MediaReadStorage
+from ..storage.media_read_storage import MediaReadStorage
 
 logger = logging.getLogger(__name__)
 
