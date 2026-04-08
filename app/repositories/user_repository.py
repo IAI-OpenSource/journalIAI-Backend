@@ -67,6 +67,7 @@ class UserRepository:
       data_to_insert["sexe"] = user_registration.data.sexe
       data_to_insert["last_name"] = user_registration.data.last_name.upper()
       data_to_insert["first_name"] = user_registration.data.first_name.title()
+      data_to_insert["email"] = user_registration.data.email
       
       stmt2 = (
         insert(User)

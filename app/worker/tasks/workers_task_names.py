@@ -13,4 +13,7 @@ class WorkersTaskNames:
     IMPORT_DATA_FROM_EXCEL: str = "regstration.import_from_excel"
 
     SYNCHRONIZE_POST_VIEW: str = "synchronize_post_view"
+    
+    SEND_JETON_EMAIL: str = "registration.send_jeton_email"
 
+    SINGLE_EMAIL_SEND: str = "email.send_single_email"

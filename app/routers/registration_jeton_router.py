@@ -1,7 +1,13 @@
+import urllib.parse
 import base64
-from typing import Annotated, Optional
+import logging
+from typing import Annotated, Optional, Union
 from uuid import UUID
+
+from fastapi.responses import StreamingResponse
 from app.auth.role_depends import RoleDepends
+from app.db.models.enums import CeleryStatus, DownloadFormat
+from app.utils.pdf_utils import PDFExportUtils
 from app.worker.celery_app import celery_app
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,12 +18,14 @@ from app.db.session import get_db
 from app.globals.api_tags import ApiTags
 from app.schemas import ApiBaseResponse
 from app.schemas.global_schemas import GlobalStringMessage, StringMessage
-from app.schemas.registration_schemas import CreateRegistration, FindRegistration, JetonUpdateData, ListRegistrationInfos, ReadRegistration, RegistrationInfos
+from app.schemas.registration_schemas import CreateRegistration, ExcelReadSuccess, ExcelSuccessInfos, ExcelUploadResponse, FindRegistration, JetonUpdateData, ListRegistrationInfos, ExcelUploadInfos, RegistrationInfos
 from app.services.registration_service import RegistrationService
 from app.worker.tasks.excel_task import import_students_task
+from app.worker.tasks.send_jeton_email_task import send_jetons_email_orchestrator
 
 
 router = APIRouter(prefix="/registration", tags=[ApiTags.JETON_ENREGISTREMENT])
+logger = logging.getLogger(__name__)
 
 
 ## function global pour creer une instance de 
@@ -83,7 +91,7 @@ async def update_registration(
 @router.post(
   "/students/import",
   dependencies=[Depends(RoleDepends.only_managers_authorize)],
-  response_model=GlobalStringMessage,
+  response_model=ExcelUploadInfos,
 )
 async def imports_students(
   response: Response,
@@ -96,11 +104,59 @@ async def imports_students(
 
   file_base64 = base64.b64encode(file_bytes).decode("utf-8")
 
-  import_students_task.delay(file_base64=file_base64, classe_id=classe_id)
+  task = import_students_task.delay(file_base64=file_base64, classe_id=classe_id)
   
-  return GlobalStringMessage.success_response(data=StringMessage(message="Lecture du fichier en arrière plan"), response=response)
+  return ExcelUploadInfos.success_response(
+    data=ExcelUploadResponse(
+      message="Importation lancée. Accéder à l'ID de la tache pou suivre sont état/statut",
+      task_id=task.id  
+    ), 
+    response=response
+  )
 
 
+
+@router.get(
+  "/import/status/{task_id}",
+  dependencies=[Depends(RoleDepends.only_managers_authorize)],
+  response_model=ExcelSuccessInfos
+)
+async def check_status(
+  response: Response,
+  task_id: Annotated[str, Path(description="ID de la tache que vous avez récupéré")]
+  ):
+  """Route pour checker l'etat/statut du chargement du fichier excel"""
+  try:
+    task_result = import_students_task.AsyncResult(task_id)
+    state = task_result.state 
+  except Exception as e:
+    logger.error(f"Erreur lors de la lecture du statut Celery : {e}")
+    return ExcelSuccessInfos.error_response(
+        error_message="Erreur interne de suivi de tâche.",
+        response=response
+    )
+  
+  if state == CeleryStatus.PENDING.value:
+    return ExcelSuccessInfos.error_response(
+      error_message="Ajout de jetons en cours ...",
+      response=response
+    )
+  elif state == CeleryStatus.SUCCESS:
+      return ExcelSuccessInfos.success_response(
+        data=ExcelReadSuccess(
+          status=CeleryStatus.SUCCESS,
+          message="Plusieurs jetons ajoutée avec succès !"
+        ),
+        response=response
+      )
+  elif state == CeleryStatus.FAILURE:
+      # C'est ici que le meta data de ton update_state apparaîtra
+      logger.error(str(task_result.info))
+      return ExcelSuccessInfos.error_response(
+      error_message="Ajout de jetons échoué. Veuillez réessayer",
+      response=response
+    )
+  
 
 @router.get(
   "/all",
@@ -157,4 +213,76 @@ async def all_jetons_by_classe(
     data=service_result.data,
     status_code=service_result.status_code,
     response=response,
+  )
+
+
+
+@router.get(
+  "/export/jetons/{classe_id}/{format}",
+  dependencies=[Depends(RoleDepends.only_managers_authorize)],
+  response_model=None
+)
+async def export_pdf_jetons(
+    classe_id: Annotated[UUID, Path(description="ID de la classe")],
+    response: Response,
+    format: Annotated[DownloadFormat, Path(description="Format de téléchargement")],
+    reg_service: Annotated[RegistrationService, Depends(get_registration_service)]
+  ):
+    """Route pour exporter les jetons en pdf"""
+    service_result = await reg_service.service_get_all_jetons_by_classe(classe_id) 
+
+    if service_result.is_error():
+      return ApiBaseResponse.error_response(
+        error_message=service_result.error,
+        response=response
+      )
+    
+    if not service_result.data:
+      return ApiBaseResponse.error_response(
+        error_message="Aucun jetons trouvé pour cette classe",
+        response=response
+      )
+      
+    if format == DownloadFormat.JSON:
+      return ApiBaseResponse.success_response(
+        data=[s.model_dump(exclude={'role', 'executive_role', 'used_at', 'added_at'}) for s in service_result.data],
+        response=response
+      )
+
+    pdf_buffer = PDFExportUtils.generate_jetons_pdf(
+      service_result.data, 
+      f"{service_result.data[0].classe.classe_prefix.value if service_result.data[0].classe else None} {service_result.data[0].classe.classe_suffix.upper() if service_result.data[0].classe else None}"
+    )
+    filename = f"Jetons_IAI_Classe_{classe_id}.pdf"
+    
+    encoded_filename = urllib.parse.quote(filename)
+
+    headers = {
+        "Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}",
+        "Content-Type": "application/pdf"
+    }
+
+    return StreamingResponse(
+        pdf_buffer, 
+        headers=headers, 
+        media_type="application/pdf"
+    )
+    
+    
+@router.post(
+  "/students/send-email/{classe_id}",
+  dependencies=[Depends(RoleDepends.only_managers_authorize)],
+  response_model=GlobalStringMessage,
+)
+async def send_students_jetons_email(
+  response: Response,
+  classe_id: Annotated[UUID, Path(..., description="ID de la classe concernée")],
+):
+  """Route pour envoyer des emails avec les jetons aux étudiants de la classe"""
+
+  send_jetons_email_orchestrator.delay(classe_id=classe_id)
+  
+  return GlobalStringMessage.success_response(
+    data=StringMessage(message="Envoi des emails lancé."),
+    response=response
   )
