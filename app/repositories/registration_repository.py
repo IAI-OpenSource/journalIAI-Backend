@@ -52,9 +52,7 @@ class RegistrationRepository:
       )
       
       await self.db.execute(stmt)
-      print(f"DEBUG: Tentative de commit de {len(users)} étudiants...")
       await self.db.commit()
-      print("DEBUG: Commit terminé !")
 
       logger.info("Plusieurs jetons ajoutée avec succès !")
       return CRUDResult.crud_success("Plusieurs jetons ajoutée avec succès !", StatusCode._201_STATUS_CREATED.value)

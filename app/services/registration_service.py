@@ -82,15 +82,21 @@ class RegistrationService:
 
     res_import = await JetonUtils.read_excel_file(file_like)
     
-    valide_data = res_import["data"]
+    if res_import.is_error():
+      return ServiceResult.service_error(
+        message=res_import.error,
+        status_code=res_import.status_code,
+        service_name=res_import.service_name
+      )
+      
+    if res_import.data["data"]:
 
-    for row in valide_data:
-      row["classe_id"] = classe_id
-      row["role"] = UserRole.STUDENT.value
-      row["jeton"] = JetonUtils.generate_code_jeton(8)
-        
-    if valide_data:
-      result = await self.resgistration_repo.multiple_registration(valide_data)
+      for row in res_import.data["data"]:
+        row["classe_id"] = classe_id
+        row["role"] = UserRole.STUDENT.value
+        row["jeton"] = JetonUtils.generate_code_jeton(8)
+          
+      result = await self.resgistration_repo.multiple_registration(res_import.data["data"])
 
       if result.is_success():
         return ServiceResult.service_success(
@@ -106,7 +112,7 @@ class RegistrationService:
       )
       
     return ServiceResult.service_error(
-      message=f'Les erreurs: {res_import["errors"]}',
+      message=f'Les erreurs: {res_import.data["errors"]}',
     )
       
   

@@ -1,18 +1,19 @@
 from dataclasses import dataclass
 import secrets
-from typing import Any, Dict
 import pandas as pd
 from io import BytesIO
 
 from pydantic import ValidationError
 
+from app.globals.status_codes import StatusCode
 from app.schemas.registration_schemas import CreateMultileRegistration
+from app.services import ServiceResult
 
 
 ## methodes utilitaires
 COLUMN_MAPPING = {
-    "first_name": "prenom",
-    "last_name": "nom",
+    "prenom": "first_name",
+    "nom": "last_name",
     "sexe": "sexe",
   }
 
@@ -49,7 +50,7 @@ class JetonUtils:
 
 
   @classmethod
-  async def read_excel_file(cls, file: BytesIO) -> Dict[str, Any]:
+  async def read_excel_file(cls, file: BytesIO) -> ServiceResult[dict[str, list]]:
     try:
 
       excel_file = pd.ExcelFile(file)
@@ -75,7 +76,8 @@ class JetonUtils:
 
             # validation Pydantic
             student = CreateMultileRegistration(**row)
-
+            student.first_name = student.first_name.title()
+            student.last_name = student.last_name.upper()
             all_valid_data.append(student.model_dump())
 
           except ValidationError as ve:
@@ -92,10 +94,15 @@ class JetonUtils:
               "error": str(e)
             })
 
-      return {
-        "data": all_valid_data,
-        "errors": errors,
-      }
+      return ServiceResult.service_success(
+        data={"data": all_valid_data, "errors": errors},
+        status_code=StatusCode._200_STATUS_SUCCESS.value,
+        service_name="Lecture fichier"
+      )
 
     except Exception as e:
-      return Exception(f"Erreur lecture Excel: {str(e)}")
+      return ServiceResult.service_error(
+        message="Erreur lors de la lecture du fichier",
+        status_code=StatusCode._400_STATUS_BAD_REQUEST.value,
+        service_name="Lecture fichier"
+      )
