@@ -4,6 +4,7 @@ from dataclasses import dataclass
 @dataclass
 class ApiTags:
     """Cette classe contient les tags utilisés pour organiser les endpoints de l'API dans la documentation Swagger."""
+    COMMENT: str = "Routes commentaires"
     AUTHENTIFICATION: str = "Authentification"
     CLUB: str = "Routes clubs"
     ADMINISTRATEUR: str = "Routes Administrateur"

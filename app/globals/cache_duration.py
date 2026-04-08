@@ -4,6 +4,7 @@ from enum import Enum as enum
 class CacheDurartion(int, enum):
   """Classe  enumérartion pour définir la durée(en S) des données en cache"""
 
+  COMMENT_DURATION = 3000
   USER_DURATION = 1500 # 25 min
   SESSION_DURATION = 1020 # 20 min
   UPLOAD_INTENT_DURATION = 60 * 60 # 1 heure

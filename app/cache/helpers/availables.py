@@ -30,7 +30,10 @@ class AvailableCacheKeys(str, Enum):
 
     # Clés de cache pour les posts
     POST_OBJECT = BaseCacheEntity.POST  # Clé pour un post spécifique
-    POST_COMMENTS = BaseCacheEntity.POST + ":comments"  # Clé pour les commentaires d'un post
+    POST_COMMENTS = BaseCacheEntity.POST + ":comments:{id}"  # Clé pour les commentaires d'un post
+    # Clés de cache pour les comments
+    COMMENT_OBJECT = BaseCacheEntity.COMMENT  # commentaire unique
+    COMMENT_REPLIES = BaseCacheEntity.COMMENT + ":replies:{id}"  # pagination réponses par commentaire parent
 
     # Clés de cache pour les clubs
     CLUB_OBJECT = BaseCacheEntity.CLUB  # Clé pour un club spécifique
@@ -39,7 +42,7 @@ class AvailableCacheKeys(str, Enum):
     CLUB_MEMBER_OBJECT = BaseCacheEntity.CLUB_MEMBER 
     CLUB_MEMBER_PAGINATED = BaseCacheEntity.CLUB_MEMBER + ":paginated"
 
-    
+
     # Clés de cache pour les événements
     EVENT_OBJECT = BaseCacheEntity.EVENT  # Clé pour un événement spécifique
     EVENT_LIST = BaseCacheEntity.EVENT + ":list"               # pagination
