@@ -19,4 +19,5 @@ class ApiTags:
     ACADEMIC_YEAR: str = "Routes années académiques"
     CLASSE: str = "Routes classes"
     USER: str = "Route utilisateurs"
+    NOTIFICATION: str = "Routes Notifications"
 
