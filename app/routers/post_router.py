@@ -10,7 +10,7 @@ from app.db.session import get_db
 from app.globals.api_tags import ApiTags
 from app.globals.routes_descriptions import (
     MEDIA_INTENT_ROUTE_DESCRIPTION, MEDIA_INTENT_CONFIRM_ROUTE_DESCRIPTION, GET_FEED_ROUTE_DESCRIPTION,
-    CREATE_TEXT_POST_ROUTE_DESCRIPTION,
+    CREATE_TEXT_POST_ROUTE_DESCRIPTION, GET_POST_ROUTE_DESCRIPTION,
 
 )
 from app.schemas.post_schemas import (
@@ -26,7 +26,7 @@ from app.services.media_upload_service import MediaUploadsService
 from fastapi import Depends, WebSocket, Query, WebSocketDisconnect, APIRouter, Response
 from app.services.post_service import PostService
 
-router = APIRouter(prefix="/posts", tags=[ApiTags.POSTS])
+router = APIRouter(prefix="/posts", tags=[ApiTags.POSTS], dependencies=[Depends(RoleDepends.all_authorize)])
 
 
 # ------------------------------------------------------------------
@@ -85,7 +85,7 @@ async def complete_video_post(
 
 @router.websocket(
     path="/ws/post_processing_info",
-    name="Websocket de suivi du post-traitement d'une média uploadée",
+    name="Websocket de suivi du post-traitement d'une création de post",
     dependencies=[Depends(RoleDepends.only_those_can_post_authorize)]
 )
 async def ws_post_processing_info(
@@ -138,7 +138,6 @@ async def create_post(
     response_model=PostListInfos,
     summary="Récupérer le feed paginé",
     description=GET_FEED_ROUTE_DESCRIPTION,
-    dependencies=[Depends(RoleDepends.all_authorize)]
 )
 async def get_feed(
     response: Response,
@@ -163,7 +162,7 @@ async def get_feed(
     "/{post_id}",
     response_model=PostInfos,
     summary="Récupérer un post par ID",
-    dependencies=[Depends(RoleDepends.all_authorize)]
+    description=GET_POST_ROUTE_DESCRIPTION
 )
 async def get_post(
     post_id: Annotated[UUID, Path(description="l'id du post")],
@@ -183,8 +182,7 @@ async def get_post(
     "/add-views",
     response_model=None,
     status_code=200,
-    summary="Marquer des posts comme vu par l'utilisateur",
-    dependencies=[Depends(RoleDepends.all_authorize)]
+    summary="Marquer des posts comme vu par l'utilisateur"
 )
 async def record_view(
     data: CreatePostView,

@@ -1,0 +1,365 @@
+asyncapi: 3.1.0
+info:
+  title: Journal IAI - WebSocket Post Processing Info
+  version: 1.0.0
+  description: |
+    WebSocket API pour suivre en temps réel la progression du post-traitement des médias lors de la création d'un post.
+    
+    ## Workflow de base
+    1. **Créer un intent d'upload** : Appeler `POST /v1/posts/get-uploads-intent` pour obtenir les URLs d'upload et un `intent_id`
+    2. **Uploader les médias** : Uploader vos fichiers sur les URLs fournies
+    3. **Confirmer l'upload** : Appeler `POST /v1/posts/complete_medias_post` avec l'`intent_id` pour démarrer le post-traitement
+    4. **Connecter au WebSocket** : Se connecter à ce WebSocket avec l'`intent_id` pour suivre la progression
+    5. **Recevoir les mises à jour** : Vous recevrez des messages JSON indiquant chaque étape du traitement
+
+defaultContentType: application/json
+
+servers:
+  dev:
+    host: api.journal-iai.com:81
+    protocol: wss
+    description: Serveur local de test
+    variables:
+      basePath:
+        default: /v1
+
+channels:
+  postProcessingInfo:
+    address: /posts/ws/post_processing_info
+    title: Post Processing Progress Tracking
+    description: |
+      Canal pour suivre la progression du post-traitement des médias uploadés.
+      
+      **Query Parameters** (requis) :
+      - `intent_id` : UUID de l'intent d'upload obtenu après la confirmation de l'upload
+      
+      **Authentification** :
+      - Cookie `_SECURE_TOKEN` contenant le JWT d'accès (défini automatiquement par le navigateur après login)
+
+    messages:
+      progressUpdate:
+        $ref: '#/components/messages/ProgressUpdate'
+      errorMessage:
+        $ref: '#/components/messages/ErrorMessage'
+      unknownStateMessage:
+        $ref: '#/components/messages/UnknownStateMessage'
+
+operations:
+  connectPostProcessing:
+    action: receive
+    channel:
+      $ref: '#/channels/postProcessingInfo'
+    title: Recevoir les mises à jour de progression
+    description: |
+      Connectez-vous au WebSocket pour recevoir en temps réel les mises à jour de la progression du post-traitement.
+      
+      La connexion accepte les query parameters suivants :
+      - `intent_id` (requis, string) : L'identifiant unique de l'intent d'upload retourné par l'endpoint de confirmation d'upload
+      
+      Le serveur valide votre authentification (cookie JWT) lors de la connexion. Si l'authentification échoue, 
+      la connexion sera fermée avec le code 1008 (Unauthorized).
+
+    messages:
+      - $ref: '#/channels/postProcessingInfo/messages/progressUpdate'
+      - $ref: '#/channels/postProcessingInfo/messages/errorMessage'
+      - $ref: '#/channels/postProcessingInfo/messages/unknownStateMessage'
+
+components:
+  messages:
+    ProgressUpdate:
+      title: Mise à jour de progression
+      description: |
+        Message envoyé par le serveur à chaque changement d'étape ou mise à jour de progression.
+        
+        **Flux typique** :
+        1. `IN_QUEUE` - Le post-traitement est en attente
+        2. `VERIFICATION` - Vérification des fichiers uploadés
+        3. `PROCESSING` - Traitement des médias (détection des propriétés)
+        4. `COMPRESSING` - Compression et génération de miniatures
+        5. `CREATING` - Création du post en base de données
+        6. `COMPLETED` - Post créé avec succès
+
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/ProgressPayload'
+      examples:
+        - name: InQueueExample
+          payload:
+            step: in_queue
+            progress: 0
+            timestamp: 1712419200.123
+            error_message: null
+
+        - name: VerificationExample
+          payload:
+            step: verification
+            progress: 10
+            timestamp: 1712419202.456
+            error_message: null
+
+        - name: ProcessingExample
+          payload:
+            step: processing
+            progress: 25
+            timestamp: 1712419205.789
+            error_message: null
+
+        - name: CompressingExample
+          payload:
+            step: compressing
+            progress: 50
+            timestamp: 1712419215.321
+            error_message: null
+
+        - name: CreatingExample
+          payload:
+            step: creating
+            progress: 85
+            timestamp: 1712419225.654
+            error_message: null
+
+        - name: CompletedExample
+          payload:
+            step: completed
+            progress: 100
+            timestamp: 1712419230.987
+            error_message: null
+
+    ErrorMessage:
+      title: Message d'erreur
+      description: |
+        Message envoyé en cas d'erreur pendant le post-traitement.
+        
+        Le champ `error_message` contient un message d'erreur lisible et abstrait, approprié pour affichage direct à l'utilisateur frontend.
+        
+        **Important** : Ce message signale la **fin de la connexion**. Vous devez fermer le WebSocket après réception.
+
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/ErrorPayload'
+      examples:
+        - name: CompressionErrorExample
+          payload:
+            step: compressing
+            progress: 50
+            timestamp: 1712419220.111
+            error_message: "Erreur lors de la compression du fichier: format non supporté"
+
+        - name: FileUploadMissingExample
+          payload:
+            step: verification
+            progress: 5
+            timestamp: 1712419203.222
+            error_message: "Fichier attendu non trouvé sur le serveur de stockage: image.jpg"
+
+        - name: DatabaseErrorExample
+          payload:
+            step: creating
+            progress: 90
+            timestamp: 1712419228.333
+            error_message: "Erreur lors de la création du post en base de données"
+
+    UnknownStateMessage:
+      title: Message d'état inconnu
+      description: |
+        Message envoyé si le système ne peut pas trouver l'intent d'upload ou si une erreur inattendue survient.
+        
+        Cela signifie généralement que :
+        - L'`intent_id` est invalide ou expiré
+        - La session utilisateur est invalide
+        - Une erreur interne du serveur s'est produite
+        
+        **Recommandation** : Fermez la connexion et demandez à l'utilisateur de recommencer l'upload.
+
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/UnknownStatePayload'
+      examples:
+        - name: IntentNotFoundExample
+          payload:
+            step: unknown
+            progress: 0
+            timestamp: 0
+            error_message: "Intent d'upload non trouvé"
+
+  schemas:
+    ProgressPayload:
+      type: object
+      title: Payload de progression
+      description: Contient les informations de progression du post-traitement
+      required:
+        - step
+        - progress
+        - timestamp
+        - error_message
+      properties:
+        step:
+          type: string
+          title: Étape actuelle
+          description: |
+            L'étape actuelle du post-traitement du média.
+            
+            **Valeurs possibles** :
+            - `in_queue` : Le post-traitement est en attente dans la queue
+            - `verification` : Vérification que les fichiers ont bien été uploadés
+            - `processing` : Traitement et analyse des fichiers media (détection des dimensions, durée, etc.)
+            - `compressing` : Compression et optimisation des fichiers, génération des miniatures
+            - `creating` : Création et sauvegarde du post en base de données
+            - `completed` : Post-traitement terminé avec succès
+            - `unknown` : État inconnu (erreur)
+
+          enum:
+            - in_queue
+            - verification
+            - processing
+            - compressing
+            - creating
+            - completed
+            - finalizing
+            - unknown
+
+        progress:
+          type: integer
+          title: Pourcentage de progression
+          description: |
+            Pourcentage de progression de 0 à 100.
+            
+            - `0%` : Pas encore commencé ou état inconnu
+            - `1-99%` : Traitement en cours
+            - `100%` : Terminé avec succès
+
+          minimum: 0
+          maximum: 100
+          example: 50
+
+        timestamp:
+          type: number
+          title: Timestamp
+          description: |
+            Timestamp UNIX en secondes (avec fractions décimales) du moment où ce message a été émis par le serveur.
+            
+            Permet au client de détecter les délais de latence et d'implémenter des timeouts si nécessaire.
+
+          format: double
+          example: 1712419215.789
+
+        error_message:
+          type:
+            - "null"
+            - string
+          title: Message d'erreur
+          description: |
+            `null` si pas d'erreur, sinon un message d'erreur lisible et abstrait.
+            
+            Ce message est approprié pour affichage direct à l'utilisateur final du frontend.
+            Il ne contient pas de détails techniques.
+            
+            Si ce champ n'est pas `null`, cela signifie que le post-traitement a échoué et la connexion WebSocket
+            sera fermée après ce message.
+
+          example: null
+
+    ErrorPayload:
+      type: object
+      title: Payload d'erreur
+      description: Contient les informations d'erreur du post-traitement
+      required:
+        - step
+        - progress
+        - timestamp
+        - error_message
+      properties:
+        step:
+          type: string
+          title: Étape d'erreur
+          description: L'étape à laquelle l'erreur s'est produite
+          enum:
+            - verification
+            - processing
+            - compressing
+            - creating
+            - unknown
+          example: compressing
+
+        progress:
+          type: integer
+          title: Progression avant erreur
+          description: La progression atteinte avant l'erreur (0-100)
+          minimum: 0
+          maximum: 100
+          example: 50
+
+        timestamp:
+          type: number
+          title: Timestamp
+          description: Timestamp UNIX du moment de l'erreur
+          format: double
+          example: 1712419220.111
+
+        error_message:
+          type: string
+          title: Description de l'erreur
+          description: |
+            Message d'erreur lisible destiné à l'utilisateur final.
+            
+            Exemples :
+            - "Erreur lors de la compression du fichier: format non supporté"
+            - "Fichier attendu non trouvé sur le serveur de stockage"
+            - "Erreur lors de la création du post en base de données"
+
+          minLength: 1
+          example: "Erreur lors de la compression du fichier: format non supporté"
+
+    UnknownStatePayload:
+      type: object
+      title: Payload d'état inconnu
+      description: Contient les informations quand l'état est indéterminé
+      required:
+        - step
+        - progress
+        - timestamp
+        - error_message
+      properties:
+        step:
+          type: string
+          const: unknown
+          title: État inconnu
+          description: Indique un état indéterminé
+
+        progress:
+          type: integer
+          const: 0
+          title: Pas de progression
+          description: Toujours 0 pour cet état
+
+        timestamp:
+          type: number
+          const: 0
+          title: Pas de timestamp
+          description: Toujours 0 pour cet état
+
+        error_message:
+          type: string
+          title: Raison de l'état inconnu
+          description: |
+            Message expliquant pourquoi l'état est indéterminé.
+            
+            Exemples :
+            - "Intent d'upload non trouvé"
+            - "Erreur interne du serveur"
+
+          example: "Intent d'upload non trouvé"
+
+  securitySchemes:
+    jwtCookie:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Authentification par cookie JWT.
+        
+        Le cookie `_SECURE_TOKEN` doit être présent et valide. Il est automatiquement géré par le navigateur
+        après une connexion réussie via l'endpoint `/v1/auth/login`.
+        
+        En développement local, le navigateur gère automatiquement le cookie CORS.
+        En production, assurez-vous que les cookies sécurisés (HTTPS) sont activés.
