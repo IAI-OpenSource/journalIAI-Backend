@@ -12,7 +12,7 @@ FK_VIEWED_POST_USER = "fk_viewed_post_user"
 FK_VIEWED_POST_POSTS = "fk_viewed_post_posts"
 IDX_VIEWED_AT = "viewed_at_index"
 PK_VIEWED_POST = "pk_post_views"
-
+IDX_POST_VIEWS_FEED_PAGINATION = "idx_post_views_feed_pagination"
 
 class PostViews(Base, IntegrityMapperMixin):
     """Vu des posts"""
@@ -29,7 +29,8 @@ class PostViews(Base, IntegrityMapperMixin):
     # Index
     __table_args__ = (
         Index(IDX_VIEWED_AT, "viewed_at"),
-        PrimaryKeyConstraint("post_id", "user_id", name=PK_VIEWED_POST)
+        PrimaryKeyConstraint("post_id", "user_id", name=PK_VIEWED_POST),
+        Index(IDX_POST_VIEWS_FEED_PAGINATION, "post_id", "user_id")
     )
 
     # Relationships

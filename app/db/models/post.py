@@ -32,7 +32,9 @@ IDX_POSTS_DELETED_AT = "idx_posts_deleted_at"
 IDX_POSTS_ACADEMIC_YEAR = "idx_posts_academic_year"
 IDX_POST_FEED_BY_YEAR = "idx_posts_feed_by_year"
 IDX_POST_FEED_BY_YEAR_CLASSE = "idx_posts_feed_by_year_classe"
-
+IDX_USER_POST = "idx_user_post"
+IDX_CLUB_POST = "idx_club_post"
+IDX_EVENT_POST = "idx_event_post"
 
 class Post(Base, IntegrityMapperMixin):
     """Publications sur la plateforme - optimisé pour cursor-based pagination."""
@@ -88,6 +90,9 @@ class Post(Base, IntegrityMapperMixin):
         Index(IDX_POSTS_ACADEMIC_YEAR, "academic_year_id", postgresql_where=(deleted_at == None)),
         Index(IDX_POST_FEED_BY_YEAR, "academic_year_id","created_at","id", postgresql_where=(deleted_at == None) & (is_published == True)),
         Index(IDX_POST_FEED_BY_YEAR_CLASSE, "academic_year_id","target_classe_id","created_at","id", postgresql_where=(deleted_at == None) & (is_published == True)),
+        Index(IDX_USER_POST, "author_id", postgresql_where=(deleted_at == None)),
+        Index(IDX_CLUB_POST, "club_id", postgresql_where=(deleted_at == None) & (club_id != None)),
+        Index(IDX_EVENT_POST, "event_id", postgresql_where=(deleted_at == None) & (event_id != None)),
         CheckConstraint("like_count >= 0 AND comment_count >= 0", name=CHK_POSTS_METRICS),
         CheckConstraint("content IS NOT NULL OR post_type != 'TEXT'", name=CHK_POSTS_CONTENT_REQUIRED),
         CheckConstraint("content IS NULL OR LENGTH(content) <= 10000", name=CHK_POSTS_CONTENT_LENGTH),
