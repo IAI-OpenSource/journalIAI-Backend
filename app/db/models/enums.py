@@ -90,3 +90,15 @@ class ExecutiveRoleType(str, Enum):
     TRESORIER_GENERAL = "TRESORIER_GENERAL"
     VICE_TRESORIER_GENERAL = "VICE_TRESORIER_GENERAL"
     CONSEILLER = "CONSEILLER"
+
+
+class CeleryStatus(str, Enum):
+    """les différents status de celery"""
+    PENDING = "PENDING" 
+    SUCCESS = "SUCCESS"
+    FAILURE = "FAILURE" 
+    
+class DownloadFormat(str, Enum):
+    """Les différents formats de téléchargement"""
+    JSON = "JSON"
+    PDF = "PDF"
