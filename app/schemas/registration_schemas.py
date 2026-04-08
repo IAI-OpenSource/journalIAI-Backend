@@ -4,7 +4,7 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, EmailStr, Field
 
 from uuid import UUID
 
@@ -22,6 +22,7 @@ class CreateRegistration(BaseModel):
 
   first_name: str = Field(description="Prenom de l'utilisateur")
   last_name: str = Field(description="Nom de l'etudiant")
+  email: EmailStr = Field(description="Email de l'utilisateur")
   role: UserRole = Field(description="role de l'utilisateur")
   executive_role: Optional[ExecutiveRoleType] = Field(
       default=None,
@@ -40,6 +41,7 @@ class CreateMultileRegistration(BaseModel):
 
   first_name: str 
   last_name: str 
+  email: EmailStr
   sexe: SexeType 
   
   
@@ -99,6 +101,7 @@ class ReadRegistration(BaseModel):
   jeton: str = Field(description="Jeton a remettre aux utilisteurs")
   first_name: str = Field(description="Prenom de l'utilisateur")
   last_name: str = Field(description="Nom de l'etudiant")
+  email: EmailStr = Field(description="Email de l'utilisateur")
   role: UserRole = Field(description="role de l'utilisateur")
   executive_role: Optional[ExecutiveRoleType] = Field(description="role executif de l'utilisateur")
   classe: Optional[ReadUserClasse] = Field(description="Classe de l'utilisateur")

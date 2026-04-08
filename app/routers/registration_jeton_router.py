@@ -21,6 +21,7 @@ from app.schemas.global_schemas import GlobalStringMessage, StringMessage
 from app.schemas.registration_schemas import CreateRegistration, ExcelReadSuccess, ExcelSuccessInfos, ExcelUploadResponse, FindRegistration, JetonUpdateData, ListRegistrationInfos, ExcelUploadInfos, RegistrationInfos
 from app.services.registration_service import RegistrationService
 from app.worker.tasks.excel_task import import_students_task
+from app.worker.tasks.send_jeton_email_task import send_jetons_email_orchestrator
 
 
 router = APIRouter(prefix="/registration", tags=[ApiTags.JETON_ENREGISTREMENT])
@@ -89,6 +90,7 @@ async def update_registration(
 
 @router.post(
   "/students/import",
+  dependencies=[Depends(RoleDepends.only_managers_authorize)],
   response_model=ExcelUploadInfos,
 )
 async def imports_students(
@@ -116,6 +118,7 @@ async def imports_students(
 
 @router.get(
   "/import/status/{task_id}",
+  dependencies=[Depends(RoleDepends.only_managers_authorize)],
   response_model=ExcelSuccessInfos
 )
 async def check_status(
@@ -123,14 +126,22 @@ async def check_status(
   task_id: Annotated[str, Path(description="ID de la tache que vous avez récupéré")]
   ):
   """Route pour checker l'etat/statut du chargement du fichier excel"""
-  task_result = import_students_task.AsyncResult(task_id)
+  try:
+    task_result = import_students_task.AsyncResult(task_id)
+    state = task_result.state 
+  except Exception as e:
+    logger.error(f"Erreur lors de la lecture du statut Celery : {e}")
+    return ExcelSuccessInfos.error_response(
+        error_message="Erreur interne de suivi de tâche.",
+        response=response
+    )
   
-  if task_result.state == CeleryStatus.PENDING.value:
+  if state == CeleryStatus.PENDING.value:
     return ExcelSuccessInfos.error_response(
       error_message="Ajout de jetons en cours ...",
       response=response
     )
-  elif task_result.state == CeleryStatus.SUCCESS:
+  elif state == CeleryStatus.SUCCESS:
       return ExcelSuccessInfos.success_response(
         data=ExcelReadSuccess(
           status=CeleryStatus.SUCCESS,
@@ -138,7 +149,7 @@ async def check_status(
         ),
         response=response
       )
-  elif task_result.state == CeleryStatus.FAILURE:
+  elif state == CeleryStatus.FAILURE:
       # C'est ici que le meta data de ton update_state apparaîtra
       logger.error(str(task_result.info))
       return ExcelSuccessInfos.error_response(
@@ -208,6 +219,7 @@ async def all_jetons_by_classe(
 
 @router.get(
   "/export/jetons/{classe_id}/{format}",
+  dependencies=[Depends(RoleDepends.only_managers_authorize)],
   response_model=None
 )
 async def export_pdf_jetons(
@@ -238,9 +250,9 @@ async def export_pdf_jetons(
       )
 
     pdf_buffer = PDFExportUtils.generate_jetons_pdf(
-      service_result.data
-      , f"Classe {service_result.data[0].classe.classe_prefix.value if service_result.data[0].classe else None} {service_result.data[0].classe.classe_suffix.upper() if service_result.data[0].classe else None}")
-
+      service_result.data, 
+      f"{service_result.data[0].classe.classe_prefix.value if service_result.data[0].classe else None} {service_result.data[0].classe.classe_suffix.upper() if service_result.data[0].classe else None}"
+    )
     filename = f"Jetons_IAI_Classe_{classe_id}.pdf"
     
     encoded_filename = urllib.parse.quote(filename)
@@ -255,3 +267,22 @@ async def export_pdf_jetons(
         headers=headers, 
         media_type="application/pdf"
     )
+    
+    
+@router.post(
+  "/students/send-email/{classe_id}",
+  dependencies=[Depends(RoleDepends.only_managers_authorize)],
+  response_model=GlobalStringMessage,
+)
+async def send_students_jetons_email(
+  response: Response,
+  classe_id: Annotated[UUID, Path(..., description="ID de la classe concernée")],
+):
+  """Route pour envoyer des emails avec les jetons aux étudiants de la classe"""
+
+  send_jetons_email_orchestrator.delay(classe_id=classe_id)
+  
+  return GlobalStringMessage.success_response(
+    data=StringMessage(message="Envoi des emails lancé."),
+    response=response
+  )

@@ -3,55 +3,50 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>
-        .container {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            max-width: 500px;
-            margin: 0 auto;
-            padding: 20px;
-            border: 1px solid #e0e0e0;
-            border-radius: 10px;
-        }
-        .header {
-            text-align: center;
-            color: #2c3e50;
-        }
-        .otp-code {
-            font-weight: bold;
-            color: #3498db;
-            text-align: center;
-            letter-spacing: 5px;
-            background-color: #f7f9fc!;
-            padding: 15px;
-            border-radius: 5px;
-            margin: 20px 0;
-            border: 1px dashed #3498db;
-        }
-        .footer {
-            font-size: 12px;
-            color: #7f8c8d;
-            text-align: center;
-            margin-top: 20px;
-        }
-    </style>
+    <title>Code de vérification - Journal IAI</title>
 </head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h2>Journal IAI</h2>
-            <p>Code de vérification</p>
-        </div>
-        <p>Bonjour {{ last_name }} {{ first_name }},</p>
-        <p>Utilisez le code ci-dessous pour sécuriser votre connexion à votre espace étudiant :</p>
-        
-        <h1 class="otp-code">{{ otp_code }}</h1>
-        
-        <p>Ce code est valable pendant <strong>2 minutes</strong>. Ne le partagez jamais avec personne.</p>
-        
-        <div class="footer">
-            <p>&copy; 2026 Journal-IAI-TOGO - Plateforme Estudiantine</p>
-            <p>Si vous n'êtes pas à l'origine de cette demande, ignorez ce mail.</p>
-        </div>
-    </div>
+<body style="margin: 0; padding: 0; background-color: #f4f7f9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+    <table border="0" cellpadding="0" cellspacing="0" width="100%">
+        <tr>
+            <td style="padding: 20px 0;">
+                <div class="container" style="max-width: 500px; margin: 0 auto; padding: 30px; border: 1px solid #e0e0e0; border-radius: 12px; background-color: #ffffff; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+                    
+                    <div class="header" style="text-align: center; border-bottom: 2px solid #f4f7f9; padding-bottom: 20px; margin-bottom: 25px;">
+                        <h2 style="margin: 0; color: #1a5fb4; font-size: 24px; text-transform: uppercase; letter-spacing: 1px;">Journal IAI</h2>
+                        <p style="margin: 5px 0 0; color: #7f8c8d; font-size: 14px;">Sécurisation de votre compte</p>
+                    </div>
+
+                    <p style="color: #333333; font-size: 16px; line-height: 1.5;">Bonjour <strong>{{ last_name }} {{ first_name }}</strong>,</p>
+                    
+                    <p style="color: #555555; font-size: 15px; line-height: 1.5;">
+                        Vous avez demandé un accès à votre espace étudiant. Veuillez utiliser le code de vérification (OTP) suivant pour confirmer votre identité :
+                    </p>
+                    
+                    <div style="text-align: center; margin: 30px 0;">
+                        <div style="display: inline-block; font-weight: bold; color: #1a5fb4; background-color: #f0f7ff; padding: 15px 30px; border-radius: 8px; border: 1px dashed #1a5fb4; font-size: 32px; letter-spacing: 8px; font-family: 'Courier New', Courier, monospace;">
+                            {{ otp_code }}
+                        </div>
+                    </div>
+                    
+                    <p style="color: #555555; font-size: 14px; text-align: center; margin-bottom: 25px;">
+                        Ce code expire dans <strong style="color: #d9534f;">2 minutes</strong>.<br>
+                        <span style="font-style: italic; color: #888;">Pour votre sécurité, ne partagez jamais ce code.</span>
+                    </p>
+                    
+                    <div style="background-color: #fff9eb; border-left: 4px solid #f0ad4e; padding: 10px 15px; margin-bottom: 25px;">
+                        <p style="margin: 0; font-size: 13px; color: #856404;">
+                            Si vous n'êtes pas à l'origine de cette demande, vous pouvez ignorer cet e-mail en toute sécurité.
+                        </p>
+                    </div>
+
+                    <div class="footer" style="font-size: 12px; color: #95a5a6; text-align: center; margin-top: 30px; border-top: 1px solid #f4f7f9; padding-top: 20px;">
+                        <p style="margin: 5px 0;"><strong>Journal-IAI-TOGO</strong></p>
+                        <p style="margin: 5px 0;">Plateforme Numérique de la Vie Estudiantine</p>
+                        <p style="margin: 15px 0 0; font-size: 11px;">&copy; 2026 - Tous droits réservés</p>
+                    </div>
+                </div>
+            </td>
+        </tr>
+    </table>
 </body>
 </html>

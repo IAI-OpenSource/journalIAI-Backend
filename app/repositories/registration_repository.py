@@ -87,6 +87,7 @@ class RegistrationRepository:
           jeton=jeton,
           first_name=reg_data.first_name.title(),
           last_name=reg_data.last_name.upper(),
+          email=reg_data.email,
           role=reg_data.role,
           executive_role=reg_data.executive_role,
           sexe=reg_data.sexe,
