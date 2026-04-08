@@ -37,8 +37,9 @@ class PDFExportUtils:
         y = height - 4.8*cm
         c.setFont("Helvetica-Bold", 11)
         c.drawString(2*cm, y, "NOM")
-        c.drawString(8*cm, y, "PRÉNOM")
-        c.drawString(14*cm, y, "CODE JETON")
+        c.drawString(7*cm, y, "PRÉNOM")
+        c.drawString(11*cm, y, "CODE JETON")
+        c.drawString(16.8*cm, y, "SIGNATURE")
         
         c.line(2*cm, y - 0.2*cm, width - 2*cm, y - 0.2*cm)
         y -= 0.8*cm
@@ -52,11 +53,11 @@ class PDFExportUtils:
                 c.setFont("Helvetica", 10)
 
             c.drawString(2*cm, y, student.last_name.upper())
-            c.drawString(8*cm, y, student.first_name.title())
+            c.drawString(7*cm, y, student.first_name.title())
             
             # Mise en évidence du jeton
             c.setFont("Courier-Bold", 11)
-            c.drawString(14*cm, y, student.jeton)
+            c.drawString(11*cm, y, f"{student.jeton[:7]}*****")
             c.setFont("Helvetica", 10)
             
             y -= 0.6*cm
