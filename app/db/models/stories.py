@@ -19,6 +19,7 @@ from app.db.models.enums import MediaType
 FK_STORIES_AUTHOR = "fk_stories_author"
 FK_STORIES_CLUB = "fk_stories_club"
 FK_STORIES_CLASSE = "fk_stories_classe"
+FK_STORIES_GROUP = "fk_stories_group"
 IDX_STORIES_FEED_PAGINATION = "idx_stories_feed_pagination"
 IDX_STORIES_BY_AUTHOR = "idx_stories_by_author"
 IDX_STORIES_BY_CLUB = "idx_stories_by_club"
@@ -66,6 +67,11 @@ class Story(Base, IntegrityMapperMixin):
         comment="Légende optionnelle pour la story, affichée sous le média"
     )
 
+    group_id: Mapped[UUID] = mapped_column(
+        ForeignKey("story_groups.id", ondelete="CASCADE", name=FK_STORIES_GROUP),
+        nullable=False
+    )
+
 
 
     # Métadonnées
@@ -94,11 +100,12 @@ class Story(Base, IntegrityMapperMixin):
     author: Mapped["User"] = relationship("User", foreign_keys=[author_id], back_populates="stories", uselist=False, init=False)
     club: Mapped[Optional["Club"]] = relationship("Club", foreign_keys=[club_id], back_populates="stories", uselist=False, init=False)
     classe: Mapped[Optional["Classe"]] = relationship("Classe", foreign_keys=[target_classe_id], back_populates="stories", uselist=False, init=False)
-
+    group: Mapped["StoryGroups"] = relationship("StoryGroups", back_populates="stories", uselist=False, init=False)
     # Messages d'erreur d'intégrité spécifiques au modèle Post
     ERROR_MESSAGES = {
         FK_STORIES_AUTHOR: "L'auteur spécifié n'existe pas.",
         FK_STORIES_CLUB: "Le club spécifié n'existe pas.",
         FK_STORIES_CLASSE: "La classe spécifiée n'existe pas.",
+        FK_STORIES_GROUP: "Le groupe de stories spécifié n'existe pas."
     }
 
