@@ -65,7 +65,7 @@ class Club(Base, IntegrityMapperMixin):
     members: Mapped[list["ClubMember"]] = relationship("ClubMember", back_populates="club", cascade="all, delete-orphan", uselist=True, init=False)
     posts: Mapped[list["Post"]] = relationship("Post", foreign_keys="Post.club_id", back_populates="club", cascade="all, delete-orphan", uselist=True, init=False)
     events: Mapped[list["Event"]] = relationship("Event", foreign_keys="Event.organizer_club_id", back_populates="organizer_club", cascade="all, delete-orphan", uselist=True, init=False)
-    story_groups: Mapped[list["StoryGroups"]] = relationship("Story", back_populates="club", cascade="all, delete-orphan", uselist=True, init=False)
+    story_groups: Mapped[list["StoryGroups"]] = relationship("StoryGroups", back_populates="club", cascade="all, delete-orphan", uselist=True, init=False)
 
     # Messages d'erreur
     ERROR_MESSAGES = {

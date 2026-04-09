@@ -67,8 +67,6 @@ class AvailableCacheKeys(str, Enum):
     # Clés de cache pour les uploads de stories
     STORY_FILE_UPLOAD_INTENT_KEY = "story_upload_intent:{user_id}:{intent_id}"  # Clé pour stocker les intent d'upload de stories
 
-    STORY_FILE_UPLOAD_PROGRESS_STREAM_KEY = "story_upload_progress_stream:{user_id}:{intent_id}"  # Clé pour le stream de progression du traitement d'une story
-
     USER_DAILY_POST_SEEN = BaseCacheEntity.USER + ":daily_seen_posts"  # Clé pour les posts vus par un utilisateur (pour le suivi de la lecture du feed)
 
     USERS_HAS_SEEN_POST_ON_A_DAY = "daily_post_views_set"

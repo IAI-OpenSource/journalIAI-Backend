@@ -51,7 +51,7 @@ class _UserAuthDependencies:
 
         if access_token is None:
             raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
+                status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Aucun clé d'access fourni !"
             )
         
@@ -74,12 +74,6 @@ class _UserAuthDependencies:
         user = await self.user_service.service_find_user_by_id(user_session.data.user_id)
         
         if user.is_error():
-            if user.status_code == custom_status._404_STATUS_NOT_FOUND.value:
-                raise HTTPException(
-                    status_code=user.status_code,
-                    detail=user.error
-                ) 
-            
             raise HTTPException(
                 detail=user.error,
                 status_code=user.status_code

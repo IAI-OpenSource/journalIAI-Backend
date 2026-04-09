@@ -28,3 +28,13 @@ pas ici
 GET_POST_ROUTE_DESCRIPTION: str = ("Récupère un post par son ID, le résultat inclut les informations du post ainsi que"
                                    " les médias associés (s'il y en a) et les informations de vue pour l'utilisateur"
                                    " courant (si connecté)")
+
+STORY_INTENT_ROUTE_DESCRIPTION: str = """Endpoint pour générer un intent d'upload de média pour une story, 
+en fournissant les informations nécessaires.
+
+
+Petite subtilité sur le schéma : Si `only_for_a_class` est `true` alors la story est marqué comme une
+story de classe (pour que cet argument puisse etre `true` il faudraitt que l'utilisateur ourant soit un délégué
+de classe. Si `club_id` est fourni alors la story est marqué comme une story de club.
+Si ces deux options ne sont pas vérifiés alors la story est consiférée comme une simple story utilisateur
+"""

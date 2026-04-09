@@ -1,26 +1,26 @@
 import secrets
 from logging import getLogger
-from time import time
 from typing import List
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import status, WebSocket, WebSocketDisconnect
+from fastapi import status
 
 from app.cache.helpers.base import CacheWrapper
 from app.cache.post_cache import PostCache
+from app.cache.processing_cache import ProcessingCache
 from app.db.models.post import Post
 from app.db.models.post_media import PostMedia
 from app.globals.messages import Messages
 from app.globals.others_constants import OtherConstants
 from app.repositories.post_repository import PostRepository
 from app.schemas.post_upload_schemas import CreateMediaUploadIntent, UploadURLSchema, MediaUploadCompleteSchema, \
-    WsMediasProcessingInfoSchema, WsMediasProcessingInfoSchemaSteps, CreateMediaUploadIntentFullData, FileInUploadURLSchema, \
+    CreateMediaUploadIntentFullData, FileInUploadURLSchema, \
     AvailableUploadMethod
 from app.schemas.user_schemas import ReadUser
 from app.services import ServiceResult
 from app.services.post_service import PostService
+from app.services.processing_service import ProcessingService
 from app.storage.media_upload_storage import MediaUploadStorage
-from app.worker.celery_app import celery_app
 from app.worker.tasks.workers_task_names import WorkersTaskNames
 
 logger = getLogger(__name__)
@@ -39,6 +39,7 @@ class MediaUploadsService:
         self._raw_cache = cache
         self._cache = PostCache(cache)
         self._bd = PostRepository(bd)
+        self._processing_cache = ProcessingCache(cache)
 
 
     async def service_process_media_upload_intent(
@@ -183,32 +184,22 @@ class MediaUploadsService:
                     status_code=status.HTTP_404_NOT_FOUND, service_name= Messages.POST_SERVICE
                 )
 
-        await self._cache.add_upload_event_in_a_stream(
-            user_id=user_id_str, intent_id=intent_id,
-            data=WsMediasProcessingInfoSchema(
-               step=WsMediasProcessingInfoSchemaSteps.IN_QUEUE,
-               progress=0,
-               timestamp=time(),
-               error_message=None
-           ),
-            must_add_ttl=True
+        processing_serv = ProcessingService(self._raw_cache)
+        task_res = await processing_serv.send_processing_task(
+            user_id=user_id_str,
+            intent_id=intent_id,
+            task_name=WorkersTaskNames.PROCESS_MEDIAS_UPLOAD,
+            queue_name=OtherConstants.MEDIA_PROCESSING_WORKER_QUEUE_NAME,
+            task_kwargs={
+                "intent_id": intent_id,
+                "user_id": user_id_str,
+                "post_data": intent_data.model_dump_json()
+            }
         )
-        try:
-            celery_app.send_task(
-                name=WorkersTaskNames.PROCESS_MEDIAS_UPLOAD,
-                kwargs={
-                    "intent_id": intent_id,
-                    "user_id": user_id_str,
-                    "post_data": intent_data.model_dump_json()
-                },
-                queue=OtherConstants.MEDIA_PROCESSING_WORKER_QUEUE_NAME
-            )
-        except Exception as e:
-            logger.error(f"Erreur {e.__class__.__name__} lors de l'envoi de la tâche de post-traitement du média uploadé dans le worker : {e}")
-            await self._cache.delete_upload_progress_stream(user_id_str, intent_id)   # Nettoyage du stream en cas d'erreur pour éviter les fuites de mémoire
+
+        if task_res.is_error():
             return ServiceResult.service_error(
-                message=Messages.INTERNAL_SERVER_ERROR,
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, service_name=Messages.POST_SERVICE
+                message=task_res.error, status_code=task_res.status_code, service_name= Messages.POST_SERVICE
             )
 
         await self._cache.delete_media_upload_intent(user_id_str, intent_id)  # Marque comme déja en cours de process
@@ -218,100 +209,5 @@ class MediaUploadsService:
                 job_id=intent_id
             )
         )
-
-
-    async def service_listen_media_processing_intent(self, current_user: ReadUser, intent_id: str, ws: WebSocket) -> None:
-        """
-        Suis l'avancée d'un intent d'upload de média en écoutant les messages de progression du post-traitement du
-        média dans le cache, et retourne les infos de progression à l'utilisateur via le websocket
-        Args:
-            current_user: L'utilisateur courant
-            intent_id: Id de l'intent d'upload média
-            ws: Websocket de suivi
-
-        Returns:
-            Jsp encore
-        """
-        user_id_str = str(current_user.id)
-        verification = await self._cache.verify_a_upload_is_in_processing(user_id_str, intent_id)
-
-        try:
-            if not verification:
-                logger.info(f"Aucun upload en cours de post-traitement trouvé pour l'intent d'upload média avec id {intent_id} et user_id {user_id_str}")
-                await ws.send_text(
-                    WsMediasProcessingInfoSchema(
-                        progress=0,
-                        step=WsMediasProcessingInfoSchemaSteps.UNKNOWN,
-                        timestamp=0,
-                        error_message=Messages.ERROR_MEDIA_UPLOAD_INTENT_NOT_FOUND
-                    ).model_dump_json()
-                )
-                return
-
-            last_id = None
-            MAX_WAIT_ATEMPT = 10        # 10 minut
-            attempts = 0
-            has_finished = False
-
-            while attempts < MAX_WAIT_ATEMPT and not has_finished:
-                res = await self._cache.read_upload_progress_event_in_a_stream(user_id_str, intent_id, last_id)
-
-                progress_data = res[0]
-
-                if progress_data is None:
-                    attempts+=1
-                    logger.debug(f"Aucun nouvel événement de progression trouvé pour l'intent d'upload média avec id {intent_id} et user_id {user_id_str}, tentative {attempts+1}/{MAX_WAIT_ATEMPT}")
-                    continue
-
-                last_id = res[1]
-                logger.info(f"Nouvel événement de progression trouvé pour l'intent d'upload média avec id {intent_id} et user_id {user_id_str}, étape: {res[0].step}, progression: {res[0].progress}%, timestamp: {res[0].timestamp}, message d'erreur: {res[0].error_message}")
-
-
-                await ws.send_json(progress_data.model_dump_json())
-
-                if progress_data.step == WsMediasProcessingInfoSchemaSteps.COMPLETED or progress_data.error_message is not None:
-                    has_finished = True
-                    break
-
-            if has_finished:
-                logger.info(f"Traitement de l'intent d'upload média avec id {intent_id} et user_id {user_id_str} terminé, fermeture du websocket")
-                await self._cache.delete_upload_progress_stream(user_id_str, intent_id)   # Nettoyage du stream après la fin du suivi
-
-            else:
-                logger.error(f"Nombre maximum de tentatives atteint pour la lecture su stream d'upload média avec id {intent_id} et user_id {user_id_str}, fermeture du websocket")
-                await ws.send_json(
-                    WsMediasProcessingInfoSchema(
-                        progress=0,
-                        step=WsMediasProcessingInfoSchemaSteps.UNKNOWN,
-                        timestamp=0,
-                        error_message=Messages.INTERNAL_SERVER_ERROR
-                    ).model_dump_json()
-                )
-
-        except WebSocketDisconnect:
-            logger.info(f"Websocket de suivi de l'intent d'upload média avec id {intent_id} et user_id {user_id_str} déconnecté par le client")
-            raise
-        except Exception as e:
-            logger.exception(f"Exception {e.__class__.__name__} lors de l'écoute du websocket de suivi de l'intent d'upload média avec id {intent_id} et user_id {user_id_str} : {e}", exc_info=e)
-            try:
-                await ws.send_json(
-                    WsMediasProcessingInfoSchema(
-                        progress=0,
-                        step=WsMediasProcessingInfoSchemaSteps.UNKNOWN,
-                        timestamp=0,
-                        error_message=Messages.INTERNAL_SERVER_ERROR
-                    ).model_dump_json()
-                )
-            except WebSocketDisconnect:
-                return
-        finally:
-            try:
-                await ws.close()
-            except WebSocketDisconnect:
-                pass
-
-
-
-
 
 

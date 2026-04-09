@@ -25,6 +25,7 @@ from app.schemas.user_schemas import ReadUser
 from app.services.media_upload_service import MediaUploadsService
 from fastapi import Depends, WebSocket, Query, WebSocketDisconnect, APIRouter, Response
 from app.services.post_service import PostService
+from app.services.processing_service import ProcessingService
 
 router = APIRouter(prefix="/posts", tags=[ApiTags.POSTS], dependencies=[Depends(RoleDepends.all_authorize)])
 
@@ -47,6 +48,10 @@ def get_post_upload_service(
 ) -> MediaUploadsService:
     return MediaUploadsService(cache=cache, bd=bd)
 
+def get_prcessing_service(
+    cache: Annotated[CacheWrapper, Depends(get_redis)]
+) -> ProcessingService:
+    return ProcessingService(cache=cache)
 
 # TODO: Revoir tout ce fichier quand l'auth sera dispo et re-tester, principalement verifier si l'utilisateur peut post
 
@@ -91,7 +96,7 @@ async def complete_video_post(
 async def ws_post_processing_info(
     websocket: WebSocket,
     current_user: Annotated[ReadUser, Depends(get_current_user)],
-    service : Annotated[MediaUploadsService, Depends(get_post_upload_service)],
+    service : Annotated[ProcessingService, Depends(get_prcessing_service)],
     intent_id: str = Query(..., description="L'id d'intent d'upload de média pour lequel on veut suivre le post-traitement"),
 ):
     """

@@ -9,6 +9,7 @@ from celery import shared_task
 from minio.datatypes import Object
 
 from app.cache.helpers.base import cache_manager, CacheWrapper
+from app.cache.processing_cache import ProcessingCache
 from app.cache.story_cache import StoryCache
 from app.db.session import AsyncSessionLocal
 
@@ -65,6 +66,7 @@ def process_story_upload_task(
         post_data=story_data_obj,
         cache=redis_cache,
         upload_cache=upload_cache,
+        processing_cache=ProcessingCache(redis_cache)
     )
 
     progress_handler = ProgressHandler(context)
@@ -76,7 +78,7 @@ def process_story_upload_task(
     current_step = ProcessingStep.VERIFICATION
     downloaded_file: Object | None = None
     uploaded_files_to_cleanup: list[tuple[str, str]] = []  # [(bucket_name, object_path), ...]
-
+    has_success = False
     try:
         file = story_data_obj.file
 
@@ -147,6 +149,7 @@ def process_story_upload_task(
             send_error_to_user(db_result.error)
             return
 
+        has_success = True
 
         task_async_loop_manager.run_async(progress_handler.complete())
 
@@ -164,7 +167,11 @@ def process_story_upload_task(
         cleanup_handler.cleanup_all()
 
         if downloaded_file:
-            MinIOManager.delete_file(BucketName.STORIES_EPHEMERAL_CONTENT.value, downloaded_file.object_name)
+            MinIOManager.delete_file(BucketName.MEDIAS_RAW_UPLOADS.value, downloaded_file.object_name)
+
+        if uploaded_files_to_cleanup and not has_success:
+            for file in uploaded_files_to_cleanup:
+                MinIOManager.delete_file(file[0], file[1])
 
         task_async_loop_manager.run_async(redis_cache.close())
 

@@ -63,6 +63,7 @@ class Messages:
     MEMBER_DELETE_SUCCESS = "Membre supprimer avec sucsess"
     VIDEO_UPLOAD_INTENT_SAVED = "Intent d'upload video enregistré avec succès"
     ERROR_MEDIA_UPLOAD_INTENT_NOT_FOUND = "Intent d'upload média expirée ou inexistant"
+    ERROR_LAUNCHING_MEDIA_PROCESSING_TASK = "Erreur lors du lancement de la tâche de traitement des médias"
 
     DELETED_USER = "Utilisateur déjà supprimé" 
     USER_FOUNDED = "Utilisateur récupérer avec succès !"

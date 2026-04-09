@@ -19,13 +19,6 @@ class StoryUploadURLSchema(BaseModel):
 
 
 class CreateStoryUploadIntent(BaseModel):
-    """
-    Schéma de validation pour un intent d'upload de story avec fichier unique.
-    Petite subtilité : Si `only_for_a_class` est `true` alors la story est marqué comme une
-    story de classe (pour que cet argument puisse etre `true` il faudraitt que l'utilisateur ourant soit un délégué
-    de classe. Si `club_id` est fourni alors la story est marqué comme une story de club.
-    Si ces deux options ne sont pas vérifiés alors la story est consiférée comme une simple story utilisateur
-    """
 
     legend: Optional[str] = Field(
         default=None,
@@ -36,7 +29,7 @@ class CreateStoryUploadIntent(BaseModel):
     story_duration_hours: int = Field(
         default=24,
         description="Durée de vie de la story en heures (par défaut 24h",
-        gt=0, lt=24
+        ge=1, le=24
     )
 
     club_id: Optional[UUID] = Field(None, description="L'ID du club (Si la story est pour un club)")

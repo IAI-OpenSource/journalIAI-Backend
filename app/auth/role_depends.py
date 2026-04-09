@@ -1,4 +1,4 @@
-from app.auth.role_checker import RoleChecker
+from app.auth.role_checker import RoleChecker, OthersCustomRoleChecker
 from app.db.models.enums import UserRole, ExecutiveRoleType
 
 
@@ -34,20 +34,7 @@ class RoleDepends:
       UserRole.CLUB_LEADER
     ])
 
-  only_those_can_post_authorize = RoleChecker([
-      UserRole.DELEGATE,
-      UserRole.CLUB_LEADER,
-      UserRole.EXECUTIVE_MEMBER,
-      ExecutiveRoleType.DELEGUE_GENERAL,
-      ExecutiveRoleType.SECRETAIRE_GENERAL_ADJOINT,
-      ExecutiveRoleType.SECRETAIRE_GENERAL,
-      ExecutiveRoleType.SECRETAIRE_GENERAL_ADJOINT,
-      ExecutiveRoleType.CACA,
-      ExecutiveRoleType.VICE_CACA,
-      ExecutiveRoleType.TRESORIER_GENERAL,
-      ExecutiveRoleType.VICE_TRESORIER_GENERAL,
-      ExecutiveRoleType.CONSEILLER
-    ])
+  only_those_can_post_authorize = OthersCustomRoleChecker.only_can_posts
   
   only_managers_authorize = RoleChecker([
       UserRole.MODERATOR,

@@ -7,6 +7,7 @@ from uuid import UUID, uuid4
 
 from app.cache.helpers.base import CacheWrapper
 from app.cache.post_cache import PostCache
+from app.cache.processing_cache import ProcessingCache
 from app.cache.story_cache import StoryCache
 from app.schemas.post_upload_schemas import CreateMediaUploadIntentFullData, FileToUploadSchema
 from app.schemas.story_upload_schemas import CreateStoryUploadIntentFullData
@@ -50,6 +51,7 @@ class ProcessingContext:
     # Cache et connexions
     cache: CacheWrapper
     upload_cache: Union[PostCache, StoryCache]
+    processing_cache: ProcessingCache
     _locals_paths: dict[str, dict[str, str]] = field(default_factory=dict, init=False, repr=False)
     # État du traitement
     global_progress_percentage: int = field(default=0, init=False)

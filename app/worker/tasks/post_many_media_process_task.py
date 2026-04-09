@@ -6,6 +6,7 @@ from minio.datatypes import Object
 
 from app.cache.helpers.base import cache_manager
 from app.cache.post_cache import PostCache
+from app.cache.processing_cache import ProcessingCache
 from app.db.models.post import Post
 from app.db.models.post_media import PostMedia
 from app.globals.others_constants import OtherConstants
@@ -58,6 +59,7 @@ def process_media_upload_task(
         post_data=post_data_obj,
         cache=redis_cache,
         upload_cache=upload_cache,
+        processing_cache=ProcessingCache(redis_cache)
     )
 
     progress_handler = ProgressHandler(context)

@@ -13,11 +13,13 @@ from app.cache.helpers.base import CacheWrapper, get_redis
 from app.db.session import get_db
 from app.globals.api_tags import ApiTags
 from app.auth.dependencies import get_current_user
+from app.globals.routes_descriptions import STORY_INTENT_ROUTE_DESCRIPTION
 from app.schemas.story_upload_schemas import (
     StoryMediaUploadIntentResponse, CreateStoryUploadIntent,
     StoryMediaUploadCompleteResponse
 )
 from app.schemas.user_schemas import ReadUser
+from app.services.processing_service import ProcessingService
 from app.services.story_upload_service import StoryMediaUploadsService
 
 router = APIRouter(prefix="/stories", tags=[ApiTags.STORY], dependencies=[Depends(RoleDepends.all_authorize)])
@@ -28,14 +30,17 @@ def get_story_upload_service(
     """Crée une instance du service d'upload de stories."""
     return StoryMediaUploadsService(cache=cache, bd=bd)
 
-
+def get_prcessing_service(
+        cache: Annotated[CacheWrapper, Depends(get_redis)]
+) -> ProcessingService:
+    return ProcessingService(cache=cache)
 
 @router.post(
     path="/get-uploads-intent",
     name="Créer une story avec un média (Image, Vidéo)",
     response_model=StoryMediaUploadIntentResponse,
     tags=[ApiTags.STORY_CREATION],
-    description="Initie un upload d'une story avec un seul média (image ou vidéo). Retourne une URL d'upload présignée.",
+    description=STORY_INTENT_ROUTE_DESCRIPTION,
     dependencies=[Depends(RoleDepends.only_those_can_post_authorize)]
 )
 async def story_media_upload_intent(
@@ -75,7 +80,7 @@ async def complete_story_upload(
 async def ws_story_processing_info(
     websocket: WebSocket,
     current_user: Annotated[ReadUser, Depends(get_current_user)],
-    service : Annotated[StoryMediaUploadsService, Depends(get_story_upload_service)],
+    service : Annotated[ProcessingService, Depends(get_prcessing_service)],
     intent_id: str = Query(..., description="L'ID d'intent d'upload de la story pour lequel on veut suivre la progression"),
 ):
     """

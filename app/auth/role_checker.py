@@ -24,3 +24,14 @@ class RoleChecker:
       )
     
     return current_user
+
+class OthersCustomRoleChecker:
+
+    @classmethod
+    def only_can_posts(cls, current_user: Annotated[ReadUser, Depends(get_current_user)]):
+        if not current_user.can_post:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Ohhh tu n'es pas autorisé à poster :(",
+            )
+

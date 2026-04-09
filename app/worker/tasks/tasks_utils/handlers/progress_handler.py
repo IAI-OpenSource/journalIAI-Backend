@@ -58,7 +58,7 @@ class ProgressHandler:
         )
 
         # Envoi vers Redis
-        await self.context.upload_cache.add_upload_event_in_a_stream(
+        await self.context.processing_cache.add_upload_event_in_a_stream(
             self.context.user_id,
             self.context.intent_id,
             progression,
@@ -100,7 +100,7 @@ class ProgressHandler:
             error_message=None,
         )
 
-        await self.context.upload_cache.add_upload_event_in_a_stream(
+        await self.context.processing_cache.add_upload_event_in_a_stream(
             self.context.user_id,
             self.context.intent_id,
             progression,
