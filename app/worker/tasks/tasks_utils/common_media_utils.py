@@ -14,7 +14,7 @@ from PIL import Image
 logger = getLogger(__name__)
 
 def generate_blurhash_str(
-    image_path: str
+    image_path: Optional[str]
 ) -> Optional[str]:
     """
     Génère une chaîne de blurhash pour une image ou une vidéo.

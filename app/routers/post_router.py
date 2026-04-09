@@ -91,8 +91,8 @@ async def complete_video_post(
 async def ws_post_processing_info(
     websocket: WebSocket,
     current_user: Annotated[ReadUser, Depends(get_current_user)],
+    service : Annotated[MediaUploadsService, Depends(get_post_upload_service)],
     intent_id: str = Query(..., description="L'id d'intent d'upload de média pour lequel on veut suivre le post-traitement"),
-    service = Depends(get_post_upload_service),
 ):
     """
     Websocket pour suivre le post-traitement d'un média uploadée, vous devez vous connecter à ce

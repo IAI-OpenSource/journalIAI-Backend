@@ -15,7 +15,7 @@ from app.worker.tasks.async_loop_manager import task_async_loop_manager
 from app.worker.tasks.tasks_utils.base import ProcessingContext, ProcessingStep
 from app.worker.tasks.tasks_utils.common_media_utils import create_post_and_media
 from app.worker.tasks.tasks_utils.handlers import CleanupHandler, ProgressHandler
-from app.worker.tasks.tasks_utils.many_medias_process_helper import ManyMediasProcessHelper
+from app.worker.tasks.tasks_utils.medias_process_helper import MediasProcessHelper
 from app.worker.tasks.tasks_utils.minio import MinIOManager
 from app.worker.tasks.workers_task_names import WorkersTaskNames
 
@@ -61,7 +61,7 @@ def process_media_upload_task(
     )
 
     progress_handler = ProgressHandler(context)
-    helper = ManyMediasProcessHelper(progress_handler, intent_id, logger)
+    helper = MediasProcessHelper(progress_handler, intent_id, logger)
     cleanup_handler = CleanupHandler()
     cleanup_handler.register_many_files(context.get_all_raw_paths())
     cleanup_handler.register_many_directories(context.get_all_processed_dirs_paths())
@@ -108,7 +108,8 @@ def process_media_upload_task(
         for media in post_data_obj.files:
             upload_res = helper.upload_files_to_minio(
                 step=current_step, file_info=media, media_progress_weight= context.get_file_progress_weight(media.file_name),
-                output_dir=context.get_local_processed_dir(media.file_name), thumbnail_path=compress_process_res[media.file_name][0]
+                output_dir=context.get_local_processed_dir(media.file_name),
+                thumbnail_path=compress_process_res[media.file_name][0], is_story=False
             )
             if upload_res.is_error():
                 send_error_to_user(upload_res.error)
@@ -162,28 +163,24 @@ def process_media_upload_task(
         # Nettoyage
         if downloads_res is not None:
             for media in downloads_res.values():
-                try:
-                    MinIOManager.delete_file(media.bucket_name, media.object_name)
-                except Exception as e:
-                    logger.error(f"Erreur suppression fichier RAW MinIO {media.object_name}: {e}")
+                MinIOManager.delete_file(media.bucket_name, media.object_name)
+
 
         if post_object is None and uploaded_files_to_cleanup:
             for bucket_name, object_path in uploaded_files_to_cleanup:
-                try:
-                    MinIOManager.delete_file(bucket_name, object_path)
+                del_res = MinIOManager.delete_file(bucket_name, object_path)
+                if del_res.is_error():
+                    logger.error(f"Erreur suppression upload orphelin MinIO {bucket_name}/{object_path}: {del_res.error}")
+                else:
                     logger.info(f"Nettoyage upload orphelin MinIO: {bucket_name}/{object_path}")
-                except Exception as e:
-                    logger.error(f"Erreur nettoyage upload MinIO {object_path}: {e}")
+
         
         try:
             task_async_loop_manager.run_async(redis_cache.close())
         except Exception as e:
             logger.error(f"Erreur fermeture Redis: {e}")
         
-        try:
-            cleanup_handler.cleanup_all()
-        except Exception as e:
-            logger.error(f"Erreur nettoyage fichiers temporaires: {e}")
+        cleanup_handler.cleanup_all()
 
 
 

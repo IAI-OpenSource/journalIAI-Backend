@@ -10,7 +10,7 @@ from app.globals.messages import Messages
 from app.schemas.post_upload_schemas import FileToUploadSchema
 from app.storage.bucket_files_utils import BucketFilesUtils
 from app.storage.minio_config import BucketName
-from app.storage.post_upload_storage import PostUploadStorage
+from app.storage.media_upload_storage import MediaUploadStorage
 from app.worker.tasks.async_loop_manager import task_async_loop_manager
 from app.worker.tasks.tasks_utils.base import ProcessingStep, ProcessingResult
 from app.worker.tasks.tasks_utils.common_media_utils import generate_blurhash_str
@@ -24,7 +24,7 @@ from app.worker.tasks.validation import FileValidator
 
 
 @dataclass
-class ManyMediasProcessHelper:
+class MediasProcessHelper:
     progress_handler: ProgressHandler
     intent_id: str
     logger: Logger
@@ -43,8 +43,8 @@ class ManyMediasProcessHelper:
 
         type_fichier = "vidéo" if file_info.is_video else "photo"
 
-        raw_object_result = PostUploadStorage.get_video_upload_intent_file_info(self.intent_id, file_info.file_name) \
-            if file_info.is_video else PostUploadStorage.get_image_upload_intent_file_info(self.intent_id, file_info.file_name)
+        raw_object_result = MediaUploadStorage.get_video_upload_intent_file_info(self.intent_id, file_info.file_name) \
+            if file_info.is_video else MediaUploadStorage.get_image_upload_intent_file_info(self.intent_id, file_info.file_name)
 
         if raw_object_result is None:
             self.logger.error(f"Fichier {type_fichier} non trouvé dans MinIO pour l'intent {self.intent_id} et le fichier {file_info.file_name}")
@@ -80,7 +80,8 @@ class ManyMediasProcessHelper:
         file_info: FileToUploadSchema,
         local_raw_path: str,
         output_dir: str,
-        media_progress_weight: float
+        media_progress_weight: float,
+        is_story: bool = False
     ) -> ProcessingResult[tuple[str | None, int, int, int | None ]]:
         """local_thumbnail_path, height, width, duration"""
 
@@ -102,7 +103,8 @@ class ManyMediasProcessHelper:
                 local_raw_path=local_raw_path,
                 qualities=qualities,
                 output_dir=output_dir,
-                has_audio=video_metadata['has_audio']
+                has_audio=video_metadata['has_audio'],
+                is_story=is_story
             )
 
             process_result = process_video_file_with_ffmpeg(hls_command)
@@ -155,7 +157,8 @@ class ManyMediasProcessHelper:
         file_info: FileToUploadSchema,
         thumbnail_path: str | None,
         output_dir: str,
-        media_progress_weight: float
+        media_progress_weight: float,
+        is_story: bool
     ) -> ProcessingResult[tuple[str, str | None]]:
         """minio_media_url et minio_thumbnail_url"""
 
@@ -163,7 +166,7 @@ class ManyMediasProcessHelper:
             final_bucket_objects_path = BucketFilesUtils.generate_objects_path_for_processed_video()
 
             upload_result = task_async_loop_manager.run_async(
-                upload_hls_to_minio(output_dir, final_bucket_objects_path)
+                upload_hls_to_minio(output_dir, final_bucket_objects_path, is_story)
             )
 
             if upload_result.is_error():
@@ -189,7 +192,7 @@ class ManyMediasProcessHelper:
         else:
             final_bucket_objects_path = BucketFilesUtils.generate_objects_path_for_processed_image()
             upload_result = task_async_loop_manager.run_async(
-                upload_images_to_minio(output_dir, final_bucket_objects_path)
+                upload_images_to_minio(output_dir, final_bucket_objects_path, is_story)
             )
 
             if upload_result.is_error():

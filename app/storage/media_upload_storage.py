@@ -11,7 +11,7 @@ from app.storage.minio_config import BucketName
 
 logger = getLogger(__name__)
 # TODO: Ajouter asyncio.to_thread à ces fonctions pour les rendre asynchrones
-class PostUploadStorage:
+class MediaUploadStorage:
 
     @staticmethod
     def get_video_upload_intent_presigned_upload_url(intent_id: str, filename: str) -> Optional[str]:
@@ -32,7 +32,7 @@ class PostUploadStorage:
             minio_client = MinioClientFactory.get_public_client()
 
             upload_url = minio_client.presigned_put_object(
-                BucketName.POSTS_RAW_UPLOADS.value,
+                BucketName.MEDIAS_RAW_UPLOADS.value,
                 bucket_object_key,
                 timedelta(seconds=CacheDurartion.UPLOAD_INTENT_DURATION.value)
             )
@@ -64,7 +64,7 @@ class PostUploadStorage:
             minio_client = MinioClientFactory.get_public_client()
 
             upload_url = minio_client.presigned_put_object(
-                BucketName.POSTS_RAW_UPLOADS.value,
+                BucketName.MEDIAS_RAW_UPLOADS.value,
                 bucket_object_key,
                 timedelta(seconds=CacheDurartion.UPLOAD_INTENT_DURATION.value)
             )
@@ -94,7 +94,7 @@ class PostUploadStorage:
 
             minio_client = MinioClientFactory.get_backend_client()
 
-            file_metadata = minio_client.stat_object(BucketName.POSTS_RAW_UPLOADS.value, bucket_object_key)
+            file_metadata = minio_client.stat_object(BucketName.MEDIAS_RAW_UPLOADS.value, bucket_object_key)
 
             return file_metadata
 
@@ -123,7 +123,7 @@ class PostUploadStorage:
 
             minio_client = MinioClientFactory.get_backend_client()
 
-            file_metadata = minio_client.stat_object(BucketName.POSTS_RAW_UPLOADS.value, bucket_object_key)
+            file_metadata = minio_client.stat_object(BucketName.MEDIAS_RAW_UPLOADS.value, bucket_object_key)
 
             return file_metadata
 

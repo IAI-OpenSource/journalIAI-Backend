@@ -14,12 +14,12 @@ from app.globals.messages import Messages
 from app.globals.others_constants import OtherConstants
 from app.repositories.post_repository import PostRepository
 from app.schemas.post_upload_schemas import CreateMediaUploadIntent, UploadURLSchema, MediaUploadCompleteSchema, \
-    WsPostProcessingInfoSchema, WsPostProcessingInfoSchemaSteps, CreateMediaUploadIntentFullData, FileInUploadURLSchema, \
+    WsMediasProcessingInfoSchema, WsMediasProcessingInfoSchemaSteps, CreateMediaUploadIntentFullData, FileInUploadURLSchema, \
     AvailableUploadMethod
 from app.schemas.user_schemas import ReadUser
 from app.services import ServiceResult
 from app.services.post_service import PostService
-from app.storage.post_upload_storage import PostUploadStorage
+from app.storage.media_upload_storage import MediaUploadStorage
 from app.worker.celery_app import celery_app
 from app.worker.tasks.workers_task_names import WorkersTaskNames
 
@@ -79,11 +79,11 @@ class MediaUploadsService:
                     service_name=Messages.POST_SERVICE
                 )
             if file.is_video:
-                upload_url = PostUploadStorage.get_video_upload_intent_presigned_upload_url(
+                upload_url = MediaUploadStorage.get_video_upload_intent_presigned_upload_url(
                     random_intent_id, file.file_name
                 )
             else:
-                upload_url = PostUploadStorage.get_image_upload_intent_presigned_upload_url(
+                upload_url = MediaUploadStorage.get_image_upload_intent_presigned_upload_url(
                     random_intent_id, file.file_name
                 )
             if not upload_url:
@@ -173,9 +173,9 @@ class MediaUploadsService:
 
         for file in intent_data.files:
             if file.is_video:
-                intent_file_metadata = PostUploadStorage.get_video_upload_intent_file_info(intent_id, file.file_name)
+                intent_file_metadata = MediaUploadStorage.get_video_upload_intent_file_info(intent_id, file.file_name)
             else:
-                intent_file_metadata = PostUploadStorage.get_image_upload_intent_file_info(intent_id, file.file_name)
+                intent_file_metadata = MediaUploadStorage.get_image_upload_intent_file_info(intent_id, file.file_name)
 
             if not intent_file_metadata:
                 return ServiceResult.service_error(
@@ -185,8 +185,8 @@ class MediaUploadsService:
 
         await self._cache.add_upload_event_in_a_stream(
             user_id=user_id_str, intent_id=intent_id,
-            data=WsPostProcessingInfoSchema(
-               step=WsPostProcessingInfoSchemaSteps.IN_QUEUE,
+            data=WsMediasProcessingInfoSchema(
+               step=WsMediasProcessingInfoSchemaSteps.IN_QUEUE,
                progress=0,
                timestamp=time(),
                error_message=None
@@ -239,9 +239,9 @@ class MediaUploadsService:
             if not verification:
                 logger.info(f"Aucun upload en cours de post-traitement trouvé pour l'intent d'upload média avec id {intent_id} et user_id {user_id_str}")
                 await ws.send_text(
-                    WsPostProcessingInfoSchema(
+                    WsMediasProcessingInfoSchema(
                         progress=0,
-                        step=WsPostProcessingInfoSchemaSteps.UNKNOWN,
+                        step=WsMediasProcessingInfoSchemaSteps.UNKNOWN,
                         timestamp=0,
                         error_message=Messages.ERROR_MEDIA_UPLOAD_INTENT_NOT_FOUND
                     ).model_dump_json()
@@ -269,7 +269,7 @@ class MediaUploadsService:
 
                 await ws.send_json(progress_data.model_dump_json())
 
-                if progress_data.step == WsPostProcessingInfoSchemaSteps.COMPLETED or progress_data.error_message is not None:
+                if progress_data.step == WsMediasProcessingInfoSchemaSteps.COMPLETED or progress_data.error_message is not None:
                     has_finished = True
                     break
 
@@ -280,9 +280,9 @@ class MediaUploadsService:
             else:
                 logger.error(f"Nombre maximum de tentatives atteint pour la lecture su stream d'upload média avec id {intent_id} et user_id {user_id_str}, fermeture du websocket")
                 await ws.send_json(
-                    WsPostProcessingInfoSchema(
+                    WsMediasProcessingInfoSchema(
                         progress=0,
-                        step=WsPostProcessingInfoSchemaSteps.UNKNOWN,
+                        step=WsMediasProcessingInfoSchemaSteps.UNKNOWN,
                         timestamp=0,
                         error_message=Messages.INTERNAL_SERVER_ERROR
                     ).model_dump_json()
@@ -295,9 +295,9 @@ class MediaUploadsService:
             logger.exception(f"Exception {e.__class__.__name__} lors de l'écoute du websocket de suivi de l'intent d'upload média avec id {intent_id} et user_id {user_id_str} : {e}", exc_info=e)
             try:
                 await ws.send_json(
-                    WsPostProcessingInfoSchema(
+                    WsMediasProcessingInfoSchema(
                         progress=0,
-                        step=WsPostProcessingInfoSchemaSteps.UNKNOWN,
+                        step=WsMediasProcessingInfoSchemaSteps.UNKNOWN,
                         timestamp=0,
                         error_message=Messages.INTERNAL_SERVER_ERROR
                     ).model_dump_json()

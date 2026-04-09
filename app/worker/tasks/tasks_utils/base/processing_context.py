@@ -2,12 +2,14 @@
 
 import os
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Optional, Union
 from uuid import UUID, uuid4
 
 from app.cache.helpers.base import CacheWrapper
 from app.cache.post_cache import PostCache
+from app.cache.story_cache import StoryCache
 from app.schemas.post_upload_schemas import CreateMediaUploadIntentFullData, FileToUploadSchema
+from app.schemas.story_upload_schemas import CreateStoryUploadIntentFullData
 from app.worker.tasks.tasks_utils.base.processing_step import ProcessingStep
 
 def calculate_media_progress_weight(
@@ -43,11 +45,11 @@ class ProcessingContext:
 
     user_id: str
     intent_id: str
-    post_data: CreateMediaUploadIntentFullData
+    post_data: Union[CreateMediaUploadIntentFullData, CreateStoryUploadIntentFullData]
     
     # Cache et connexions
     cache: CacheWrapper
-    upload_cache: PostCache
+    upload_cache: Union[PostCache, StoryCache]
     _locals_paths: dict[str, dict[str, str]] = field(default_factory=dict, init=False, repr=False)
     # État du traitement
     global_progress_percentage: int = field(default=0, init=False)
@@ -63,9 +65,12 @@ class ProcessingContext:
     def __post_init__(self):
         """Initialiser les chemins temporaires s'ils ne sont pas définis."""
 
-        self._progress_weight = calculate_media_progress_weight(self.post_data.files)
+        # Supporter à la fois les posts (avec `.files`) et les stories (avec `.file`)
+        files_list = self.post_data.files if isinstance(self.post_data, CreateMediaUploadIntentFullData) else [self.post_data.file]
 
-        for file in self.post_data.files:
+        self._progress_weight = calculate_media_progress_weight(files_list)
+
+        for file in files_list:
             r_path = f"/tmp/{uuid4()}_raw"
             p_path = f"/tmp/{uuid4()}_processed_files"
             try:

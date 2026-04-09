@@ -6,7 +6,7 @@ from app.cache.helpers.availables import AvailableCacheKeys
 from app.cache.helpers.base import CacheWrapper
 from app.cache.helpers.keys_factory import CacheKeysFactory
 from app.globals.cache_duration import CacheDurartion
-from app.schemas.post_upload_schemas import WsPostProcessingInfoSchema, CreateMediaUploadIntentFullData
+from app.schemas.post_upload_schemas import WsMediasProcessingInfoSchema, CreateMediaUploadIntentFullData
 
 logger = getLogger(__name__)
 
@@ -105,7 +105,7 @@ class PostCache:
             return False
 
     async def add_upload_event_in_a_stream(
-        self, user_id: str, intent_id: str, data: WsPostProcessingInfoSchema,
+        self, user_id: str, intent_id: str, data: WsMediasProcessingInfoSchema,
         must_add_ttl: bool = False
     ) -> Optional[str]:
         """
@@ -121,7 +121,7 @@ class PostCache:
             La clé généré automatiquement par Redis pour l'evenement ajouté
         """
 
-        def ensure_compatibility(schema: WsPostProcessingInfoSchema) -> dict:
+        def ensure_compatibility(schema: WsMediasProcessingInfoSchema) -> dict:
             to_return = {
                 "step": schema.step.value,
                 "progress": schema.progress,
@@ -152,7 +152,7 @@ class PostCache:
             CacheUtils.traiter_exceptions(e, logger)
             return None
 
-    async def read_upload_progress_event_in_a_stream(self, user_id: str, intent_id: str, last_id: str = None) -> tuple[Optional[WsPostProcessingInfoSchema], Optional[str]]:
+    async def read_upload_progress_event_in_a_stream(self, user_id: str, intent_id: str, last_id: str = None) -> tuple[Optional[WsMediasProcessingInfoSchema], Optional[str]]:
         """
             Lit les événements du stream redis qui gère l'avancée des uploads
         Args:
@@ -160,7 +160,7 @@ class PostCache:
             intent_id: Le id de l'intent d'upload
             last_id: Le id du dernier événement lu, pour ne lire que les événements suivants. Si None, lit le prochain événement disponible
         Returns:
-            Un tuple contenant les données de l'événement lu, converties en objet WsPostProcessingInfoSchema,
+            Un tuple contenant les données de l'événement lu, converties en objet WsMediasProcessingInfoSchema,
             et le id de cet événement dans le stream. Si une erreur survient ou si aucun événement n'est
             disponible, retourne (None, None)
         """
@@ -175,8 +175,8 @@ class PostCache:
             if not event:
                 return None, None
 
-            # On convertit la donnée de l'événement en objet WsPostProcessingInfoSchema
-            progress_info = WsPostProcessingInfoSchema.model_validate(event[0][1])
+            # On convertit la donnée de l'événement en objet WsMediasProcessingInfoSchema
+            progress_info = WsMediasProcessingInfoSchema.model_validate(event[0][1])
 
             return progress_info, event[0][0]
         except Exception as e:

@@ -60,9 +60,14 @@ class AvailableCacheKeys(str, Enum):
     POST_LIKE_COUNT = BaseCacheEntity.POST + ":like_count"  # Clé pour le nombre de likes d'un post
     COMMENT_LIKE_COUNT = BaseCacheEntity.COMMENT + ":like_count"  # Clé pour le nombre de likes d'un commentaire
 
-    FILE_UPLOAD_INTENT_KEY = "upload_intent:{user_id}:{intent_id}" # Clé pour stocker les intent d'upload
+    FILE_UPLOAD_INTENT_KEY = "upload_intent:{user_id}:{intent_id}"  # Clé pour stocker les intent d'upload de posts
 
-    FILE_UPLOAD_PROGRESS_STREAM_KEY = "upload_progress_stream:{user_id}:{intent_id}" # Clé pour le stream sur l'anvancement du traitemenr d'un upload
+    FILE_UPLOAD_PROGRESS_STREAM_KEY = "upload_progress_stream:{user_id}:{intent_id}"  # Clé pour le stream sur l'avancement du traitement d'un upload de posts
+
+    # Clés de cache pour les uploads de stories
+    STORY_FILE_UPLOAD_INTENT_KEY = "story_upload_intent:{user_id}:{intent_id}"  # Clé pour stocker les intent d'upload de stories
+
+    STORY_FILE_UPLOAD_PROGRESS_STREAM_KEY = "story_upload_progress_stream:{user_id}:{intent_id}"  # Clé pour le stream de progression du traitement d'une story
 
     USER_DAILY_POST_SEEN = BaseCacheEntity.USER + ":daily_seen_posts"  # Clé pour les posts vus par un utilisateur (pour le suivi de la lecture du feed)
 

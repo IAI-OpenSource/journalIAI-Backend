@@ -5,7 +5,7 @@ from time import time
 from typing import Optional
 
 from app.globals.messages import Messages
-from app.schemas.post_upload_schemas import WsPostProcessingInfoSchema, WsPostProcessingInfoSchemaSteps
+from app.schemas.post_upload_schemas import WsMediasProcessingInfoSchema, WsMediasProcessingInfoSchemaSteps
 from app.worker.tasks.tasks_utils.base.processing_context import ProcessingContext
 from app.worker.tasks.tasks_utils.base.processing_step import ProcessingStep
 
@@ -46,11 +46,11 @@ class ProgressHandler:
         # Mise à jour du contexte
         self.context.update_progress(step, int(step.get_progress_increment() * weight), error_message)
 
-        # Convertir ProcessingStep vers WsPostProcessingInfoSchemaSteps
-        ws_step = WsPostProcessingInfoSchemaSteps(step.get_name())
+        # Convertir ProcessingStep vers WsMediasProcessingInfoSchemaSteps
+        ws_step = WsMediasProcessingInfoSchemaSteps(step.get_name())
 
         # Construction du schéma de progression
-        progression = WsPostProcessingInfoSchema(
+        progression = WsMediasProcessingInfoSchema(
             step=ws_step,
             progress=self.context.global_progress_percentage,
             timestamp=time(),
@@ -90,10 +90,10 @@ class ProgressHandler:
             100
         )
 
-        # Convertir ProcessingStep vers WsPostProcessingInfoSchemaSteps
-        ws_step = WsPostProcessingInfoSchemaSteps(self.context.current_step.get_name())
+        # Convertir ProcessingStep vers WsMediasProcessingInfoSchemaSteps
+        ws_step = WsMediasProcessingInfoSchemaSteps(self.context.current_step.get_name())
 
-        progression = WsPostProcessingInfoSchema(
+        progression = WsMediasProcessingInfoSchema(
             step=ws_step,
             progress=self.context.global_progress_percentage,
             timestamp=time(),

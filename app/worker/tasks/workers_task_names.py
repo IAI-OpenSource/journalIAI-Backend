@@ -10,6 +10,8 @@ class WorkersTaskNames:
 
     PROCESS_MEDIAS_UPLOAD: str = "uploads.process_medias_upload"
 
+    PROCESS_STORY_UPLOAD: str = "uploads.process_story_upload"
+
     IMPORT_DATA_FROM_EXCEL: str = "regstration.import_from_excel"
 
     SYNCHRONIZE_POST_VIEW: str = "synchronize_post_view"
