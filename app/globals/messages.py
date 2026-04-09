@@ -101,3 +101,6 @@ class Messages:
     
     #OTP service
     OTP_SERVICE = "Service OTP"
+
+    # Email comité
+    COMITE_ETUDIANT_EMAIL = "comiteetudiantjournaliaitogo@gmail.com"

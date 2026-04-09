@@ -23,5 +23,6 @@ def add_all_tables():
     from app.db.models.post_views import PostViews
     from app.db.models.stories import Story
     from app.db.models.story_views import StoryViews
+    from app.db.models.story_groups import StoryGroups
 
 add_all_tables()
