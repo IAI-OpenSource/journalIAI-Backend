@@ -281,6 +281,9 @@ class StoryMediaUploadsService:
             except WebSocketDisconnect:
                 pass
 
+    async def worker_service_save_processed_story_in_bd(self):
+        pass
+
     async def _verify_story_can_been_processed(
         self, data: CreateStoryUploadIntentFullData, user_obj: ReadUser
     ) -> ServiceResult[str]:

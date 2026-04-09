@@ -20,7 +20,7 @@ from app.schemas.story_upload_schemas import (
 from app.schemas.user_schemas import ReadUser
 from app.services.story_upload_service import StoryMediaUploadsService
 
-router = APIRouter(prefix="/stories", tags=[ApiTags.POSTS], dependencies=[Depends(RoleDepends.all_authorize)])
+router = APIRouter(prefix="/stories", tags=[ApiTags.STORY], dependencies=[Depends(RoleDepends.all_authorize)])
 
 def get_story_upload_service(
     cache: CacheWrapper = Depends(get_redis), bd: AsyncSession = Depends(get_db)
@@ -34,7 +34,7 @@ def get_story_upload_service(
     path="/get-uploads-intent",
     name="Créer une story avec un média (Image, Vidéo)",
     response_model=StoryMediaUploadIntentResponse,
-    tags=[ApiTags.POSTS_CREATION],
+    tags=[ApiTags.STORY_CREATION],
     description="Initie un upload d'une story avec un seul média (image ou vidéo). Retourne une URL d'upload présignée.",
     dependencies=[Depends(RoleDepends.only_those_can_post_authorize)]
 )
@@ -51,7 +51,7 @@ async def story_media_upload_intent(
 @router.post(
     path="/complete_media",
     name="Finaliser un upload de story",
-    tags=[ApiTags.POSTS_CREATION],
+    tags=[ApiTags.STORY_CREATION],
     response_model=StoryMediaUploadCompleteResponse,
     description="Finalise un upload de story et lance le traitement. Retourne l'ID du job de traitement.",
     dependencies=[Depends(RoleDepends.only_those_can_post_authorize)]

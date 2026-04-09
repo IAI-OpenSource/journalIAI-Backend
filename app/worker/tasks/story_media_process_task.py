@@ -207,7 +207,7 @@ async def _get_or_create_story_group(user_id: UUID) -> CRUDResult[StoryGroups]:
 
     async with AsyncSessionLocal() as db:
         repo = StoryRepository(db)
-        result = await repo.get_or_create_active_story_group(user_id)
+        result = await repo.get_or_create_active_story_group(user_id, True)
         return result
 
 

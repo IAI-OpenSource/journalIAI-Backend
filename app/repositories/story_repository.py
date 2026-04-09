@@ -70,9 +70,15 @@ class StoryRepository:
         """
         try:
             self.db.add(group)
+
+
             if not in_transaction:
                 await self.db.commit()
+
+            await self.db.flush()
+
             await self.db.refresh(group)
+
             return CRUDResult.crud_success(data=group, status_code=status.HTTP_201_CREATED)
         except IntegrityError as e:
             await self.db.rollback()
@@ -112,13 +118,13 @@ class StoryRepository:
             logger.exception(error_msg)
             return CRUDResult.crud_error(message=Messages.INTERNAL_SERVER_ERROR, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    async def create_story_group(self, user_id: UUID) -> CRUDResult[StoryGroups]:
+    async def create_story_group(self, user_id: UUID, in_transaction: bool) -> CRUDResult[StoryGroups]:
         """
         Crée un nouveau groupe de stories pour un utilisateur.
 
         Args:
             user_id: L'ID de l'utilisateur
-
+            in_transaction:
         Returns:
             CRUDResult contenant le nouveau groupe ou une erreur
         """
@@ -131,19 +137,20 @@ class StoryRepository:
                 is_expired=False
             )
 
-            return await self.save_story_group(new_group)
+            return await self.save_story_group(new_group, in_transaction)
         except Exception as e:
             error_msg = f"Exception {e.__class__.__name__} lors de la création du groupe de stories : {e}"
             logger.exception(error_msg)
             return CRUDResult.crud_error(message=Messages.INTERNAL_SERVER_ERROR, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    async def get_or_create_active_story_group(self, user_id: UUID) -> CRUDResult[Optional[StoryGroups]]:
+    async def get_or_create_active_story_group(self, user_id: UUID, in_transaction: bool) -> CRUDResult[Optional[StoryGroups]]:
         """
         Récupère ou crée le groupe actif d'un utilisateur.
         Gère automatiquement la création si le groupe n'existe pas ou est expiré.
 
         Args:
             user_id: L'ID de l'utilisateur
+            in_transaction: Si True, utilise une transaction existante
 
         Returns:
             CRUDResult contenant le groupe actif (nouveau ou existant)
@@ -153,7 +160,7 @@ class StoryRepository:
             existing_group_result = await self.get_active_story_group(user_id)
 
             if existing_group_result.is_error():
-                return await self.create_story_group(user_id)
+                return await self.create_story_group(user_id, in_transaction)
 
             return existing_group_result
 

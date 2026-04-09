@@ -102,3 +102,9 @@ class DownloadFormat(str, Enum):
     """Les différents formats de téléchargement"""
     JSON = "JSON"
     PDF = "PDF"
+
+class StoryGroupsType(str, Enum):
+    """Les différents types de groupes (bulles) Story"""
+    CLASSE_GROUP = "CLASSE_GROUP"
+    CLUB_GROUP = "CLUB_GROUP"
+    USER_GROUP = "USER_GROUP"
