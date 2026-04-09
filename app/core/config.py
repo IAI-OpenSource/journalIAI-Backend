@@ -66,3 +66,6 @@ STREAM_JWT_SECRET: str = os.getenv("STREAM_JWT_SECRET", "")
 
 ## Query access
 QUERY_ACCESS: str = os.getenv("QUERY_ACCESS", "IAI-1234")
+
+## urls
+URL_INSCRIPTION: str = os.getenv("URL_INSCRIPTION", "www.iai-togo.com")

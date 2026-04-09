@@ -4,11 +4,11 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, EmailStr, Field
 
 from uuid import UUID
 
-from app.db.models.enums import ClasseType, ExecutiveRoleType, SexeType, UserRole
+from app.db.models.enums import CeleryStatus, ClasseType, ExecutiveRoleType, SexeType, UserRole
 from app.schemas import ApiBaseResponse
 from app.schemas.classe_schemas import ReadUserClasse
 
@@ -22,6 +22,7 @@ class CreateRegistration(BaseModel):
 
   first_name: str = Field(description="Prenom de l'utilisateur")
   last_name: str = Field(description="Nom de l'etudiant")
+  email: EmailStr = Field(description="Email de l'utilisateur")
   role: UserRole = Field(description="role de l'utilisateur")
   executive_role: Optional[ExecutiveRoleType] = Field(
       default=None,
@@ -40,7 +41,9 @@ class CreateMultileRegistration(BaseModel):
 
   first_name: str 
   last_name: str 
+  email: EmailStr
   sexe: SexeType 
+  
   
   
 class FindRegistration(BaseModel):
@@ -66,6 +69,26 @@ class JetonUpdateData(BaseModel):
     role: Optional[UserRole] = None
     executive_role: Optional[ExecutiveRoleType] = None
 
+
+class ExcelUploadResponse(BaseModel):
+    """schéma de validation du message de retour pour le chargement d'un fichier
+        Il contient un attribut message et task_id (le Id de la tache en cours: le chargement)
+    """
+    
+    message: str = Field(description="le message de succès")
+    task_id: str = Field(
+        description="le ID de la tache qui gère lalecture du fichier. Utiliser ce id pour verifier le status de la lecture du fichier"
+    )
+
+
+class ExcelReadSuccess(BaseModel):
+    """schémas de validation du message de la réussite de l'insertion des données en bd
+    extrait du fichier excel
+    """
+    
+    status: CeleryStatus = Field(description="le status/état que celery va retourner") 
+    message: str = Field(description="message claire indiquant le succès")
+
   
 class ReadRegistration(BaseModel):
   """Schémas pydantic pour valider la création d'un obje Registration_jeton
@@ -78,6 +101,7 @@ class ReadRegistration(BaseModel):
   jeton: str = Field(description="Jeton a remettre aux utilisteurs")
   first_name: str = Field(description="Prenom de l'utilisateur")
   last_name: str = Field(description="Nom de l'etudiant")
+  email: EmailStr = Field(description="Email de l'utilisateur")
   role: UserRole = Field(description="role de l'utilisateur")
   executive_role: Optional[ExecutiveRoleType] = Field(description="role executif de l'utilisateur")
   classe: Optional[ReadUserClasse] = Field(description="Classe de l'utilisateur")
@@ -105,3 +129,15 @@ class ListRegistrationInfos(ApiBaseResponse):
     """Modele de validations des registrations coté routers"""
 
     result: Optional[list[ReadRegistration]] = Field(description="Infos d'une registration de jeton")
+
+
+class ExcelUploadInfos(ApiBaseResponse):
+    """Modele de validations des registrations coté routers"""
+
+    result: Optional[ExcelUploadResponse] = Field(description="Infos sur le retour de message de la lecture du fichier")
+
+
+class ExcelSuccessInfos(ApiBaseResponse):
+    """Modele de validations des registrations coté routers"""
+
+    result: Optional[ExcelReadSuccess] = Field(description="Infos sur le retour de message de succès de la lecture du fichier")

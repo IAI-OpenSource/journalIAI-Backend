@@ -22,9 +22,8 @@ class CreateUser(BaseModel):
       BaseModel (_type_): Hérite de base model
   """
   
-  email: EmailStr
   username: str = Field(description="Nom d'utilisateur")
-  password: str
+  password: str = Field(description="Mot de passe de l'utilisateur", min_length=8)
   jeton: FindRegistration
   
   
