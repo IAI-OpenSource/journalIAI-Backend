@@ -4,15 +4,18 @@ Contient la logique métier pour initialiser les uploads, générer les URLs, et
 """
 
 import secrets
+from datetime import datetime, timezone, timedelta
 from logging import getLogger
-from time import time
+from time import time, timezone
+from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import status, WebSocket, WebSocketDisconnect
 
 from app.cache.helpers.base import CacheWrapper
 from app.cache.story_cache import StoryCache
-from app.db.models.enums import ClubMembersType, UserRole
+from app.db.models.enums import ClubMembersType, UserRole, StoryGroupsType
+from app.db.models.stories import Story
 from app.globals.messages import Messages
 from app.repositories.story_repository import StoryRepository
 from app.schemas.post_upload_schemas import AvailableUploadMethod, WsMediasProcessingInfoSchema, \
@@ -70,7 +73,6 @@ class StoryMediaUploadsService:
             return ServiceResult.service_error(
                 message=verif.error,
                 status_code=verif.status_code,
-                service_name=Messages.POST_SERVICE
             )
 
         random_intent_id = generate_random_intent_id(16)
@@ -81,7 +83,6 @@ class StoryMediaUploadsService:
             return ServiceResult.service_error(
                 message=f"Le fichier {file.file_name} dépasse la taille maximale autorisée (100Mo), taille : {file.file_size} octets",
                 status_code=status.HTTP_400_BAD_REQUEST,
-                service_name=Messages.POST_SERVICE
             )
 
         # Générer l'URL d'upload selon le type de fichier
@@ -137,7 +138,6 @@ class StoryMediaUploadsService:
             return ServiceResult.service_error(
                 message=Messages.ERROR_MEDIA_UPLOAD_INTENT_NOT_FOUND,
                 status_code=status.HTTP_404_NOT_FOUND,
-                service_name=Messages.POST_SERVICE
             )
 
         # Vérifier que le fichier a bien été uploadé
@@ -151,7 +151,6 @@ class StoryMediaUploadsService:
             return ServiceResult.service_error(
                 message=Messages.ERROR_FILE_NOT_UPLOADED.format(file_name=file.file_name),
                 status_code=status.HTTP_404_NOT_FOUND,
-                service_name=Messages.POST_SERVICE
             )
 
         # Ajouter un événement de progression initial
@@ -184,7 +183,6 @@ class StoryMediaUploadsService:
             return ServiceResult.service_error(
                 message=Messages.INTERNAL_SERVER_ERROR,
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                service_name=Messages.POST_SERVICE
             )
 
         # Supprimer l'intent du cache (marqué comme en cours de traitement)
@@ -281,8 +279,88 @@ class StoryMediaUploadsService:
             except WebSocketDisconnect:
                 pass
 
-    async def worker_service_save_processed_story_in_bd(self):
-        pass
+    async def worker_service_save_processed_story_in_bd(
+        self, user_id: str, intent_info: CreateStoryUploadIntentFullData,
+        minio_url: str, thumbnail_url: str | None, height: int | None, width: int | None,
+        duration: int | None, f_size: int | None, intent_id: str
+    ) -> ServiceResult[str]:
+        """
+        Service appelé par le worker de traitement de story pour sauvegarder la story traitée
+        dans la base de données.
+        """
+        try:
+            logger.info(f"Début de la sauvegarde de la story traitée pour l'intent d'upload {intent_id} et user_id {user_id}")
+            group_res = await self._bd.get_or_create_active_story_group(
+                user_id=UUID(user_id),
+                infos=intent_info,
+                in_transaction=True
+            )
+
+            if group_res.is_error():
+                logger.error(
+                    f"Erreur lors de la récupération ou création du groupe de story pour l'intent d'upload"
+                    f" {intent_id} et user_id {user_id} : {group_res.error}"
+                )
+                return ServiceResult.service_error(
+                    message=group_res.error,
+                    status_code=group_res.status_code,
+                )
+            logger.info(f"Groupe de story récupéré ou créé avec succès pour l'intent d'upload {intent_id} et user_id {user_id}, id du groupe : {group_res.data.id}")
+            sto_group = group_res.data
+
+            story_expire = datetime.now(timezone.utc) + timedelta(hours=intent_info.story_duration_hours)
+
+            story = Story(
+                author_id=UUID(user_id),
+                group_id=sto_group.id,
+                expires_at=story_expire,
+                media_type=intent_info.file.media_type,
+                media_url=minio_url,
+                thumbnail_url=thumbnail_url,
+                duration_seconds=duration,
+                width=width,
+                height=height,
+                file_size=f_size,
+                legend=intent_info.legend,
+            )
+            logger.info(
+                f"Story à sauvegarder créée pour l'intent d'upload {intent_id} et user_id {user_id},"
+                f" media_url : {story.media_url}, thumbnail_url : {story.thumbnail_url}"
+            )
+            story_res = await self._bd.save_story(story, in_transaction=True)
+
+            if story_res.is_error():
+                logger.error(
+                    f"Erreur lors de la sauvegarde de la story pour l'intent d'upload {intent_id} et"
+                    f" user_id {user_id} : {story_res.error}"
+                )
+                return ServiceResult.service_error(
+                    message=story_res.error,
+                    status_code=story_res.status_code
+                )
+
+            sto = story_res.data
+            if sto_group.expires_at < sto.expires_at:
+                logger.info(f"Expiration du groupe de story {sto_group.id} mise à jour de {sto_group.expires_at} à {sto.expires_at} pour l'intent d'upload {intent_info} et user_id {user_id}")
+                sto_group.expires_at = sto.expires_at
+
+            logger.info(
+                f"Commit des changements en cours pour la story traitée de l'intent d'upload {intent_id} et user_id {user_id}"
+            )
+
+            await self._raw_bd.commit()
+
+            return ServiceResult.service_success(data="ok", status_code=status.HTTP_201_CREATED)
+        except Exception as e:
+            logger.exception(
+                f"Exception {e.__class__.__name__} lors de la sauvegarde de la story traitée pour"
+                f" l'intent : {intent_id}: {e}", exc_info=e
+            )
+
+            return ServiceResult.service_error(
+                message=Messages.INTERNAL_SERVER_ERROR,
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
     async def _verify_story_can_been_processed(
         self, data: CreateStoryUploadIntentFullData, user_obj: ReadUser
@@ -300,17 +378,6 @@ class StoryMediaUploadsService:
         academic_year_svc = AcademicYearService(self._raw_bd, self._raw_cache)
         club_member_svc = ClubMemberService(self._raw_bd, self._raw_cache)
 
-        # Vérifier l'année académique si spécifiée
-        if not data.academic_year_id:
-            res = await academic_year_svc.get_active_academic_year()
-            if res.is_error():
-                return ServiceResult.service_error(
-                    message=res.error,
-                    status_code=res.status_code,
-                    service_name=Messages.POST_SERVICE
-                )
-            data.academic_year_id = res.data.id
-
         # Vérifier les permissions du club
         if data.club_id:
             data.target_classe_id = None
@@ -320,16 +387,16 @@ class StoryMediaUploadsService:
                 return ServiceResult.service_error(
                     message=res.error,
                     status_code=res.status_code,
-                    service_name=Messages.POST_SERVICE
                 )
 
-            # Un membre simple ne peut pas poster
+            # Un membre simple de club ne peut pas y poster
             if res.data.role_in_club == ClubMembersType.SIMPLE_MEMBER:
                 return ServiceResult.service_error(
                     message=Messages.USER_CANNOT_POST_IN_CLUB,
                     status_code=status.HTTP_403_FORBIDDEN,
-                    service_name=Messages.POST_SERVICE
                 )
+
+            data.target_group_type = StoryGroupsType.CLUB_GROUP
 
         # Vérifier les permissions de classe
         elif data.only_for_a_class:
@@ -339,9 +406,12 @@ class StoryMediaUploadsService:
                 return ServiceResult.service_error(
                     message=Messages.USER_CANNOT_POST_IN_CLASSE,
                     status_code=status.HTTP_403_FORBIDDEN,
-                    service_name=Messages.POST_SERVICE
                 )
             data.target_classe_id = user_obj.classe.id
+            data.target_group_type = StoryGroupsType.CLASSE_GROUP
 
-        return ServiceResult.service_success(data="ok", status_code=status.HTTP_200_OK, service_name=Messages.POST_SERVICE)
+        else:
+            data.target_group_type = StoryGroupsType.USER_GROUP
+
+        return ServiceResult.service_success(data="ok", status_code=status.HTTP_200_OK)
 

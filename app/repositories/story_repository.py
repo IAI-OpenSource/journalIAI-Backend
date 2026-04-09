@@ -8,17 +8,20 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 from uuid import UUID
 
-from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy import select, Select
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import status
 
+from app.db.models.enums import StoryGroupsType
 from app.db.models.stories import Story
 from app.db.models.story_groups import StoryGroups
 from app.repositories import CRUDResult
-from app.globals.messages import Messages
 
 import logging
+
+from app.repositories.repositories_utils import RepositoriesUtils
+from app.schemas.story_upload_schemas import CreateStoryUploadIntentFullData
 
 logger = logging.getLogger(__name__)
 
@@ -29,35 +32,7 @@ class StoryRepository:
 
     db: AsyncSession
 
-    async def save_story(self, story: Story, in_transaction: bool = False) -> CRUDResult[Story]:
-        """
-        Sauvegarde une story en base de données.
-
-        Args:
-            story: L'objet Story à sauvegarder
-            in_transaction: Si True, utilise une transaction existante
-
-        Returns:
-            CRUDResult contenant la story sauvegardée ou une erreur
-        """
-        try:
-            self.db.add(story)
-            if not in_transaction:
-                await self.db.commit()
-            await self.db.refresh(story)
-            return CRUDResult.crud_success(data=story, status_code=status.HTTP_201_CREATED)
-        except IntegrityError as e:
-            await self.db.rollback()
-            error_msg = story.translate_integrity_error(e)
-            logger.error(f"Erreur d'intégrité lors de la sauvegarde de la story : {error_msg}")
-            return CRUDResult.crud_error(message=error_msg or Messages.INTERNAL_SERVER_ERROR, status_code=status.HTTP_400_BAD_REQUEST)
-        except Exception as e:
-            await self.db.rollback()
-            error_msg = f"Exception {e.__class__.__name__} lors de la sauvegarde de la story : {e}"
-            logger.exception(error_msg)
-            return CRUDResult.crud_error(message=Messages.INTERNAL_SERVER_ERROR, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-    async def save_story_group(self, group: StoryGroups, in_transaction: bool = False) -> CRUDResult[StoryGroups]:
+    async def save_story_group(self, group: StoryGroups, in_transaction: bool) -> CRUDResult[StoryGroups]:
         """
         Sauvegarde un groupe de stories en base de données.
 
@@ -71,79 +46,109 @@ class StoryRepository:
         try:
             self.db.add(group)
 
-
-            if not in_transaction:
+            if in_transaction:
+                logger.info("En transaction, flush du groupe de story en cours sans commit")
+                await self.db.flush()
+            else:
+                logger.info("Pas en transaction, commit du groupe de story en cours")
                 await self.db.commit()
 
-            await self.db.flush()
-
             await self.db.refresh(group)
+            logger.info(f"Groupe de story sauvegardé avec succès, id: {group.id}")
 
             return CRUDResult.crud_success(data=group, status_code=status.HTTP_201_CREATED)
-        except IntegrityError as e:
-            await self.db.rollback()
-            error_msg = group.translate_integrity_error(e)
-            logger.error(f"Erreur d'intégrité lors de la sauvegarde du groupe de stories : {error_msg}")
-            return CRUDResult.crud_error(message=error_msg or Messages.INTERNAL_SERVER_ERROR, status_code=status.HTTP_400_BAD_REQUEST)
-        except Exception as e:
-            await self.db.rollback()
-            error_msg = f"Exception {e.__class__.__name__} lors de la sauvegarde du groupe de stories : {e}"
-            logger.exception(error_msg)
-            return CRUDResult.crud_error(message=Messages.INTERNAL_SERVER_ERROR, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    async def get_active_story_group(self, user_id: UUID) -> CRUDResult[Optional[StoryGroups]]:
+        except Exception as e:
+            return await RepositoriesUtils.traiter_errors_en_global(
+                e, self.db, logger, StoryGroupsType
+            )
+    async def save_story(self, sto: Story, in_transaction: bool) -> CRUDResult[Story]:
+        try:
+            self.db.add(sto)
+
+            if in_transaction:
+                logger.info("En transaction, flush de la story en cours sans commit")
+                await self.db.flush()
+
+            else:
+                logger.info("Pas en transaction, commit de la story en cours")
+                await self.db.commit()
+
+            await self.db.refresh(sto)
+            logger.info(f"Story sauvegardée avec succès, id: {sto.id}")
+            return CRUDResult.crud_success(data=sto, status_code=status.HTTP_201_CREATED)
+        except Exception as e:
+            return await RepositoriesUtils.traiter_errors_en_global(
+                e, self.db, logger, StoryGroupsType
+            )
+    async def get_active_story_group(self, user_id: UUID, infos: CreateStoryUploadIntentFullData) -> Optional[StoryGroups]:
         """
         Récupère le groupe actif (non expiré) d'un utilisateur.
 
         Args:
             user_id: L'ID de l'utilisateur
-
+            infos: Les informations de l'intent d'upload pour déterminer le type de groupe à récupérer (user, classe, club)
         Returns:
-            CRUDResult contenant le groupe actif ou None s'il n'existe pas
+            Le groupe si existant
         """
-        try:
-            query = select(StoryGroups).where(
-                (StoryGroups.author_id == user_id) &
-                (StoryGroups.expires_at >= datetime.now(timezone.utc)) &
-                (StoryGroups.is_expired == False)
+        query: Select = select(StoryGroups).where(
+            (StoryGroups.expires_at >= datetime.now(timezone.utc)) &
+            (StoryGroups.is_active == True) & (StoryGroups.group_type == infos.target_group_type)
+        )
+
+        if infos.target_group_type == StoryGroupsType.CLUB_GROUP:
+            query = query.where(
+                StoryGroups.club_id == infos.club_id
             )
-            result = await self.db.execute(query)
-            group = result.scalar_one_or_none()
-            if not group:
-                return CRUDResult.crud_error(message="Pas de groupe actif", status_code=status.HTTP_200_OK)
+        elif infos.target_group_type == StoryGroupsType.CLASSE_GROUP:
+            query = query.where(
+                StoryGroups.target_classe_id == infos.target_classe_id
+            )
+        else:
+            query = query.where(
+                StoryGroups.author_id == user_id
+            )
 
-            return CRUDResult.crud_success(data=group)
-        except Exception as e:
-            error_msg = f"Exception {e.__class__.__name__} lors de la récupération du groupe actif de stories : {e}"
-            logger.exception(error_msg)
-            return CRUDResult.crud_error(message=Messages.INTERNAL_SERVER_ERROR, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        result = await self.db.execute(query)
+        group = result.scalar_one_or_none()
+        return group
 
-    async def create_story_group(self, user_id: UUID, in_transaction: bool) -> CRUDResult[StoryGroups]:
+    async def create_story_group(
+        self, user_id: UUID, in_transaction: bool,
+        infos: CreateStoryUploadIntentFullData
+    ) -> CRUDResult[StoryGroups]:
         """
         Crée un nouveau groupe de stories pour un utilisateur.
 
         Args:
             user_id: L'ID de l'utilisateur
-            in_transaction:
+            in_transaction: Si true on est en mode Transac donc pas de commit, just flush
+            infos: Infos supplémentyaires
         Returns:
             CRUDResult contenant le nouveau groupe ou une erreur
         """
         try:
-            expires_at = datetime.now(timezone.utc) + timedelta(hours=24)
+            expires_at = datetime.now(timezone.utc) + timedelta(hours=infos.story_duration_hours)
 
             new_group = StoryGroups(
                 author_id=user_id,
                 expires_at=expires_at,
-                is_expired=False
+                is_active=True,
+                group_type=infos.target_group_type,
+                club_id=infos.club_id,
+                target_classe_id=infos.target_classe_id
             )
 
             return await self.save_story_group(new_group, in_transaction)
-        except Exception as e:
-            error_msg = f"Exception {e.__class__.__name__} lors de la création du groupe de stories : {e}"
-            logger.exception(error_msg)
-            return CRUDResult.crud_error(message=Messages.INTERNAL_SERVER_ERROR, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    async def get_or_create_active_story_group(self, user_id: UUID, in_transaction: bool) -> CRUDResult[Optional[StoryGroups]]:
+        except Exception as e:
+            return await RepositoriesUtils.traiter_errors_en_global(
+                e, self.db, logger, StoryGroupsType
+            )
+
+    async def get_or_create_active_story_group(
+        self, user_id: UUID, in_transaction: bool, infos: CreateStoryUploadIntentFullData
+    ) -> CRUDResult[StoryGroups]:
         """
         Récupère ou crée le groupe actif d'un utilisateur.
         Gère automatiquement la création si le groupe n'existe pas ou est expiré.
@@ -151,21 +156,26 @@ class StoryRepository:
         Args:
             user_id: L'ID de l'utilisateur
             in_transaction: Si True, utilise une transaction existante
+            infos: Les informations de l'intent d'upload pour déterminer le type de groupe à récupérer (user, classe, club)
 
         Returns:
             CRUDResult contenant le groupe actif (nouveau ou existant)
         """
         try:
-            # Essayer de récupérer le groupe existant
-            existing_group_result = await self.get_active_story_group(user_id)
 
-            if existing_group_result.is_error():
-                return await self.create_story_group(user_id, in_transaction)
+            existing_group = await self.get_active_story_group(user_id, infos)
 
-            return existing_group_result
+            if not existing_group:
+                logger.info(
+                    f"Aucun groupe de story actif trouvé pour l'utilisateur {user_id} et le"
+                    f" type {infos.target_group_type}, création d'un nouveau groupe."
+                )
+                return await self.create_story_group(user_id, in_transaction, infos)
+
+
+            return CRUDResult.crud_success(existing_group)
 
         except Exception as e:
-            error_msg = f"Exception {e.__class__.__name__} lors de get_or_create_active_story_group : {e}"
-            logger.exception(error_msg)
-            return CRUDResult.crud_error(message=Messages.INTERNAL_SERVER_ERROR, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
+            return await RepositoriesUtils.traiter_errors_en_global(
+                e, self.db, logger, StoryGroupsType
+            )

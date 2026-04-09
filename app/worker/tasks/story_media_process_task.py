@@ -4,18 +4,17 @@ Gère le traitement d'un seul média (image ou vidéo) avec compression et uploa
 """
 
 from logging import getLogger
-from uuid import UUID
 
 from celery import shared_task
 from minio.datatypes import Object
 
-from app.cache.helpers.base import cache_manager
+from app.cache.helpers.base import cache_manager, CacheWrapper
 from app.cache.story_cache import StoryCache
-from app.db.models.stories import Story
-from app.db.models.story_groups import StoryGroups
+from app.db.session import AsyncSessionLocal
+
 from app.globals.others_constants import OtherConstants
-from app.repositories import CRUDResult
 from app.schemas.story_upload_schemas import CreateStoryUploadIntentFullData
+from app.services.story_upload_service import StoryMediaUploadsService
 from app.storage.minio_config import BucketName
 from app.worker.tasks.async_loop_manager import task_async_loop_manager
 from app.worker.tasks.tasks_utils.base import ProcessingContext, ProcessingStep, ProcessingResult
@@ -25,6 +24,7 @@ from app.worker.tasks.tasks_utils.minio import MinIOManager
 from app.worker.tasks.workers_task_names import WorkersTaskNames
 
 logger = getLogger(__name__)
+
 
 
 @shared_task(name=WorkersTaskNames.PROCESS_STORY_UPLOAD, queue=OtherConstants.MEDIA_PROCESSING_WORKER_QUEUE_NAME)
@@ -134,37 +134,13 @@ def process_story_upload_task(
             uploaded_files_to_cleanup.append((BucketName.USER_IDENTITY_ASSETS.value, thumbnail_url))
 
 
-        # Récupérer ou créer le groupe de stories
-        story_group_res = task_async_loop_manager.run_async(
-            _get_or_create_story_group(UUID(user_id))
-        )
-
-        if story_group_res.is_error():
-            send_error_to_user(story_group_res.error)
-            return
-
-        story_group_object = story_group_res.data
-
-        # Créer l'objet Story
-        story_object = Story(
-            author_id=UUID(user_id),
-            group_id=story_group_object.id,
-            club_id=story_data_obj.club_id,
-            target_classe_id=story_data_obj.target_classe_id,
-            media_url=media_url,
-            media_type=file.media_type,
-            thumbnail_url=thumbnail_url,
-            legend=story_data_obj.legend,
-            file_size=downloaded_file.size if downloaded_file else None,
-            width=width,
-            height=height,
-            duration_seconds=duration,
-            expires_at=story_group_object.expires_at
-        )
-
-
+        # Save en Bd
         db_result = task_async_loop_manager.run_async(
-            _save_story_to_database(story_object)
+            _save_result_to_bd(
+                user_id=user_id, thumbnail_url=thumbnail_url, minio_url=media_url,
+                height=height, width=width, intent_info=story_data_obj, file_size=downloaded_file.size,
+                duration=duration, cache=redis_cache, intent_id=intent_id
+            )
         )
 
         if db_result.is_error():
@@ -192,48 +168,33 @@ def process_story_upload_task(
 
         task_async_loop_manager.run_async(redis_cache.close())
 
-async def _get_or_create_story_group(user_id: UUID) -> CRUDResult[StoryGroups]:
-    """
-    Récupère ou crée le groupe actif de stories pour un utilisateur.
 
-    Args:
-        user_id: ID de l'utilisateur
+async def _save_result_to_bd(
+        user_id: str,
+        cache: CacheWrapper,
+        intent_info: CreateStoryUploadIntentFullData,
+        thumbnail_url: str | None,
+        minio_url: str,
+        height: int,
+        width: int,
+        duration: int | None,
+        file_size: int | None,
+        intent_id: str
+) -> ProcessingResult[str]:
+    async with AsyncSessionLocal() as sess:
+        repo = StoryMediaUploadsService(cache, sess)
+        res = await repo.worker_service_save_processed_story_in_bd(
+            user_id=user_id,
+            minio_url=minio_url,
+            intent_info=intent_info,
+            thumbnail_url=thumbnail_url,
+            height=height,
+            width=width,
+            duration=duration,
+            f_size=file_size,
+            intent_id=intent_id
+        )
+        if res.is_error():
+            return ProcessingResult.error_response(res.error)
 
-    Returns:
-        CRUDResult avec le groupe de stories
-    """
-    from app.repositories.story_repository import StoryRepository
-    from app.db.session import AsyncSessionLocal
-
-    async with AsyncSessionLocal() as db:
-        repo = StoryRepository(db)
-        result = await repo.get_or_create_active_story_group(user_id, True)
-        return result
-
-
-async def _save_story_to_database(story: Story) -> ProcessingResult[Story]:
-    """
-    Sauvegarde une story en base de données.
-
-    Args:
-        story: Objet Story à sauvegarder
-
-    Returns:
-    """
-    from app.repositories.story_repository import StoryRepository
-    from app.db.session import AsyncSessionLocal
-
-    try:
-        async with AsyncSessionLocal() as db:
-            repo = StoryRepository(db)
-            result = await repo.save_story(story)
-            if result.is_error():
-                return ProcessingResult.error_response(result.error)
-            return ProcessingResult.ok_response(result.data)
-    except Exception as e:
-        error_msg = f"Exception {e.__class__.__name__} lors de la sauvegarde de la story : {e}"
-        logger.error(error_msg)
-        return ProcessingResult.error_response("Erreur lors de la sauvegarde de la story en base de données")
-
-
-
+        return ProcessingResult.ok_response(res.data)

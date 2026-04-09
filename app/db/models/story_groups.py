@@ -32,7 +32,7 @@ class StoryGroups(Base, IntegrityMapperMixin):
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4, init=False)
 
-    author_id: Mapped[UUID] = mapped_column(
+    author_id: Mapped[Optional[UUID]] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE", name=FK_STORY_GROUPS_AUTHOR),
         nullable=True
     )
