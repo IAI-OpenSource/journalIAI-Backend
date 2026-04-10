@@ -102,7 +102,7 @@ class StoryRepository:
             page_size: Nombre de groupes par page.
 
         Returns:
-            CRUDResult[dict]: Feed paginé avec items, next_cursor, has_more.
+            CRUDResult[dict]: Feed paginé avec items, next_cursor, has_more, et user_viewed_story_ids.
         """
         try:
             requete = self._get_story_groups_base_query()
@@ -130,15 +130,6 @@ class StoryRepository:
                         StoryGroups.group_type == StoryGroupsType.CLUB_GROUP,
                     )
                 )
-
-            # Petit join hack pour que le left d'en bas marche
-            requete = requete.join(Story, Story.group_id == StoryGroups.id)
-
-            # Inclure les infos de vues (LEFT JOIN pour ne pas exclure les stories vues)
-            requete = requete.outerjoin(
-                StoryViews,
-                (StoryViews.story_id == Story.id) & (StoryViews.user_id == user_id)
-            )
 
             requete = requete.order_by(
                 StoryGroups.updated_at.desc(), StoryGroups.id.desc()
@@ -168,11 +159,31 @@ class StoryRepository:
                 last = items[-1]
                 next_cursor = PaginationCursorUtils.encode_pagination_cursor(last.id, last.updated_at)
 
+            # Ici on recup les vues si présent
+            user_viewed_story_ids: set[UUID] = set()
+            story_ids = [s.id for g in items for s in g.stories]
+
+            if story_ids:
+                views_query = select(StoryViews.story_id).where(
+                    and_(
+                        StoryViews.story_id.in_(story_ids),
+                        StoryViews.user_id == user_id
+                    )
+                )
+                views_result = await self.db.execute(views_query)
+                user_viewed_story_ids = set(views_result.scalars().all())
+
             logger.info(
-                "Feed de stories récupéré : %d groupes, has_more=%s", len(items), has_more
+                "Feed de stories récupéré : %d groupes, has_more=%s, %d vues de l'utilisateur",
+                len(items), has_more, len(user_viewed_story_ids)
             )
             return CRUDResult.crud_success(
-                {"items": items, "next_cursor": next_cursor, "has_more": has_more},
+                {
+                    "items": items,
+                    "next_cursor": next_cursor,
+                    "has_more": has_more,
+                    "user_viewed_story_ids": user_viewed_story_ids
+                },
                 status.HTTP_200_OK,
             )
 

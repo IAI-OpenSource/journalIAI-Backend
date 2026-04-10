@@ -74,10 +74,10 @@ class StoryFeedService:
 
         # Formater chaque story du groupe
         stories_list: List[StoryRead] = []
-        viewed_ids_in_group: List[UUID] = []
+        viewed_index_in_group: List[int] = []
 
         if group.stories:
-            for story in group.stories:
+            for i, story in enumerate(group.stories):
                 prefix_path, key = story.media_url.split("/", 1)
 
                 hls_url = None
@@ -99,8 +99,9 @@ class StoryFeedService:
 
                 # Vérifier si la story a été vue
                 already_viewed = story.id in viewed_story_ids
-                if already_viewed or story.views:
-                    viewed_ids_in_group.append(story.id)
+                logger.warning(f"Valeur des vues bd : {story.views}")
+                if already_viewed:
+                    viewed_index_in_group.append(i)
 
                 story_author_info = StoryAuthorSchema(
                     id=story.author.id,
@@ -142,7 +143,7 @@ class StoryFeedService:
             target_classe_info=target_classe_info,
             stories=stories_list,
             stories_count=len(stories_list),
-            viewed_ids=viewed_ids_in_group,
+            viewed_index_in_group=viewed_index_in_group,
             updated_at=group.updated_at,
             expires_at=group.expires_at,
         )
@@ -168,7 +169,7 @@ class StoryFeedService:
         """
 
         # Récupérer les stories vues depuis le cache
-        seen_story_ids: List[UUID] = await self.story_cache.get_daily_seen_story_ids(user_id=user_id) or []
+        redis_seen_story_ids: List[UUID] = await self.story_cache.get_daily_seen_story_ids(user_id=user_id) or []
 
         userid_str = str(user_id)
 
@@ -179,6 +180,7 @@ class StoryFeedService:
             page_size=page_size,
             user_classe_id=user_classe_id
         )
+
         logger.warning("Temps de réponse BD (stories feed) : %s secondes", time.perf_counter() - s)
 
         if result.is_error():
@@ -192,7 +194,9 @@ class StoryFeedService:
         items = result.data["items"]
         s = time.perf_counter()
 
-        viewed_story_ids_set = set(seen_story_ids)      # Transformation en set parce que c'est plus rapideee
+        viewed_story_ids_set = set(redis_seen_story_ids)      # Transformation en set parce que c'est plus rapideee
+
+        viewed_story_ids_set.update(result.data["user_viewed_story_ids"])
 
         feed_result = StoryGroupListResult(
             items=[self._format_story_group(group, userid_str, viewed_story_ids_set) for group in items],

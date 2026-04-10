@@ -176,9 +176,11 @@ class StoryGroupRead(BaseModel):
     stories_count: int = Field(
         description="Nombre total de stories dans ce groupe.",
     )
-    viewed_ids: List[UUID] = Field(
+    viewed_index_in_group: List[int] = Field(
         default_factory=list,
-        description="Liste des IDs de stories déjà vues par l'utilisateur courant dans ce groupe.",
+        description="Liste des index des stories déjà vues par l'utilisateur courant dans ce groupe"
+                    " Genre si il y'a 0, 1, 3 çà veut dire que la 1er la 2eme et la 4eme story est déja vue par l'utilisateur courant"
+                    ", la liste peut etre vide, dans ce cas aucune story n'est vue dans le groupe",
     )
     updated_at: datetime = Field(description="Date de dernière mise à jour du groupe.")
     expires_at: datetime = Field(description="Date d'expiration du groupe.")
