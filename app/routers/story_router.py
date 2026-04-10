@@ -13,7 +13,7 @@ from app.cache.helpers.base import CacheWrapper, get_redis
 from app.db.session import get_db
 from app.globals.api_tags import ApiTags
 from app.auth.dependencies import get_current_user
-from app.globals.routes_descriptions import STORY_INTENT_ROUTE_DESCRIPTION
+from app.globals.routes_descriptions import STORY_INTENT_ROUTE_DESCRIPTION, STORY_FEED_ROUTE_DESCRIPTION
 from app.schemas.story_upload_schemas import (
     StoryMediaUploadIntentResponse, CreateStoryUploadIntent,
     StoryMediaUploadCompleteResponse
@@ -111,11 +111,8 @@ async def ws_story_processing_info(
 @router.get(
     "/feed",
     response_model=StoryGroupListRead,
-    summary="Récupérer le feed paginé de groupes de stories",
-    description="Retourne une page du feed de stories avec pagination par curseur. "
-                "Les groupes sont triés par date de mise à jour (plus récents en premier). "
-                "Les permissions sont appliquées : USER_GROUP et CLUB_GROUP visibles par tous, "
-                "CLASSE_GROUP visibles seulement par les utilisateurs de cette classe.",
+    summary="Récupérer le feed paginé des stories",
+    description=STORY_FEED_ROUTE_DESCRIPTION
 )
 async def get_stories_feed(
     response: Response,
@@ -124,12 +121,7 @@ async def get_stories_feed(
     cursor: Annotated[str, Query(description="Le dernier curseur renvoyé")] = None,
     limit: Annotated[int, Query(description="Le nombre de groupes que vous voulez (entre 0-20 max)", gt=0, lt=21)] = 10,
 ):
-    """
-    Récupère le feed paginé de groupes de stories.
 
-    Chaque groupe représente un ensemble de stories publiées dans la même session.
-    Le feed inclut tous les groupes actifs et non expirés accessibles à l'utilisateur.
-    """
     result = await story_service.service_get_stories_feed(
         user_id=current_user.id,
         cursor=cursor,
@@ -154,13 +146,7 @@ async def record_story_view(
 ):
     """
     Enregistre la vue de stories. Opération idempotente —
-    une deuxième vue de la même story par le même utilisateur est ignorée silencieusement.
-
-    Args:
-        data: Objet contenant la liste des IDs de stories vues.
-        response: Réponse HTTP à modifier.
-        current_user: Utilisateur courant.
-        story_service: Service de feed de stories.
+    une deuxième vue de la même story par le même utilisateur est ignorée silencieusement, la route ne retourne R
     """
     await story_service.service_record_story_views(
         story_ids=data.story_ids,
