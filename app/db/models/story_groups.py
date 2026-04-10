@@ -14,6 +14,8 @@ from sqlalchemy import Enum as SQLEnum
 IDX_STORY_GROUPS_FEED = "idx_story_groups_feed"
 IDX_STORY_GROUPS_AUTHOR = "idx_story_groups_author"
 IDX_STORY_GROUPS_EXPIRATION = "idx_story_groups_expiration"
+IDX_STORY_GROUPS_FEED_OPTIMIZED = "idx_story_groups_feed_optimized"
+IDX_STORY_GROUPS_CLASSE_PAGINATION = "idx_story_groups_classe_pagination"
 UQ_AUTHOR_ACTIVE_GROUP = "uq_author_active_group"
 UQ_CLUB_ACTIVE_GROUP = "uq_club_active_group"
 UQ_CLASSE_ACTIVE_GROUP = "uq_clause_active_group"
@@ -87,10 +89,27 @@ class StoryGroups(Base, IntegrityMapperMixin):
             postgresql_where=(is_active == True)
         ),
         Index(
+            IDX_STORY_GROUPS_FEED_OPTIMIZED,
+            "group_type",
+            expires_at.desc(),
+            updated_at.desc(),
+            id.desc(),
+            postgresql_where=(is_active == True)
+        ),
+
+        Index(
+            IDX_STORY_GROUPS_CLASSE_PAGINATION,
+            "target_classe_id",
+            expires_at.desc(),
+            updated_at.desc(),
+            id.desc(),
+            postgresql_where=((is_active == True) & (group_type == StoryGroupsType.CLASSE_GROUP))
+        ),
+        Index(
             UQ_AUTHOR_ACTIVE_GROUP,
             "author_id",
             unique=True,
-            postgresql_where=((is_active == True) & (author_id != None)),
+            postgresql_where=((is_active == True) & (author_id != None) & (group_type == StoryGroupsType.USER_GROUP)),
         ),
         Index(
             UQ_CLUB_ACTIVE_GROUP,
