@@ -42,11 +42,13 @@ class StoryGroups(Base, IntegrityMapperMixin):
         nullable=False
     )
 
+    # Au cas où le groupe de story concerne un club
     club_id: Mapped[Optional[UUID]] = mapped_column(
         ForeignKey("clubs.id", ondelete="CASCADE", name=FK_STORIES_CLUB),
         nullable=True
     )
 
+    # Au cas où le groupe de story concerne une classe
     target_classe_id: Mapped[Optional[UUID]] = mapped_column(
         ForeignKey("classe.id", ondelete="SET NULL", name=FK_STORIES_CLASSE),
         nullable=True,
@@ -105,10 +107,10 @@ class StoryGroups(Base, IntegrityMapperMixin):
     )
 
     # Relationships
-    author: Mapped["User"] = relationship("User", foreign_keys=[author_id], back_populates="story_groups", uselist=False, init=False)
-    stories: Mapped[list["Story"]] = relationship("Story", back_populates="group", uselist=True, init=False)
-    club: Mapped[Optional["Club"]] = relationship("Club", foreign_keys=[club_id], back_populates="story_groups", uselist=False, init=False)
-    classe: Mapped[Optional["Classe"]] = relationship("Classe", foreign_keys=[target_classe_id], back_populates="story_groups", uselist=False, init=False)
+    author: Mapped["User"] = relationship("User", foreign_keys=[author_id], back_populates="story_groups", uselist=False, init=False, lazy="noload")
+    stories: Mapped[list["Story"]] = relationship("Story", back_populates="group", uselist=True, init=False, lazy="noload")
+    club: Mapped[Optional["Club"]] = relationship("Club", foreign_keys=[club_id], back_populates="story_groups", uselist=False, init=False, lazy="noload")
+    classe: Mapped[Optional["Classe"]] = relationship("Classe", foreign_keys=[target_classe_id], back_populates="story_groups", uselist=False, init=False, lazy="noload")
 
 
     ERROR_MESSAGES = {

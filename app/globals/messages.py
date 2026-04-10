@@ -83,6 +83,7 @@ class Messages:
     POST_SERVICE = "Service Post"
     ACADEMIC_YEAR_SERVICE = "Service Année Académique"
     CLASSE_SERVICE = "Service Classe"
+    STORY_SERVICE = "Service Story"
     
     
     ## Message pour le cache

@@ -86,9 +86,9 @@ class Story(Base, IntegrityMapperMixin):
     )
 
     # Relationships*
-    views: Mapped[list["StoryViews"]] = relationship("StoryViews", back_populates="story", uselist=True, init=False)
-    author: Mapped["User"] = relationship("User", foreign_keys=[author_id], back_populates="stories", uselist=False, init=False)
-    group: Mapped["StoryGroups"] = relationship("StoryGroups", back_populates="stories", uselist=False, init=False)
+    views: Mapped[list["StoryViews"]] = relationship("StoryViews", back_populates="story", uselist=True, init=False, lazy="noload")
+    author: Mapped["User"] = relationship("User", foreign_keys=[author_id], back_populates="stories", uselist=False, init=False, lazy="noload")
+    group: Mapped["StoryGroups"] = relationship("StoryGroups", back_populates="stories", uselist=False, init=False, lazy="noload")
     # Messages d'erreur d'intégrité spécifiques au modèle Post
     ERROR_MESSAGES = {
         FK_STORIES_AUTHOR: "L'auteur spécifié n'existe pas.",

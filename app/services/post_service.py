@@ -220,7 +220,9 @@ class PostService:
 
 
 
-    async def service_get_post(self, post_id: UUID, user_id: UUID, user_class_id: Optional[UUID] = None,) -> ServiceResult[ReadPost]:
+    async def service_get_post(
+        self, post_id: UUID, user_id: UUID, user_class_id: Optional[UUID] = None
+    ) -> ServiceResult[ReadPost]:
         """Récupère un post par son ID avec ses médias."""
         result = await self.post_repo.get_post_by_id(post_id=post_id)
 
@@ -268,7 +270,7 @@ class PostService:
                 service_name=Messages.POST_SERVICE
             )
 
-        seen_post_ids: List[UUID] = await self.feed_cache.get_daily_seen_post_ids(user_id=user_id)
+        seen_post_ids: List[UUID] = await self.feed_cache.get_daily_seen_post_ids(user_id=user_id) or []
         userid_str = str(user_id)
         s = time.perf_counter()
         result = await self.post_repo.get_feed(
@@ -304,30 +306,6 @@ class PostService:
             service_name=Messages.POST_SERVICE
         )
 
-    
-    async def service_count_new_posts(
-        self,
-        academic_year_id: UUID,
-        since: datetime,
-    ) -> ServiceResult[dict]:
-        """COUNT(*) posts créés depuis `since`. Appelé toutes les 60s.
- 
-        Retourne {"new_count": N}.
-        Requête ultra-légère utilisant l'index sur created_at.
-        """
-        result = await self.post_repo.count_new_posts_since(
-            academic_year_id=academic_year_id,
-            since=since,
-        )
-        if result.is_error():
-            return ServiceResult.service_error(
-                message=result.error,
-                status_code=result.status_code,
-                service_name=Messages.POST_SERVICE,
-            )
-        return ServiceResult.service_success(
-            data={"new_count": result.data},
-            status_code=result.status_code,)
 
 
     # Enregistrement d'une vue

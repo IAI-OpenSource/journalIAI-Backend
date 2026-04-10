@@ -1,14 +1,21 @@
 from logging import getLogger
 from typing import Optional
+from uuid import UUID
 
 from app.cache.cache_utils import CacheUtils
 from app.cache.helpers.availables import AvailableCacheKeys
 from app.cache.helpers.base import CacheWrapper
+from app.cache.helpers.cache_keys import CacheKey
 from app.cache.helpers.keys_factory import CacheKeysFactory
 from app.globals.cache_duration import CacheDurartion
 from app.schemas.story_upload_schemas import CreateStoryUploadIntentFullData
 
 logger = getLogger(__name__)
+
+
+def _seen_stories_key(user_id: UUID) -> CacheKey:
+    """Génère la clé Redis pour les stories vues par un utilisateur."""
+    return CacheKeysFactory.get_cache_key(AvailableCacheKeys.USER_DAILY_POST_SEEN).set_arguments(id=str(user_id))
 
 
 class StoryCache:
@@ -84,3 +91,74 @@ class StoryCache:
         except Exception as e:
             CacheUtils.traiter_exceptions(e, logger)
             return None
+
+    async def get_daily_seen_story_ids(self, user_id: UUID) -> list[UUID] | None:
+        """Récupère la liste des UUIDs de stories déjà vues par l'utilisateur.
+
+        Commande Redis : SMEMBERS user:{user_id}:seen_stories
+
+        Returns:
+            Liste de strings (UUIDs) si Redis répond, None si Redis crash.
+            None déclenche le fallback PostgreSQL dans le service.
+        """
+        try:
+            key = _seen_stories_key(user_id)
+            members = await self._cache.get_from_a_set(key)
+            result = [UUID(m) for m in members]
+            logger.debug(
+                "Cache hit seen_stories user=%s count=%d", user_id, len(result)
+            )
+            return result
+        except Exception as e:
+            logger.warning(
+                "Redis unavailable (get_seen_stories) user=%s : %s — fallback PostgreSQL",
+                user_id, e,
+            )
+            return None
+
+    async def mark_stories_as_viewed(self, user_id: UUID, story_ids: list[UUID]) -> int | None:
+        """Marque une liste de stories comme vues dans Redis.
+
+        Opérations :
+        1. SADD batch (un seul appel pour N stories)
+        2. EXPIRE pour renouveler le TTL à 7 jours
+
+        Args:
+            user_id: ID de l'utilisateur.
+            story_ids: Liste des stories à marquer comme vues.
+        """
+        if not story_ids:
+            return None
+
+        try:
+            key = _seen_stories_key(user_id)
+
+            str_ids = [str(sid) for sid in story_ids]
+
+            res = await self._cache.add_to_a_set(key, *str_ids)
+
+            logger.debug(
+                "Stories marquées comme vues user=%s total_set=%d",
+                user_id, res
+            )
+            return res
+
+        except Exception as e:
+            logger.error(f"Erreur lors du marquage d'une story comme vue user_id = {user_id}, story_ids = {story_ids}")
+            CacheUtils.traiter_exceptions(e, logger)
+            return None
+
+    async def clear_daily_seen_stories_for_user(self, user_id: UUID) -> None:
+        """Supprime complètement le SET des stories vues.
+
+        Rarement utilisé — préférer mark_stories_as_viewed qui est idempotent.
+        """
+        try:
+            key = _seen_stories_key(user_id)
+            await self._cache.delete_in_cache(key)
+            logger.info("SET seen_stories supprimé avec succès user=%s", user_id)
+        except Exception as e:
+            logger.warning(
+                "Redis unavailable (clear_seen_stories) user=%s : %s", user_id, e
+            )
+

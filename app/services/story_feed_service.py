@@ -1,0 +1,245 @@
+"""
+Service pour la gestion du feed de stories.
+Contient la logique métier pour récupérer et formater le feed paginé de stories.
+"""
+
+import logging
+import time
+from typing import List, Optional
+from uuid import UUID
+
+from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import status
+
+from app.cache.helpers.base import CacheWrapper
+from app.cache.story_cache import StoryCache
+from app.core.stream_token import create_stream_token
+from app.db.models.enums import MediaType
+from app.db.models.story_groups import StoryGroups
+from app.globals.messages import Messages
+from app.repositories.story_repository import StoryRepository
+from app.schemas.story_schemas import (
+    StoryRead, StoryGroupRead, StoryAuthorSchema, StoryClubSchema, StoryClasseSchema, StoryGroupListResult
+)
+from app.services import ServiceResult
+from app.storage.media_read_storage import MediaReadStorage
+
+logger = logging.getLogger(__name__)
+
+
+class StoryFeedService:
+    """Service pour gérer le feed de stories."""
+
+    def __init__(self, db: AsyncSession, cache: CacheWrapper):
+        self.db = db
+        self._cache = cache
+        self.story_repo = StoryRepository(self.db)
+        self.story_cache = StoryCache(cache)
+
+    @staticmethod
+    def _format_story_group(group: StoryGroups, user_id: str, viewed_story_ids: set[UUID]) -> StoryGroupRead:
+        """
+        Formate un groupe de stories brut de la DB en schéma StoryGroupRead.
+
+        Args:
+            group: Le groupe de stories depuis la DB.
+            user_id: ID de l'utilisateur courant (pour les URLs avec token).
+            viewed_story_ids: Set des IDs de stories vues par l'utilisateur.
+
+        Returns:
+            StoryGroupRead formaté avec URLs complètes et infos de vues.
+        """
+        # Formater l'auteur si présent (pour USER_GROUP)
+        author_info: Optional[StoryAuthorSchema] = None
+        if group.author:
+            author_info = StoryAuthorSchema(
+                **group.author.__dict__
+            )
+            author_info.avatar_url = MediaReadStorage.generate_read_public_asset(group.author.avatar_url)
+
+        # Formater les infos du club si présentes (pour CLUB_GROUP)
+        club_info: Optional[StoryClubSchema] = None
+        if group.club:
+            club_info = StoryClubSchema(
+                **group.club.__dict__
+            )
+            club_info.logo_url = MediaReadStorage.generate_read_public_asset(group.club.logo_url)
+
+        # Formater les infos de la classe si présentes (pour CLASSE_GROUP)
+        target_classe_info: Optional[StoryClasseSchema] = None
+        if group.classe:
+            target_classe_info = StoryClasseSchema(
+                **group.classe.__dict__
+            )
+
+        # Formater chaque story du groupe
+        stories_list: List[StoryRead] = []
+        viewed_ids_in_group: List[UUID] = []
+
+        if group.stories:
+            for story in group.stories:
+                bucket, key = story.media_url.split("/", 1)
+
+                hls_url = None
+                image_medium_url = None
+                image_high_url = None
+
+                if story.media_type == MediaType.VIDEO:
+                    hls_url = MediaReadStorage.generate_read_hls_url(
+                        key,
+                        create_stream_token(key, user_id, bucket)
+                    )
+                else:
+                    image_medium_url = MediaReadStorage.generate_medium_post_image_url(
+                        key,
+                        create_stream_token(key, user_id, bucket)
+                    )
+                    image_high_url = MediaReadStorage.generate_high_quality_post_image_url(
+                        key,
+                        create_stream_token(key, user_id, bucket)
+                    )
+
+                # Vérifier si la story a été vue
+                already_viewed = story.id in viewed_story_ids
+                if already_viewed or story.views:
+                    viewed_ids_in_group.append(story.id)
+
+                story_author_info = StoryAuthorSchema(
+                    id=story.author.id,
+                    username=story.author.username,
+                    first_name=story.author.first_name,
+                    last_name=story.author.last_name,
+                    avatar_url=MediaReadStorage.generate_read_public_asset(story.author.avatar_url) if story.author.avatar_url else None,
+                    role=story.author.role,
+                    executive_role=story.author.executive_role,
+                )
+
+                story_read = StoryRead(
+                    id=story.id,
+                    author_id=story.author_id,
+                    author=story_author_info,
+                    media_type=story.media_type,
+                    thumbnail_url=MediaReadStorage.generate_read_public_asset(story.thumbnail_url) if story.thumbnail_url else None,
+                    hls_master_url=hls_url,
+                    image_medium_url=image_medium_url,
+                    image_high_url=image_high_url,
+                    legend=story.legend,
+                    width=story.width,
+                    height=story.height,
+                    duration_seconds=story.duration_seconds,
+                    already_viewed=already_viewed,
+                    created_at=story.created_at,
+                    expires_at=story.expires_at,
+                )
+                stories_list.append(story_read)
+
+        return StoryGroupRead(
+            id=group.id,
+            group_type=group.group_type,
+            author_id=group.author_id,
+            author=author_info,
+            club_id=group.club_id,
+            club_info=club_info,
+            target_classe_id=group.target_classe_id,
+            target_classe_info=target_classe_info,
+            stories=stories_list,
+            stories_count=len(stories_list),
+            viewed_ids=viewed_ids_in_group,
+            updated_at=group.updated_at,
+            expires_at=group.expires_at,
+        )
+
+    async def service_get_stories_feed(
+        self,
+        user_id: UUID,
+        cursor: str | None = None,
+        page_size: int = 20,
+        user_classe_id: Optional[UUID] = None,
+    ) -> ServiceResult[StoryGroupListResult]:
+        """
+        Récupère un feed paginé de groupes de stories.
+
+        Args:
+            user_id: ID de l'utilisateur courant.
+            cursor: Curseur opaque de pagination.
+            page_size: Nombre de groupes par page (0-20 max).
+            user_classe_id: Classe de l'utilisateur
+
+        Returns:
+            ServiceResult avec le feed paginé ou une erreur.
+        """
+
+        # Récupérer les stories vues depuis le cache
+        seen_story_ids: List[UUID] = await self.story_cache.get_daily_seen_story_ids(user_id=user_id) or []
+
+        userid_str = str(user_id)
+
+        s = time.perf_counter()
+        result = await self.story_repo.get_story_groups_feed(
+            user_id=user_id,
+            cursor=cursor,
+            page_size=page_size,
+            user_classe_id=user_classe_id
+        )
+        logger.warning("Temps de réponse BD (stories feed) : %s secondes", time.perf_counter() - s)
+
+        if result.is_error():
+            logger.error("Erreur récupération feed de stories : %s", result.error)
+            return ServiceResult.service_error(
+                message=result.error,
+                status_code=result.status_code,
+                service_name=Messages.STORY_SERVICE,
+            )
+
+        items = result.data["items"]
+        s = time.perf_counter()
+
+        viewed_story_ids_set = set(seen_story_ids)      # Transformation en set parce que c'est plus rapideee
+
+        feed_result = StoryGroupListResult(
+            items=[self._format_story_group(group, userid_str, viewed_story_ids_set) for group in items],
+            next_cursor=result.data["next_cursor"],
+            has_more=result.data["has_more"],
+        )
+        logger.warning("Temps de génération de liens dynamiques (stories) : %s secondes", time.perf_counter() - s)
+
+
+        return ServiceResult.service_success(
+            data=feed_result,
+            status_code=result.status_code,
+            service_name=Messages.STORY_SERVICE
+        )
+
+    async def service_record_story_views(
+        self, story_ids: List[UUID], user_id: UUID
+    ) -> ServiceResult[str]:
+        """
+        Enregistre des vues de stories — opération idempotente.
+
+        Args:
+            story_ids: IDs des stories vues.
+            user_id: ID de l'utilisateur.
+
+        Returns:
+            ServiceResult avec succès ou erreur.
+        """
+        result = await self.story_cache.mark_stories_as_viewed(
+            user_id=user_id,
+            story_ids=story_ids
+        )
+
+        if result and result > 0:
+            logger.info("Stories marquées comme vues user=%s count=%d", user_id, result)
+
+        return ServiceResult.service_success(
+            data="ok",
+            status_code=status.HTTP_200_OK,
+            service_name=Messages.STORY_SERVICE,
+        )
+
+
+
+
+
+
+

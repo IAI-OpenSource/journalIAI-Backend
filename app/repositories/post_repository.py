@@ -269,7 +269,7 @@ class PostRepository:
                 requete = requete.where(Post.id.not_in(ids_to_exclude))
 
             if cursor:
-                cursor_created_at, cursor_id = PaginationCursorUtils.decode_pagination_cursor(cursor)
+                cursor_id, cursor_created_at = PaginationCursorUtils.decode_pagination_cursor(cursor)
                 requete = requete.where(
                     (Post.created_at < cursor_created_at)
                     | (

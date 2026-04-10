@@ -5,18 +5,23 @@ Contient les requêtes pour créer, récupérer et gérer les stories et leurs g
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import Optional, List, Any
 from uuid import UUID
 
-from sqlalchemy import select, Select
-from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy import select, Select, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload, joinedload, with_loader_criteria
 from fastapi import status
 
 from app.db.models.enums import StoryGroupsType
 from app.db.models.stories import Story
 from app.db.models.story_groups import StoryGroups
+from app.db.models.story_views import StoryViews
+from app.db.models.user import User
+from app.db.models.club import Club
+from app.db.models.classe import Classe
 from app.repositories import CRUDResult
+from app.utils.pagination_cursor_utils import PaginationCursorUtils
 
 import logging
 
@@ -25,12 +30,158 @@ from app.schemas.story_upload_schemas import CreateStoryUploadIntentFullData
 
 logger = logging.getLogger(__name__)
 
+# Nombre de groupes par défaut retournés par page dans le feed
+DEFAULT_PAGE_SIZE = 10
+
 
 @dataclass
 class StoryRepository:
     """Repository pour les opérations sur les stories et les groupes de stories."""
 
     db: AsyncSession
+
+    @staticmethod
+    def _get_story_groups_base_query(
+        filter_expired_stories: bool = True,
+    ) -> Select:
+        """
+        Squelette de base pour récupérer les groupes de stories avec toutes leurs infos utiles.
+
+        Args:
+            filter_expired_stories: Si True, exclut les stories expirées via with_loader_criteria.
+
+        Returns:
+            Select: Statement SQLAlchemy prêt à recevoir des .where() / .limit() etc.
+        """
+        story_options: List[Any] = [selectinload(StoryGroups.stories).selectinload(Story.author)]
+        if filter_expired_stories:
+            story_options.append(
+                with_loader_criteria(Story, Story.expires_at >= datetime.now(timezone.utc))
+            )
+
+        return (
+            select(StoryGroups)
+            .options(
+                joinedload(StoryGroups.author).load_only(
+                    User.id,
+                    User.username,
+                    User.first_name,
+                    User.last_name,
+                    User.avatar_url,
+                    User.role,
+                    User.executive_role
+                ),
+                joinedload(StoryGroups.club).load_only(
+                    Club.id,
+                    Club.name,
+                    Club.slug,
+                    Club.logo_url,
+                ),
+                joinedload(StoryGroups.classe).load_only(
+                    Classe.id,
+                    Classe.classe_prefix,
+                    Classe.classe_suffix,
+                ),
+                *story_options,
+            )
+        )
+
+    async def get_story_groups_feed(
+        self,
+        user_id: UUID,
+        user_classe_id: Optional[UUID] = None,
+        cursor: Optional[str] = None,
+        page_size: int = DEFAULT_PAGE_SIZE,
+    ) -> CRUDResult[dict]:
+        """Récupère un feed de groupes de stories paginé par curseur.
+
+        Args:
+            user_id: ID de l'utilisateur courant.
+            user_classe_id: Classe de l'utilisateur (pour filtrer CLASSE_GROUP).
+            cursor: Curseur opaque de la page précédente.
+            page_size: Nombre de groupes par page.
+
+        Returns:
+            CRUDResult[dict]: Feed paginé avec items, next_cursor, has_more.
+        """
+        try:
+            requete = self._get_story_groups_base_query()
+
+            requete = requete.where(
+                StoryGroups.expires_at >= datetime.now(timezone.utc)
+            )
+
+            if user_classe_id:
+                requete = requete.where(
+                    or_(
+                        StoryGroups.group_type == StoryGroupsType.USER_GROUP,
+                        StoryGroups.group_type == StoryGroupsType.CLUB_GROUP,
+                        and_(
+                            StoryGroups.group_type == StoryGroupsType.CLASSE_GROUP,
+                            StoryGroups.target_classe_id == user_classe_id
+                        )
+                    )
+                )
+            else:   # L'utilisateur n'a pas de classe, genre ADMIN ou un bug, on sait jamais
+
+                requete = requete.where(
+                    or_(
+                        StoryGroups.group_type == StoryGroupsType.USER_GROUP,
+                        StoryGroups.group_type == StoryGroupsType.CLUB_GROUP,
+                    )
+                )
+
+            # Petit join hack pour que le left d'en bas marche
+            requete = requete.join(Story, Story.group_id == StoryGroups.id)
+
+            # Inclure les infos de vues (LEFT JOIN pour ne pas exclure les stories vues)
+            requete = requete.outerjoin(
+                StoryViews,
+                (StoryViews.story_id == Story.id) & (StoryViews.user_id == user_id)
+            )
+
+            requete = requete.order_by(
+                StoryGroups.updated_at.desc(), StoryGroups.id.desc()
+            ).limit(page_size + 1)
+
+            # Appliquer le curseur si fourni
+            if cursor:
+                cursor_id, cursor_updated_at = PaginationCursorUtils.decode_pagination_cursor(cursor)
+                requete = requete.where(
+                    (StoryGroups.updated_at < cursor_updated_at)
+                    | (
+                        (StoryGroups.updated_at == cursor_updated_at)
+                        & (StoryGroups.id < cursor_id)
+                    )
+                )
+
+            result = await self.db.execute(requete)
+
+            # .unique() est obligatoire dès qu'on utilise joinedload
+            groups = result.unique().scalars().all()
+
+            has_more = len(groups) > page_size
+            items: List[StoryGroups] = list(groups[:page_size])
+
+            next_cursor = None
+            if has_more and items:
+                last = items[-1]
+                next_cursor = PaginationCursorUtils.encode_pagination_cursor(last.id, last.updated_at)
+
+            logger.info(
+                "Feed de stories récupéré : %d groupes, has_more=%s", len(items), has_more
+            )
+            return CRUDResult.crud_success(
+                {"items": items, "next_cursor": next_cursor, "has_more": has_more},
+                status.HTTP_200_OK,
+            )
+
+        except ValueError as ve:
+            # Curseur malformé
+            return CRUDResult.crud_error(str(ve), status_code=status.HTTP_400_BAD_REQUEST)
+
+        except Exception as e:
+            return await RepositoriesUtils.traiter_errors_en_global(e, self.db, logger, StoryGroups)
 
     async def save_story_group(self, group: StoryGroups, in_transaction: bool) -> CRUDResult[StoryGroups]:
         """
@@ -60,9 +211,19 @@ class StoryRepository:
 
         except Exception as e:
             return await RepositoriesUtils.traiter_errors_en_global(
-                e, self.db, logger, StoryGroupsType
+                e, self.db, logger, StoryGroups
             )
+
     async def save_story(self, sto: Story, in_transaction: bool) -> CRUDResult[Story]:
+        """Sauvegarde une story en base de données.
+
+        Args:
+            sto: L'objet Story à sauvegarder
+            in_transaction: Si True, utilise une transaction existante
+
+        Returns:
+            CRUDResult contenant la story sauvegardée ou une erreur
+        """
         try:
             self.db.add(sto)
 
@@ -81,6 +242,7 @@ class StoryRepository:
             return await RepositoriesUtils.traiter_errors_en_global(
                 e, self.db, logger, StoryGroupsType
             )
+
     async def get_active_story_group(self, user_id: UUID, infos: CreateStoryUploadIntentFullData) -> Optional[StoryGroups]:
         """
         Récupère le groupe actif (non expiré) d'un utilisateur.
@@ -138,6 +300,12 @@ class StoryRepository:
                 club_id=infos.club_id,
                 target_classe_id=infos.target_classe_id
             )
+            # Pas d'user_id sur le group si ce n'est pas un groupe d'un user simple
+            # nsm ce truc devient trop complexe
+
+            if infos.target_group_type != StoryGroupsType.USER_GROUP:
+                new_group.author_id = None
+
 
             return await self.save_story_group(new_group, in_transaction)
 

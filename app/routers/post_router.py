@@ -149,7 +149,7 @@ async def get_feed(
     current_user: Annotated[ReadUser, Depends(get_current_user)],
     post_service: Annotated[PostService, Depends(get_post_service)],
     cursor: Annotated[str, Query(description="Le dernir curseur renvoyé")] = None,
-    limit: Annotated[int, Query(description="Le nombre de post sue vous voulez (entre 0-20 max)", gt=0, lt=20)] = 10,
+    limit: Annotated[int, Query(description="Le nombre de post sue vous voulez (entre 0-20 max)", gt=0, le=20)] = 10,
 ):
 
     result = await post_service.service_get_feed(

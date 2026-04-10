@@ -58,7 +58,7 @@ class FeedCache:
                 "Redis unavailable (get_seen_posts) user=%s : %s — fallback PostgreSQL",
                 user_id, e,
             )
-            return None  # Signal fallback
+            return None
 
     async def mark_posts_as_seen(self, user_id: UUID, post_ids: list[UUID]) -> int | None:
         """Marque une liste de posts comme vus dans Redis.

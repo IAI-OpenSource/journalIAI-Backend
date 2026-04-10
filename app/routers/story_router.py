@@ -1,6 +1,6 @@
 """
-Routeur pour les opérations liées aux stories (création, uploads, suivi).
-Endpoints pour l'upload de médias et la gestion des stories.
+Routeur pour les opérations liées aux stories (création, uploads, suivi, feed).
+Endpoints pour l'upload de médias, la gestion des stories et le feed paginé.
 """
 
 from typing import Annotated
@@ -18,9 +18,11 @@ from app.schemas.story_upload_schemas import (
     StoryMediaUploadIntentResponse, CreateStoryUploadIntent,
     StoryMediaUploadCompleteResponse
 )
+from app.schemas.story_schemas import StoryGroupListRead, CreateStoryView
 from app.schemas.user_schemas import ReadUser
 from app.services.processing_service import ProcessingService
 from app.services.story_upload_service import StoryMediaUploadsService
+from app.services.story_feed_service import StoryFeedService
 
 router = APIRouter(prefix="/stories", tags=[ApiTags.STORY], dependencies=[Depends(RoleDepends.all_authorize)])
 
@@ -30,9 +32,17 @@ def get_story_upload_service(
     """Crée une instance du service d'upload de stories."""
     return StoryMediaUploadsService(cache=cache, bd=bd)
 
+def get_story_feed_service(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    cache: CacheWrapper = Depends(get_redis),
+) -> StoryFeedService:
+    """Crée une instance du service de feed de stories."""
+    return StoryFeedService(db, cache)
+
 def get_prcessing_service(
         cache: Annotated[CacheWrapper, Depends(get_redis)]
 ) -> ProcessingService:
+    """Crée une instance du service de traitement."""
     return ProcessingService(cache=cache)
 
 @router.post(
@@ -98,4 +108,62 @@ async def ws_story_processing_info(
         pass
 
 
+@router.get(
+    "/feed",
+    response_model=StoryGroupListRead,
+    summary="Récupérer le feed paginé de groupes de stories",
+    description="Retourne une page du feed de stories avec pagination par curseur. "
+                "Les groupes sont triés par date de mise à jour (plus récents en premier). "
+                "Les permissions sont appliquées : USER_GROUP et CLUB_GROUP visibles par tous, "
+                "CLASSE_GROUP visibles seulement par les utilisateurs de cette classe.",
+)
+async def get_stories_feed(
+    response: Response,
+    current_user: Annotated[ReadUser, Depends(get_current_user)],
+    story_service: Annotated[StoryFeedService, Depends(get_story_feed_service)],
+    cursor: Annotated[str, Query(description="Le dernier curseur renvoyé")] = None,
+    limit: Annotated[int, Query(description="Le nombre de groupes que vous voulez (entre 0-20 max)", gt=0, lt=21)] = 10,
+):
+    """
+    Récupère le feed paginé de groupes de stories.
 
+    Chaque groupe représente un ensemble de stories publiées dans la même session.
+    Le feed inclut tous les groupes actifs et non expirés accessibles à l'utilisateur.
+    """
+    result = await story_service.service_get_stories_feed(
+        user_id=current_user.id,
+        cursor=cursor,
+        page_size=limit,
+        user_classe_id=current_user.classe.id if current_user.classe else None
+    )
+
+    return result.to_HTTP_api_base_response(response)
+
+
+@router.post(
+    "/add-views",
+    response_model=None,
+    status_code=200,
+    summary="Marquer des stories comme vues par l'utilisateur"
+)
+async def record_story_view(
+    data: CreateStoryView,
+    response: Response,
+    current_user: Annotated[ReadUser, Depends(get_current_user)],
+    story_service: Annotated[StoryFeedService, Depends(get_story_feed_service)],
+):
+    """
+    Enregistre la vue de stories. Opération idempotente —
+    une deuxième vue de la même story par le même utilisateur est ignorée silencieusement.
+
+    Args:
+        data: Objet contenant la liste des IDs de stories vues.
+        response: Réponse HTTP à modifier.
+        current_user: Utilisateur courant.
+        story_service: Service de feed de stories.
+    """
+    await story_service.service_record_story_views(
+        story_ids=data.story_ids,
+        user_id=current_user.id,
+    )
+    response.status_code = 200
