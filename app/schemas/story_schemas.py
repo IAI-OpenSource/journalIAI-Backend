@@ -120,6 +120,10 @@ class StoryRead(BaseModel):
         default=None,
         description="URL de l'image en haute qualité, présent seulement si media_type est IMAGE.",
     )
+    blur_hash: Optional[str] = Field(
+        default=None,
+        description="BlurHash du média pour affichage d'un placeholder flou pendant le chargement."
+    )
     legend: Optional[str] = Field(
         default=None,
         description="Légende optionnelle de la story.",

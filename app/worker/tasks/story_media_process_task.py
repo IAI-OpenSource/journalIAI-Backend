@@ -19,6 +19,7 @@ from app.services.story_upload_service import StoryMediaUploadsService
 from app.storage.minio_config import BucketName
 from app.worker.tasks.async_loop_manager import task_async_loop_manager
 from app.worker.tasks.tasks_utils.base import ProcessingContext, ProcessingStep, ProcessingResult
+from app.worker.tasks.tasks_utils.common_media_utils import generate_blurhash_str
 from app.worker.tasks.tasks_utils.handlers import CleanupHandler, ProgressHandler
 from app.worker.tasks.tasks_utils.medias_process_helper import MediasProcessHelper
 from app.worker.tasks.tasks_utils.minio import MinIOManager
@@ -97,7 +98,7 @@ def process_story_upload_task(
 
         current_step = ProcessingStep.COMPRESSING
 
-        compress_res: ProcessingResult[tuple[str | None, int, int, int | None ]] = helper.compress_file(
+        compress_res: ProcessingResult[tuple[str | None, int, int, int | None, str | None ]] = helper.compress_file(
             step=current_step,
             local_raw_path=context.get_local_raw_path(file.file_name),
             media_progress_weight=1.0,
@@ -110,7 +111,7 @@ def process_story_upload_task(
             send_error_to_user(compress_res.error)
             return
 
-        local_thumbnail_path, height, width, duration = compress_res.data
+        local_thumbnail_path, height, width, duration, blur_hash = compress_res.data
 
 
         current_step = ProcessingStep.CREATING
@@ -141,7 +142,8 @@ def process_story_upload_task(
             _save_result_to_bd(
                 user_id=user_id, thumbnail_url=thumbnail_url, minio_url=media_url,
                 height=height, width=width, intent_info=story_data_obj, file_size=downloaded_file.size,
-                duration=duration, cache=redis_cache, intent_id=intent_id
+                duration=duration, cache=redis_cache, intent_id=intent_id,
+                blur_hash=blur_hash
             )
         )
 
@@ -186,7 +188,8 @@ async def _save_result_to_bd(
         width: int,
         duration: int | None,
         file_size: int | None,
-        intent_id: str
+        intent_id: str,
+        blur_hash: str | None,
 ) -> ProcessingResult[str]:
     async with AsyncSessionLocal() as sess:
         repo = StoryMediaUploadsService(cache, sess)
@@ -199,7 +202,8 @@ async def _save_result_to_bd(
             width=width,
             duration=duration,
             f_size=file_size,
-            intent_id=intent_id
+            intent_id=intent_id,
+            blur_hash=blur_hash
         )
         if res.is_error():
             return ProcessingResult.error_response(res.error)

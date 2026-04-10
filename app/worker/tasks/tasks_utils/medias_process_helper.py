@@ -82,10 +82,10 @@ class MediasProcessHelper:
         output_dir: str,
         media_progress_weight: float,
         is_story: bool = False
-    ) -> ProcessingResult[tuple[str | None, int, int, int | None ]]:
-        """local_thumbnail_path, height, width, duration"""
+    ) -> ProcessingResult[tuple[str | None, int, int, int | None, str | None ]]:
+        """local_thumbnail_path, height, width, duration, blur_hash"""
 
-        thumb_path, h, w, duration = None, None, None, None
+        thumb_path, h, w, duration, blur_hash = None, None, None, None, None
         if file_info.is_video:
             metadata_result = get_video_metadata(local_raw_path)
             if metadata_result.is_error():
@@ -121,6 +121,8 @@ class MediasProcessHelper:
                     output_dir=output_dir,
                     ss_time=max(int(video_metadata['duration'] * 0.1), 1)
                 )
+
+                blur_hash = generate_blurhash_str(thumbnail_path)
             except Exception as e:
                 self.logger.warning(f"Génération de la miniature échouée pour l'intent {self.intent_id} et le fichier {file_info.file_name}, mais on continue : {e}")
                 thumbnail_path = None
@@ -140,8 +142,8 @@ class MediasProcessHelper:
             if process_result.is_error():
                 self.logger.error(f"Erreur lors de la compression image pour l'intent {self.intent_id} et le fichier {file_info.file_name} : {process_result.error}")
                 return self._return_error(Messages.INTERNAL_SERVER_ERROR)
-
             processed_images_paths = process_result.data
+            blur_hash = generate_blurhash_str(processed_images_paths.get("full"))
             self.logger.info(f"Images traitées (pour intent_id : {self.intent_id}, fichier : {file_info.file_name}) créées: {list(processed_images_paths.keys())}")
 
             thumb_path = processed_images_paths.get("thumbnail")
@@ -149,7 +151,7 @@ class MediasProcessHelper:
             w = image_metadata['width']
 
         task_async_loop_manager.run_async(self.progress_handler.update_step(step=step, weight=media_progress_weight))
-        return ProcessingResult.ok_response((thumb_path, h, w, duration))
+        return ProcessingResult.ok_response((thumb_path, h, w, duration, blur_hash))
 
     def upload_files_to_minio(
         self,
@@ -225,15 +227,15 @@ class MediasProcessHelper:
             width: int,
             height: int,
             file_info: FileToUploadSchema,
-            local_thumbnail_path: str | None,
             bucket_thumbnail_path: str | None,
             file_size: int,
             bucket_media_url: str,
+            blur_hash: str | None
     ) -> ProcessingResult[PostMedia]:
         try:
             post_media = PostMedia(
                 post_id=post_id,
-                blur_hash=generate_blurhash_str(local_thumbnail_path),
+                blur_hash=blur_hash,
                 media_url=bucket_media_url,
                 media_type=file_info.media_type,
                 file_size=file_size,

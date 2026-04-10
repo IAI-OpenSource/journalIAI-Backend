@@ -26,6 +26,7 @@ from app.schemas.user_schemas import ReadUser
 from app.services import ServiceResult
 from app.services.club_member_service import ClubMemberService
 from app.storage.media_upload_storage import MediaUploadStorage
+from app.storage.minio_config import BucketName
 from app.worker.tasks.workers_task_names import WorkersTaskNames
 from app.globals.others_constants import OtherConstants
 from app.services.processing_service import ProcessingService
@@ -181,7 +182,7 @@ class StoryMediaUploadsService:
     async def worker_service_save_processed_story_in_bd(
         self, user_id: str, intent_info: CreateStoryUploadIntentFullData,
         minio_url: str, thumbnail_url: str | None, height: int | None, width: int | None,
-        duration: int | None, f_size: int | None, intent_id: str
+        duration: int | None, f_size: int | None, intent_id: str, blur_hash: str | None
     ) -> ServiceResult[str]:
         """
         Service appelé par le worker de traitement de story pour sauvegarder la story traitée
@@ -221,6 +222,8 @@ class StoryMediaUploadsService:
                 height=height,
                 file_size=f_size,
                 legend=intent_info.legend,
+                stored_bucket_name=BucketName.STORIES_EPHEMERAL_CONTENT.value,
+                blur_hash=blur_hash
             )
             logger.info(
                 f"Story à sauvegarder créée pour l'intent d'upload {intent_id} et user_id {user_id},"

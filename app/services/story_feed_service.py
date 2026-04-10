@@ -125,6 +125,7 @@ class StoryFeedService:
                     legend=story.legend,
                     width=story.width,
                     height=story.height,
+                    blur_hash=story.blur_hash,
                     duration_seconds=story.duration_seconds,
                     already_viewed=already_viewed,
                     created_at=story.created_at,

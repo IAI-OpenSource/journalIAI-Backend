@@ -89,7 +89,7 @@ def process_media_upload_task(
 
         current_step = ProcessingStep.COMPRESSING
 
-        compress_process_res: dict[str, tuple[str | None, int, int, int | None ]] = {}     # des tuples: local_thumbnail_path, height, width, duration
+        compress_process_res: dict[str, tuple[str | None, int, int, int | None, str | None ]] = {}     # des tuples: local_thumbnail_path, height, width, duration, blur_hash
 
         for media in post_data_obj.files:
             compress_res = helper.compress_file(
@@ -141,7 +141,7 @@ def process_media_upload_task(
                 file_size=downloads_res[media.file_name].size, file_info=media,
                 width=compress_process_res[media.file_name][2], height=compress_process_res[media.file_name][1],
                 bucket_media_url=uploads_res[media.file_name][0], bucket_thumbnail_path=uploads_res[media.file_name][1],
-                local_thumbnail_path=compress_process_res[media.file_name][0], index=i
+                blur_hash=compress_process_res[media.file_name][4], index=i
             )
 
             if media_object.is_error():

@@ -42,6 +42,10 @@ class Story(Base, IntegrityMapperMixin):
         comment="URL MinIO du média associé à la story (image, vidéo, etc.)"
     )
 
+    blur_hash: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+
+    stored_bucket_name: Mapped[str] = mapped_column(String(255), nullable=False)
+
     media_type: Mapped[MediaType] = mapped_column(
         SQLEnum(MediaType),
         nullable=False,
