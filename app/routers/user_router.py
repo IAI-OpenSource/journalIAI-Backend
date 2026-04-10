@@ -98,7 +98,7 @@ async def get_current_user_data(
 )
 async def update_user_infos(
   response: Response,
-  new_user_infos: Union[UpdateUserData, UpdateAvatarUrl],
+  new_user_infos: UpdateUserData,
   current_user: Annotated[ReadUser, Depends(get_current_user)],
   user_service: Annotated[UserService, Depends(get_user_service)]
 ):

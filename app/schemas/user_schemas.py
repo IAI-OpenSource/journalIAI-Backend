@@ -57,7 +57,6 @@ class UpdateUserData(BaseModel):
     
     username: Optional[str] = None
     bio: Optional[str] = None
-    avatar_url: Optional[str] = None
     sexe: Optional[SexeType] = None
     
 
