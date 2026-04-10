@@ -36,19 +36,19 @@ logger = logging.getLogger(__name__)
 class AuthService: 
   
   def __init__(self, db: AsyncSession, cache: CacheWrapper, response: Response, request: Request):
-    self.db = db
-    self.user_cache = UserCache(cache)
-    self.user_repo = UserRepository(self.db)
-    self.email_manager = EmailServiceManager(fast_mail=fm)
-    self.session_service = SessionService(self.db, cache)
-    self.cookie_manager = CookieManager(response=response, request=request)
+    self.__db = db
+    self.__user_cache = UserCache(cache)
+    self.__user_repo = UserRepository(self.__db)
+    self.__email_manager = EmailServiceManager(fast_mail=fm)
+    self.__session_service = SessionService(self.__db, cache)
+    self.__cookie_manager = CookieManager(response=response, request=request)
       
   ## ------- Service find user by email / connexion etape 1 --------- ##
   async def service_find_user_by_email(self, login_data: LoginData) -> ServiceResult[StringMessage]:
     """Logique métier pour récupérer un utilisateur à partir de 
       son email: Beaucoup plus spécial pour la connexion"""
 
-    db_user = await self.user_repo.get_user_by_email(email=login_data.email)
+    db_user = await self.__user_repo.get_user_by_email(email=login_data.email)
     
     if db_user.is_error():
       return ServiceResult.service_error(
@@ -77,7 +77,7 @@ class AuthService:
       first_name=db_user.data.first_name
     )
       
-    mail_result = await self.email_manager.send_otp_email(data_email_to=email_data)
+    mail_result = await self.__email_manager.send_otp_email(data_email_to=email_data)
     
     if mail_result.is_error():
       return ServiceResult.service_error(
@@ -86,7 +86,7 @@ class AuthService:
         service_name=mail_result.service_name
       )
       
-    await self.user_cache.set_user_otp_code_in_cache(
+    await self.__user_cache.set_user_otp_code_in_cache(
       user_mail=db_user.data.email,
       otp=str(code_otp),
       ttl=CacheDurartion.OTP_DURATION.value
@@ -103,7 +103,7 @@ class AuthService:
     """Logique métier pour récupérer un utilisateur à partir de 
       son email: Mais celle ci ne concerne par la connexion"""
 
-    db_user = await self.user_repo.get_user_by_email(email=email)
+    db_user = await self.__user_repo.get_user_by_email(email=email)
     
     if db_user.is_error():
       return ServiceResult.service_error(
@@ -123,7 +123,7 @@ class AuthService:
   async def verify_user_otp_code(self, otp_verify_data: VerifyOTPData) -> ServiceResult[StringMessage]:
     """Logique métier pour vérifier le OTP et créer la session de l'utilisateur"""
 
-    cache_otp = await self.user_cache.get_user_otp_in_cache(email=otp_verify_data.sender_email)
+    cache_otp = await self.__user_cache.get_user_otp_in_cache(email=otp_verify_data.sender_email)
 
     if cache_otp is None:
       return ServiceResult.service_error(
@@ -149,10 +149,10 @@ class AuthService:
         user_id=user.data.id,
         ref_token=refresh_token,
         ip_address=None, ## géré cette partie après
-        user_agent=self.cookie_manager.request.headers.get("user-agent"),
+        user_agent=self.__cookie_manager.request.headers.get("user-agent"),
         expires_at=datetime.now(UTC) + timedelta(days=1) # 1 jours pour les test
       )
-      created_session = await self.session_service.service_create_session(db_user_session)
+      created_session = await self.__session_service.service_create_session(db_user_session)
       
       if created_session.is_error():
         return ServiceResult.service_error(
@@ -166,8 +166,8 @@ class AuthService:
       ref_token = JWTManager.create_access_token(data_to_encode={"sid": str(created_session.data.id), "ref_token_hash": created_session.data.refresh_token_hash}, cle=ACCESS_SECRET_KEY)
 
       ## maintenant on les stock dans les cookie pour gérer les requettes avec ça
-      self.cookie_manager.add_cookie(id=JWT_COOKIE_ACCESS_ID, value=access_token, age=JWT_EXPIRES_SECONDES)
-      self.cookie_manager.add_cookie(id=SID_REF_COOKIE, value=ref_token, age=REFRESH_TOKEN_EXPIRES_SECONDES) 
+      self.__cookie_manager.add_cookie(id=JWT_COOKIE_ACCESS_ID, value=access_token, age=JWT_EXPIRES_SECONDES)
+      self.__cookie_manager.add_cookie(id=SID_REF_COOKIE, value=ref_token, age=REFRESH_TOKEN_EXPIRES_SECONDES) 
       
       ##TODO : avant d'aller en prod, implementer suppression du cache ici
       return ServiceResult.service_success(
@@ -188,7 +188,7 @@ class AuthService:
   async def service_manage_refresh(self) -> ServiceResult[StringMessage]:
     """Logique métier pour gérer le refresh token"""
     
-    access_token = self.cookie_manager.get_cookie(id=SID_REF_COOKIE)
+    access_token = self.__cookie_manager.get_cookie(id=SID_REF_COOKIE)
     
     if access_token is None:
       raise HTTPException(
@@ -204,7 +204,7 @@ class AuthService:
           detail="Clé d'accès invalide"
       )
     
-    user_session = await self.session_service.service_find_session_by_sid(sid=UUID(payload["sid"]))
+    user_session = await self.__session_service.service_find_session_by_sid(sid=UUID(payload["sid"]))
         
     if user_session.is_error():
         raise HTTPException(
@@ -221,7 +221,7 @@ class AuthService:
       
     ## si la session est valide et est la bonne on cré un nouveau access token puis le cookie
     access_token = JWTManager.create_access_token(data_to_encode={"sid": str(user_session.data.id)}, cle=ACCESS_SECRET_KEY)
-    self.cookie_manager.add_cookie(id=JWT_COOKIE_ACCESS_ID, value=access_token, age=JWT_EXPIRES_SECONDES)
+    self.__cookie_manager.add_cookie(id=JWT_COOKIE_ACCESS_ID, value=access_token, age=JWT_EXPIRES_SECONDES)
       
     
     return ServiceResult.service_success(
@@ -236,8 +236,8 @@ class AuthService:
     """Logique métier pour gérer les déconnexion / logout"""
 
     ## qd le user veux se déconnecter, on supprime tou ses cookies simplement
-    self.cookie_manager.delete_cookie(id=JWT_COOKIE_ACCESS_ID)
-    self.cookie_manager.delete_cookie(id=SID_REF_COOKIE)
+    self.__cookie_manager.delete_cookie(id=JWT_COOKIE_ACCESS_ID)
+    self.__cookie_manager.delete_cookie(id=SID_REF_COOKIE)
 
     return ServiceResult.service_success(
       data=StringMessage(message="Déconnecter avec succès"),

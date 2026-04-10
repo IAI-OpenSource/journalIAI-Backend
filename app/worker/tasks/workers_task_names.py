@@ -17,3 +17,5 @@ class WorkersTaskNames:
     SEND_JETON_EMAIL: str = "registration.send_jeton_email"
 
     SINGLE_EMAIL_SEND: str = "email.send_single_email"
+    
+    USER_AVATAR_PROCESS: str = "process_user_avatar_task"

@@ -3,7 +3,6 @@ from uuid import UUID
 
 from app.core.config import URL_INSCRIPTION
 from app.integrations.fastApi_email.email_manager import EmailServiceManager
-from app.schemas.registration_schemas import ReadRegistration
 from app.services.registration_service import RegistrationService
 from app.worker.tasks.async_loop_manager import task_async_loop_manager
 from app.db.session import AsyncSessionLocal 
@@ -27,7 +26,6 @@ def send_jetons_email_orchestrator(self, classe_id: str):
             service = RegistrationService(db)
             return await service.service_get_all_jetons_by_classe(classe_id=c_id)
 
-    # Exécution de la récupération
     result = task_async_loop_manager.run_async(get_students())
 
     if result.is_error():
@@ -46,7 +44,7 @@ def send_jetons_email_orchestrator(self, classe_id: str):
     for receiver in result.data:
         # On prépare les data pour la sous-tâche
         celery_app.send_task(
-            WorkersTaskNames.SINGLE_EMAIL_SEND, # Nom de la nouvelle tâche
+            WorkersTaskNames.SINGLE_EMAIL_SEND, 
             args=[
               receiver.email,
               receiver.last_name,
@@ -68,7 +66,6 @@ def send_single_email_task(email, last_name, first_name, jeton):
     email_manager = EmailServiceManager(fast_mail=fm)
    
     async def do_send():
-        # Ton template HTML utilise ces variables
         await email_manager.send_jetons_email(
             url_inscription=URL_INSCRIPTION,
             email=email,
@@ -77,6 +74,5 @@ def send_single_email_task(email, last_name, first_name, jeton):
             jeton=jeton
         )
 
-    # On utilise ton manager pour exécuter l'async dans le worker synchrone
     task_async_loop_manager.run_async(do_send())
     return f"Email envoyé à {email}"

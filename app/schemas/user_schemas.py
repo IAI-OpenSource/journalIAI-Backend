@@ -5,14 +5,16 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 
 from uuid import UUID
 
 from app.db.models.enums import ExecutiveRoleType, SexeType, UserRole
 from app.schemas import ApiBaseResponse
 from app.schemas.classe_schemas import ReadUserClasse
+from app.schemas.post_upload_schemas import UploadURLSchema
 from app.schemas.registration_schemas import FindRegistration
+from app.storage.media_read_storage import MediaReadStorage
 
 
 class CreateUser(BaseModel):
@@ -58,7 +60,12 @@ class UpdateUserData(BaseModel):
     avatar_url: Optional[str] = None
     sexe: Optional[SexeType] = None
     
-    
+
+class UpdateAvatarUrl(BaseModel):
+    """validation de l'avatar url d'un utilisateur"""
+
+    avatar_url: Optional[str] = None
+  
   
 class ReadUser(BaseModel):
     """Schémas de validation des infos 'un utilisateur
@@ -86,6 +93,16 @@ class ReadUser(BaseModel):
     updated_at: Optional[datetime] = None
     last_login_at: Optional[datetime] = None
     
+    
+    @model_validator(mode="after")
+    def format_avatar_url(self) -> 'ReadUser':
+        """
+        Décorateur pour transformer le chemin relatif de la BD en URL complète pour le Front.
+        """
+        if self.avatar_url:
+            self.avatar_url = MediaReadStorage.generate_avatar_url(self.avatar_url)
+        return self
+    
     def is_deleted(self) -> bool:
         if self.deleted_at is None:
             return False
@@ -96,6 +113,7 @@ class ReadUser(BaseModel):
 ReadUser.model_rebuild()
 
 
+
 class UserInfos(ApiBaseResponse):
     
     result: Optional[ReadUser] = Field(description="Informations d'un utilisateur")
@@ -103,3 +121,8 @@ class UserInfos(ApiBaseResponse):
 class ListUserInfos(ApiBaseResponse):
     
     result: Optional[list[ReadUser]] = Field(description="Informations d'un utilisateur")
+
+
+class UserAvatarInfos(ApiBaseResponse):
+    
+    result: Optional[UploadURLSchema] = Field(description="Informations de l'avatar d'un utilisateur")
