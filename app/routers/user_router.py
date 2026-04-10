@@ -92,7 +92,7 @@ async def get_current_user_data(
   
   
 ## ---------------- Route pour mettre à jour les infos d'un utilisateur ------------------- ## 
-@router.put(
+@router.patch(
   "/update",
   response_model=GlobalStringMessage
 )
@@ -103,7 +103,7 @@ async def update_user_infos(
   user_service: Annotated[UserService, Depends(get_user_service)]
 ):
   """Route pour mettre à jour les données d'un utilisateur. Utiliser cette route quand 
-  l'utilisateur connecté veux changer des informations du profil  
+  l'utilisateur connecté veux changer des informations du profil(username, bio, sexe).  
   """
   
   service_result = await user_service.service_update_user(
