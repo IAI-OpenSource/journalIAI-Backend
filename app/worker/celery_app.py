@@ -29,6 +29,6 @@ celery_app.conf.beat_schedule = {
     },
     'synchronisation-vues_story_redis-bd': {
         'task': 'synchronize_story_view',
-        'schedule': crontab(hour=1, minute=00),  # Tous les jours à 1h00
+        'schedule': crontab(minute=0, hour='*/3'),  # Toutes les 3 heures
     }
 }

@@ -26,7 +26,7 @@ from app.storage.media_read_storage import MediaReadStorage
 
 logger = logging.getLogger(__name__)
 
-
+# TODO : Ajouter une logique  journaliere pour supprimer les stories expirées
 class StoryFeedService:
     """Service pour gérer le feed de stories."""
 
