@@ -227,6 +227,7 @@ class StoryFeedService:
         )
 
         if result and result > 0:
+            await self.story_cache.add_user_to_daily_seen_stories(user_id)
             logger.info("Stories marquées comme vues user=%s count=%d", user_id, result)
 
         return ServiceResult.service_success(

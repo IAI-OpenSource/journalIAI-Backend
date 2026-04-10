@@ -36,7 +36,9 @@ class CacheKeysFactory:
         AvailableCacheKeys.USER_DAILY_POST_SEEN: CacheKey.new_key(AvailableCacheKeys.USER_DAILY_POST_SEEN, 1),
         AvailableCacheKeys.USERS_HAS_SEEN_POST_ON_A_DAY: CacheKey.new_key(AvailableCacheKeys.USERS_HAS_SEEN_POST_ON_A_DAY, 0),
         AvailableCacheKeys.ACADEMIC_YEAR_OBJECT: CacheKey.new_key(AvailableCacheKeys.ACADEMIC_YEAR_OBJECT, 1),
-        AvailableCacheKeys.CLASSE_OBJECT: CacheKey.new_key(AvailableCacheKeys.CLASSE_OBJECT, 1)
+        AvailableCacheKeys.CLASSE_OBJECT: CacheKey.new_key(AvailableCacheKeys.CLASSE_OBJECT, 1),
+        AvailableCacheKeys.USER_DAILY_STORY_SEEN: CacheKey.new_key(AvailableCacheKeys.USER_DAILY_STORY_SEEN, 1),
+        AvailableCacheKeys.USERS_HAS_SEENN_STORY_ON_A_DAY: CacheKey.new_key(AvailableCacheKeys.USERS_HAS_SEENN_STORY_ON_A_DAY, 0),
     }
 
     @classmethod

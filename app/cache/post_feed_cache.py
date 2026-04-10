@@ -25,7 +25,7 @@ def _daily_seen_posts_key() -> CacheKey:
     return CacheKeysFactory.get_cache_key(AvailableCacheKeys.USERS_HAS_SEEN_POST_ON_A_DAY).set_arguments()
 
 
-class FeedCache:
+class PostFeedCache:
     """Cache Redis pour les posts vus dans le feed.
 
     Toutes les méthodes wrappent les opérations Redis dans des try/except

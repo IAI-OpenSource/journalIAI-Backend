@@ -23,7 +23,7 @@ from . import ServiceResult
 from .academic_year_service import AcademicYearService
 from .club_member_service import ClubMemberService
 from .events_services import EventService
-from ..cache.feed_cache import FeedCache
+from ..cache.post_feed_cache import PostFeedCache
 from ..cache.helpers.base import CacheWrapper
 from ..core.stream_token import create_stream_token
 from ..db.models.enums import MediaType, ClubMembersType, UserRole
@@ -41,7 +41,7 @@ class PostService:
         self.db = db
         self._cache = cache
         self.post_repo = PostRepository(self.db)
-        self.feed_cache = FeedCache(cache)
+        self.feed_cache = PostFeedCache(cache)
 
     @staticmethod
     async def verify_post_can_been_processed(

@@ -15,8 +15,10 @@ logger = getLogger(__name__)
 
 def _seen_stories_key(user_id: UUID) -> CacheKey:
     """Génère la clé Redis pour les stories vues par un utilisateur."""
-    return CacheKeysFactory.get_cache_key(AvailableCacheKeys.USER_DAILY_POST_SEEN).set_arguments(id=str(user_id))
+    return CacheKeysFactory.get_cache_key(AvailableCacheKeys.USER_DAILY_STORY_SEEN).set_arguments(id=str(user_id))
 
+def _daily_seen_stories_key() -> CacheKey:
+    return CacheKeysFactory.get_cache_key(AvailableCacheKeys.USERS_HAS_SEENN_STORY_ON_A_DAY).set_arguments()
 
 class StoryCache:
     """Classe pour toutes les opérations de cache liées aux uploads de fichiers pour les stories."""
@@ -110,10 +112,7 @@ class StoryCache:
             )
             return result
         except Exception as e:
-            logger.warning(
-                "Redis unavailable (get_seen_stories) user=%s : %s — fallback PostgreSQL",
-                user_id, e,
-            )
+            CacheUtils.traiter_exceptions(e, logger)
             return None
 
     async def mark_stories_as_viewed(self, user_id: UUID, story_ids: list[UUID]) -> int | None:
@@ -144,7 +143,6 @@ class StoryCache:
             return res
 
         except Exception as e:
-            logger.error(f"Erreur lors du marquage d'une story comme vue user_id = {user_id}, story_ids = {story_ids}")
             CacheUtils.traiter_exceptions(e, logger)
             return None
 
@@ -158,7 +156,36 @@ class StoryCache:
             await self._cache.delete_in_cache(key)
             logger.info("SET seen_stories supprimé avec succès user=%s", user_id)
         except Exception as e:
-            logger.warning(
-                "Redis unavailable (clear_seen_stories) user=%s : %s", user_id, e
-            )
+            CacheUtils.traiter_exceptions(e, logger)
+            return None
+
+    async def add_user_to_daily_seen_stories(self, user_id: UUID) -> None:
+
+        try:
+            key = _daily_seen_stories_key()
+            user_to_add = [str(user_id)]
+            await self._cache.add_to_a_set(key, *user_to_add)
+
+        except Exception as e:
+            logger.error(f"Erreur lors d'un insert d'user ({user_id}) dans le set journalier des users")
+            CacheUtils.traiter_exceptions(e, logger)
+
+    async def get_daily_users_seen_posts_set(self) -> set[str] | None:
+        try:
+            key = _daily_seen_stories_key()
+            res = await self._cache.get_from_a_set(key)
+            logger.info("Set journalier des users récupéré avec succès")
+            return res
+        except Exception as e:
+            logger.error("Erreur lors la recup du Set journalier des users")
+            CacheUtils.traiter_exceptions(e, logger)
+
+    async def restart_daily_users_seen_posts_set(self) -> None:
+        try:
+            key = _daily_seen_stories_key()
+            await self._cache.delete_in_cache(key)
+            logger.info("Set journalier des users restatrt avec succès")
+        except Exception as e:
+            logger.error("Erreur lors du restart du Set journalier des users")
+            CacheUtils.traiter_exceptions(e, logger)
 
