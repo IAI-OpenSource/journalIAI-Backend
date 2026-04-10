@@ -10,10 +10,11 @@ def create_stream_token(
         ressource_type: str,
         duration_hours: int = 4
 ) -> str:
+    now = int(time())
     return jwt.encode({
         "media_id": media_id,
         "resource_type": ressource_type,
         "user_id":  user_id,
-        "exp":      int(time()) + duration_hours * 3600,
-        "emitted_ts":      int(time()),
+        "exp":      now + duration_hours * 3600,
+        "emitted_ts":      now,
     }, STREAM_JWT_SECRET, algorithm=ALGORITHM)

@@ -78,25 +78,23 @@ class StoryFeedService:
 
         if group.stories:
             for story in group.stories:
-                bucket, key = story.media_url.split("/", 1)
+                prefix_path, key = story.media_url.split("/", 1)
 
                 hls_url = None
                 image_medium_url = None
                 image_high_url = None
 
                 if story.media_type == MediaType.VIDEO:
-                    hls_url = MediaReadStorage.generate_read_hls_url(
-                        key,
-                        create_stream_token(key, user_id, bucket)
+                    hls_url = MediaReadStorage.generate_story_read_hls_url(
+                        key, create_stream_token(key, user_id, prefix_path)
                     )
                 else:
-                    image_medium_url = MediaReadStorage.generate_medium_post_image_url(
-                        key,
-                        create_stream_token(key, user_id, bucket)
+                    image_medium_url = MediaReadStorage.generate_story_medium_post_image_url(
+                        key, create_stream_token(key, user_id, prefix_path)
                     )
-                    image_high_url = MediaReadStorage.generate_high_quality_post_image_url(
-                        key,
-                        create_stream_token(key, user_id, bucket)
+
+                    image_high_url = MediaReadStorage.generate_story_high_quality_post_image_url(
+                        key, create_stream_token(key, user_id, prefix_path)
                     )
 
                 # Vérifier si la story a été vue

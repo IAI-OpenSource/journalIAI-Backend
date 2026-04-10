@@ -8,7 +8,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-from app.db.models.enums import MediaType, PostType, UserRole, ExecutiveRoleType, EventStatus
+from app.db.models.enums import MediaType, PostType, UserRole, ExecutiveRoleType, EventStatus, ClasseType
 from app.schemas import ApiBaseResponse
 
 
@@ -110,6 +110,15 @@ class PostClubSchema(BaseModel):
         default=None,
         description="URL du logo du club, si disponible, à afficher à coté du nom du club quand vous affichez le post"
     )
+
+    class Config:
+        from_attributes = True
+
+class PostClasseSchema(BaseModel):
+    """Info de la classe qui est concernée par le post (si applicable)"""
+    id: UUID
+    classe_prefix: ClasseType
+    classe_suffix: str
 
     class Config:
         from_attributes = True
@@ -227,6 +236,11 @@ class ReadPost(BaseModel):
     event_info: Optional[PostEventSchema] = Field(
         default=None,
         description="Informations sur l'événement lié au post, si applicable, sinon null"
+    )
+
+    target_classe_info: Optional[PostClasseSchema] = Field(
+        default=None,
+        description="Infos sur la classe à laquelle le post est restreint, si applicable, sinon null",
     )
 
 

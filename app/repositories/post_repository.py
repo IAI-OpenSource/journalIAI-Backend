@@ -19,6 +19,7 @@ from app.repositories import CRUDResult
 from app.schemas.post_schemas import CreatePost, UpdatePost, CreatePostFullData
 from app.globals.messages import Messages
 from .repositories_utils import RepositoriesUtils
+from ..db.models.classe import Classe
 from ..db.models.club import Club
 from ..db.models.event import Event
 from ..db.models.user import User
@@ -81,6 +82,11 @@ class PostRepository:
                     Event.start_date,
                     Event.end_date,
                     Event.status,
+                ),
+                joinedload(Post.classe).load_only(
+                    Classe.id,
+                    Classe.classe_prefix,
+                    Classe.classe_suffix,
                 ),
                 *media_options,
             )

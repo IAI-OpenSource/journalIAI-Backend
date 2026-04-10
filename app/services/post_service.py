@@ -5,7 +5,6 @@ import logging
 import time
 from typing import List, Optional, Union
 from uuid import UUID
-from datetime import datetime
 
 from fastapi import status
 
@@ -17,6 +16,7 @@ from app.schemas.post_schemas import (
     CreatePost,
     ReadPost,
     ReadPostList, PostClubSchema, PostEventSchema, PostAuthorSchema, PostMediaSchema, CreatePostFullData,
+    PostClasseSchema,
 )
 
 from . import ServiceResult
@@ -160,8 +160,14 @@ class PostService:
         """Formate les données d'un post model brut de la DB en le schéma réponse ReadPost"""
         club_info: Optional[PostClubSchema] = None
         event_info: Optional[PostEventSchema] = None
-        user_info: Optional[PostAuthorSchema] = None
+        classe_info: Optional[PostClasseSchema] = None
         medias_list: list[PostMediaSchema] = []
+
+        user_info = PostAuthorSchema(
+            **post.author.__dict__
+        )
+
+        user_info.avatar_url=MediaReadStorage.generate_read_public_asset(post.author.avatar_url)
 
         if post.club:
             club_info = PostClubSchema(
@@ -170,14 +176,13 @@ class PostService:
             club_info.logo_url = MediaReadStorage.generate_read_public_asset(post.club.logo_url)
         if post.event:
             event_info = PostEventSchema.model_validate(post.event, from_attributes=True)
-        if post.author:
-            user_info = PostAuthorSchema(
-                **post.author.__dict__
-            )
-            user_info.avatar_url=MediaReadStorage.generate_read_public_asset(post.author.avatar_url)
+
+        if post.classe:
+            classe_info = PostClasseSchema.model_validate(post.classe, from_attributes=True)
+
         if post.medias:
             for media in post.medias:
-                bucket, key = media.media_url.split("/", 1)
+                preffix_path, key = media.media_url.split("/", 1)
                 medias_list.append(
                     PostMediaSchema(
                         id=media.id,
@@ -189,12 +194,18 @@ class PostService:
                         created_at=media.created_at,
                         display_order=media.display_order,
                         hls_master_url=None if media.media_type == MediaType.IMAGE else
-                        MediaReadStorage.generate_read_hls_url(key, create_stream_token(key, user_id, bucket)),
+                        MediaReadStorage.generate_post_read_hls_url(
+                            key, create_stream_token(key, user_id, preffix_path)
+                        ),
                         height=media.height,
                         image_medium_url= None if media.media_type == MediaType.VIDEO else
-                        MediaReadStorage.generate_medium_post_image_url(key, create_stream_token(key, user_id, bucket)),
+                        MediaReadStorage.generate_post_medium_post_image_url(
+                            key, create_stream_token(key, user_id, preffix_path)
+                        ),
                         image_high_url= None if media.media_type == MediaType.VIDEO else
-                        MediaReadStorage.generate_high_quality_post_image_url(key, create_stream_token(key, user_id, bucket))
+                        MediaReadStorage.generate_post_high_quality_post_image_url(
+                            key, create_stream_token(key, user_id,preffix_path)
+                        )
                     )
                 )
 
@@ -215,7 +226,8 @@ class PostService:
             is_pinned=post.is_pinned,
             like_count=post.like_count,
             updated_at=post.updated_at,
-            comment_count=post.comment_count
+            comment_count=post.comment_count,
+            target_classe_info=classe_info
         )
 
 
