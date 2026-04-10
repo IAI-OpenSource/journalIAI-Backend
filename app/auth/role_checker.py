@@ -28,7 +28,7 @@ class RoleChecker:
 class OthersCustomRoleChecker:
 
     @classmethod
-    def only_can_posts(cls, current_user: Annotated[ReadUser, Depends(get_current_user)]):
+    async def only_can_posts(cls, current_user: Annotated[ReadUser, Depends(get_current_user)]):
         if not current_user.can_post:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,

@@ -65,8 +65,6 @@ class Story(Base, IntegrityMapperMixin):
         nullable=False
     )
 
-
-
     # Métadonnées
     file_size: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
     width: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)

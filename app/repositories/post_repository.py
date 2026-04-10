@@ -1,9 +1,7 @@
 ## Ce fichier contient le repository de la table posts (et post_media / post_views).
 ## Vous y trouverez les requêtes base de données.
 
-import base64
 import logging
-import json
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional, List, Any
@@ -24,39 +22,12 @@ from .repositories_utils import RepositoriesUtils
 from ..db.models.club import Club
 from ..db.models.event import Event
 from ..db.models.user import User
+from ..utils.pagination_cursor_utils import PaginationCursorUtils
 
 logger = logging.getLogger(__name__)
 
-# Nombre de posts retournés par page dans le feed
+# Nombre de posts par défaut retournés par page dans le feed
 DEFAULT_PAGE_SIZE = 10
-
-
-def _encode_cursor(created_at: datetime, post_id: UUID) -> str:
-    """Encode un curseur opaque à partir de created_at et id.
-
-    Format : base64({ "created_at": "ISO8601", "id": "uuid" })    """
-    payload = {
-        "created_at": created_at.isoformat(),
-        "id": str(post_id),
-    }
-    
-    raw = json.dumps(payload, separators=(",", ":"))
-    return base64.urlsafe_b64encode(raw.encode()).decode()
-
-
-def _decode_cursor(cursor: str) -> tuple[datetime, UUID]:
-    """Décode un curseur en (created_at, post_id).
-
-    Raises:
-        ValueError: Si le curseur est malformé.
-    """
-    try:
-        raw = base64.urlsafe_b64decode(cursor.encode()).decode()
-        data = json.loads(raw)
-        return datetime.fromisoformat(data["created_at"]), UUID(data["id"])
-    except Exception:
-        raise ValueError("Curseur de pagination invalide.")
-
 
 @dataclass
 class PostRepository:
@@ -298,7 +269,7 @@ class PostRepository:
                 requete = requete.where(Post.id.not_in(ids_to_exclude))
 
             if cursor:
-                cursor_created_at, cursor_id = _decode_cursor(cursor)
+                cursor_created_at, cursor_id = PaginationCursorUtils.decode_pagination_cursor(cursor)
                 requete = requete.where(
                     (Post.created_at < cursor_created_at)
                     | (
@@ -319,7 +290,7 @@ class PostRepository:
             next_cursor = None
             if has_more and items:
                 last = items[-1]
-                next_cursor = _encode_cursor(last.created_at, last.id)
+                next_cursor = PaginationCursorUtils.encode_pagination_cursor(last.id, last.created_at)
 
             logger.info(
                 "Feed récupéré : %d posts, has_more=%s", len(items), has_more
