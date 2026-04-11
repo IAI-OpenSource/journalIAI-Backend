@@ -3,6 +3,12 @@
 
 class Messages:
     # Messages d'erreur généraux
+    COMMENT_DELETE_SUCCESS = "Commentaire supprimer aveec success"
+    COMMENT_UPDATE_SUCCESS = "Commentaire mis a jour avec success"
+    COMMENT_CREATE_SUCCESS = "Commentaire creer avec success"
+    COMMENT_SERVICE = "Service commentaire"
+    DELETED_COMMENT = "Commentaire supprimer"
+    COMMENT_NOT_FOUND = "Commentaire non trouver"
     INTERNAL_SERVER_ERROR = "Une erreur interne est survenue. Veuillez réessayer plus tard."
     NOT_FOUND = "Ressource non trouvée."
     UNAUTHORIZED = "Non autorisé. Veuillez vous connecter."
