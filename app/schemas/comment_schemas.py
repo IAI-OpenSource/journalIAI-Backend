@@ -15,7 +15,6 @@ class CommentBase(BaseModel):
     la mise à jour et la lecture des commentaires.
     """
     post_id: UUID = Field(..., description="Identifiant du post associé")
-    author_id: UUID = Field(..., description="Identifiant de l'auteur du commentaire")
     content: str = Field(..., min_length=1, max_length=2000, description="Contenu du commentaire")
     parent_comment_id: Optional[UUID] = Field(None, description="Identifiant du commentaire parent (pour les réponses)")
 

@@ -113,22 +113,21 @@ class CommentRepository:
         except Exception as e:
             return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
 
-    async def create_comment(self, comment_data: CommentCreate) -> CRUDResult[Comment]:
+    async def create_comment(self, comment_data: CommentCreate, author_id: UUID) -> CRUDResult[Comment]:
         """
-         Crée un nouveau commentaire.
+        Crée un nouveau commentaire.
 
         Args:
-
-        comment_data (CommentCreate): Données du commentaire à créer.
+            comment_data (CommentCreate): Données du commentaire à créer.
+            author_id (UUID): Identifiant de l'auteur récupéré depuis le token.
 
         Returns:
-
-        CRUDResult[Comment]: Le commentaire créé.
+            CRUDResult[Comment]: Le commentaire créé.
         """
         try:
             stmt = (
                 insert(Comment)
-                .values(**comment_data.model_dump())
+                .values(**comment_data.model_dump(), author_id=author_id)
                 .returning(Comment)
             )
             result = await self.db.execute(stmt)
@@ -137,8 +136,10 @@ class CommentRepository:
             if db_comment is None:
                 return CRUDResult.crud_error(msg.NOT_FOUND, status_code=500)
 
-            # Incrémenter le compteur du post
             await self.increment_post_comment_count(comment_data.post_id)
+
+            if comment_data.parent_comment_id:
+                await self.increment_comment_reply_count(comment_data.parent_comment_id)
 
             await self.db.commit()
             logger.info("Commentaire créé avec succès !")
@@ -213,6 +214,9 @@ class CommentRepository:
 
             # Décrémenter le compteur du post
             await self.decrement_post_comment_count(deleted_comment.post_id)
+
+            if deleted_comment.parent_comment_id:
+                await self.decrement_comment_reply_count(deleted_comment.parent_comment_id)
 
             await self.db.commit()
             logger.info(f"Commentaire {comment_id} supprimé avec succès !")
@@ -379,3 +383,38 @@ class CommentRepository:
             await self.db.execute(stmt)
         except Exception as e:
             logger.warning(f"Impossible de décrémenter comment_count pour le post {post_id} : {e}")
+
+    async def increment_comment_reply_count(self, parent_comment_id: UUID) -> None:
+        """
+        Incrémente le compteur de réponses du commentaire parent.
+
+        Args:
+            parent_comment_id (UUID): Identifiant du commentaire parent.
+        """
+        try:
+            stmt = (
+                update(Comment)
+                .where(Comment.id == parent_comment_id)
+                .values(reply_count=Comment.reply_count + 1)
+            )
+            await self.db.execute(stmt)
+        except Exception as e:
+            logger.warning(f"Impossible d'incrémenter reply_count pour le commentaire {parent_comment_id} : {e}")
+
+    async def decrement_comment_reply_count(self, parent_comment_id: UUID) -> None:
+        """
+        Décrémente le compteur de réponses du commentaire parent (minimum 0).
+
+        Args:
+            parent_comment_id (UUID): Identifiant du commentaire parent.
+        """
+        try:
+            stmt = (
+                update(Comment)
+                .where(Comment.id == parent_comment_id)
+                .where(Comment.reply_count > 0)
+                .values(reply_count=Comment.reply_count - 1)
+            )
+            await self.db.execute(stmt)
+        except Exception as e:
+            logger.warning(f"Impossible de décrémenter reply_count pour le commentaire {parent_comment_id} : {e}")

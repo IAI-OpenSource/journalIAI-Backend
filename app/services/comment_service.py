@@ -278,22 +278,24 @@ class CommentService:
     # Mutations
     # -------------------------------------------------------------------------
 
-    async def service_create_comment(self, comment_data: CommentCreate) -> ServiceResult[CommentRead]:
+    async def service_create_comment(
+            self, comment_data: CommentCreate, current_user_id: UUID
+    ) -> ServiceResult[CommentRead]:
         """
-        Crée un commentaire (ou une réponse) et invalide les caches associés.
+        Crée un commentaire avec l'auteur récupéré depuis le token.
 
         Args:
-            comment_data (CommentCreate): Données du commentaire à créer.
-                Si `parent_comment_id` est renseigné, il s'agit d'une réponse.
+            comment_data (CommentCreate): Données du commentaire.
+            current_user_id (UUID): ID de l'utilisateur connecté.
 
         Returns:
-            ServiceResult[CommentRead]: Le commentaire créé, ou une erreur
-                si la création échoue (contrainte d'intégrité, validation, etc.).
+            ServiceResult[CommentRead]: Le commentaire créé.
         """
-        # 1. Appel au repository
-        comment_obj = await self.comment_repo.create_comment(comment_data=comment_data)
+        comment_obj = await self.comment_repo.create_comment(
+            comment_data=comment_data,
+            author_id=current_user_id
+        )
 
-        # 2. Gestion des erreurs du repo
         if comment_obj.is_error():
             return ServiceResult.service_error(
                 message=comment_obj.error,
@@ -301,7 +303,6 @@ class CommentService:
                 service_name=msg.COMMENT_SERVICE
             )
 
-        # 3. Validation Pydantic
         try:
             created_comment: CommentRead = CommentRead.model_validate(comment_obj.data)
         except Exception as e:
@@ -312,7 +313,6 @@ class CommentService:
                 service_name=msg.COMMENT_SERVICE
             )
 
-        # 4. Invalidation des caches
         await self._invalidate_comment_caches(
             comment_id=created_comment.id,
             post_id=created_comment.post_id,
@@ -320,21 +320,24 @@ class CommentService:
         )
 
         logger.info(f"{msg.COMMENT_CREATE_SUCCESS}: {created_comment.id}")
-        return ServiceResult.service_success(data=created_comment, status_code=201, service_name=msg.COMMENT_SERVICE)
+        return ServiceResult.service_success(
+            data=created_comment, status_code=201, service_name=msg.COMMENT_SERVICE
+        )
 
-    async def service_update_comment(self, comment_id: UUID, comment_data: CommentUpdate) -> ServiceResult[CommentRead]:
+    async def service_update_comment(
+            self, comment_id: UUID, comment_data: CommentUpdate, current_user_id: UUID
+    ) -> ServiceResult[CommentRead]:
         """
-        Met à jour le contenu d'un commentaire et invalide tous ses caches.
+        Met à jour un commentaire — vérifie que c'est bien le propriétaire.
 
         Args:
-            comment_id (UUID): Identifiant du commentaire à mettre à jour.
-            comment_data (CommentUpdate): Nouvelles données du commentaire.
+            comment_id (UUID): Identifiant du commentaire.
+            comment_data (CommentUpdate): Nouvelles données.
+            current_user_id (UUID): ID de l'utilisateur connecté.
 
         Returns:
-            ServiceResult[CommentRead]: Le commentaire mis à jour, ou une erreur
-                si introuvable ou si la mise à jour échoue.
+            ServiceResult[CommentRead]: Le commentaire mis à jour.
         """
-        # 1. Vérifier l'existence du commentaire
         existing = await self.comment_repo.get_comment_by_id(comment_id=comment_id)
 
         if existing.is_error():
@@ -344,7 +347,14 @@ class CommentService:
                 service_name=msg.COMMENT_SERVICE
             )
 
-        # 2. Mettre à jour en base
+        # Vérifier que c'est le propriétaire
+        if existing.data.author_id != current_user_id:
+            return ServiceResult.service_error(
+                message=msg.FORBIDDEN,
+                status_code=403,
+                service_name=msg.COMMENT_SERVICE
+            )
+
         updated = await self.comment_repo.update_comment(comment_id=comment_id, data=comment_data)
 
         if updated.is_error():
@@ -354,7 +364,6 @@ class CommentService:
                 service_name=msg.COMMENT_SERVICE
             )
 
-        # 3. Invalider les caches liés
         await self._invalidate_comment_caches(
             comment_id=comment_id,
             post_id=existing.data.post_id,
@@ -364,20 +373,24 @@ class CommentService:
         updated_comment: CommentRead = CommentRead.model_validate(updated.data)
 
         logger.info(f"{msg.COMMENT_UPDATE_SUCCESS}: {comment_id}")
-        return ServiceResult.service_success(data=updated_comment, status_code=200, service_name=msg.COMMENT_SERVICE)
+        return ServiceResult.service_success(
+            data=updated_comment, status_code=200, service_name=msg.COMMENT_SERVICE
+        )
 
-    async def service_delete_comment(self, comment_id: UUID) -> ServiceResult[StringMessage]:
+    async def service_delete_comment(
+            self, comment_id: UUID, current_user_id: UUID, is_admin: bool = False
+    ) -> ServiceResult[StringMessage]:
         """
-        Supprime (soft delete) un commentaire et invalide tous ses caches.
+        Supprime un commentaire — propriétaire ou admin seulement.
 
         Args:
-            comment_id (UUID): Identifiant du commentaire à supprimer.
+            comment_id (UUID): Identifiant du commentaire.
+            current_user_id (UUID): ID de l'utilisateur connecté.
+            is_admin (bool): True si l'utilisateur est admin.
 
         Returns:
-            ServiceResult[StringMessage]: Un message de confirmation, ou une erreur
-                si introuvable ou si la suppression échoue.
+            ServiceResult[StringMessage]: Message de confirmation.
         """
-        # 1. Vérifier l'existence du commentaire
         existing = await self.comment_repo.get_comment_by_id(comment_id=comment_id)
 
         if existing.is_error():
@@ -387,7 +400,14 @@ class CommentService:
                 service_name=msg.COMMENT_SERVICE
             )
 
-        # 2. Soft delete en base
+        # Vérifier que c'est le propriétaire OU un admin
+        if existing.data.author_id != current_user_id and not is_admin:
+            return ServiceResult.service_error(
+                message=msg.FORBIDDEN,
+                status_code=403,
+                service_name=msg.COMMENT_SERVICE
+            )
+
         deleted = await self.comment_repo.soft_delete_comment(comment_id=comment_id)
 
         if deleted.is_error():
@@ -397,7 +417,6 @@ class CommentService:
                 service_name=msg.COMMENT_SERVICE
             )
 
-        # 3. Invalider les caches liés
         await self._invalidate_comment_caches(
             comment_id=comment_id,
             post_id=existing.data.post_id,

@@ -13,6 +13,8 @@ from app.db.session import get_db
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
 from typing import Any, Annotated, Optional
+from app.auth.role_depends import RoleDepends
+
 
 routeur = APIRouter(prefix="/comments", tags=[ApiTags.COMMENT], dependencies=[Depends(RoleDepends.all_authorize)])
 
@@ -146,50 +148,51 @@ async def get_comment_by_id(
 
 # ── Mutations ──────────────────────────────────────────────────────────────────
 
-@routeur.post(
-    "/",
-    name="Créer un commentaire",
-    response_model=CommentInfo
-)
+# POST — créer
+@routeur.post("/", name="Créer un commentaire", response_model=CommentInfo)
 async def create_comment(
     payload: CommentCreate,
     reponse: Response,
-    comment_service: Annotated[CommentService, Depends(get_comment_service)]
+    comment_service: Annotated[CommentService, Depends(get_comment_service)],
+    current_user: Annotated[UUID, Depends(RoleDepends.get_current_user_id)]
 ) -> Any:
-    """Endpoint pour créer un commentaire ou une réponse à un commentaire."""
-    result = await comment_service.service_create_comment(comment_data=payload)
+    result = await comment_service.service_create_comment(
+        comment_data=payload,
+        current_user_id=current_user
+    )
     return result.to_HTTP_api_base_response(reponse)
 
 
-@routeur.put(
-    "/{comment_id}",
-    name="Mettre à jour un commentaire",
-    response_model=CommentInfo
-)
+# PUT — modifier (propriétaire seulement)
+@routeur.put("/{comment_id}", name="Mettre à jour un commentaire", response_model=CommentInfo)
 async def update_comment(
-    comment_id: Annotated[UUID, Path(description="L'identifiant du commentaire à mettre à jour")],
+    comment_id: Annotated[UUID, Path(description="L'identifiant du commentaire")],
     payload: CommentUpdate,
     reponse: Response,
-    comment_service: Annotated[CommentService, Depends(get_comment_service)]
+    comment_service: Annotated[CommentService, Depends(get_comment_service)],
+    current_user: Annotated[UUID, Depends(RoleDepends.get_current_user_id)]
 ) -> Any:
-    """Endpoint pour mettre à jour le contenu d'un commentaire."""
-    result = await comment_service.service_update_comment(comment_id=comment_id, comment_data=payload)
+    result = await comment_service.service_update_comment(
+        comment_id=comment_id,
+        comment_data=payload,
+        current_user_id=current_user
+    )
     return result.to_HTTP_api_base_response(reponse)
 
 
-@routeur.delete(
-    "/{comment_id}",
-    name="Supprimer un commentaire",
-    response_model=GlobalStringMessage,
-    dependencies=[Depends(RoleDepends.only_admin_authorize)]
-)
+# DELETE — propriétaire ou admin
+@routeur.delete("/{comment_id}", name="Supprimer un commentaire", response_model=GlobalStringMessage)
 async def delete_comment(
-    comment_id: Annotated[UUID, Path(description="L'identifiant du commentaire à supprimer")],
+    comment_id: Annotated[UUID, Path(description="L'identifiant du commentaire")],
     reponse: Response,
-    comment_service: Annotated[CommentService, Depends(get_comment_service)]
+    comment_service: Annotated[CommentService, Depends(get_comment_service)],
+    current_user: Annotated[UUID, Depends(RoleDepends.get_current_user_id)],
+    is_admin: Annotated[bool, Depends(RoleDepends.is_admin)]
 ) -> Any:
-    """Endpoint pour supprimer un commentaire (soft delete)."""
-    result = await comment_service.service_delete_comment(comment_id=comment_id)
+    result = await comment_service.service_delete_comment(
+        comment_id=comment_id,
+        current_user_id=current_user,
+        is_admin=is_admin
+    )
     return result.to_HTTP_api_base_response(reponse)
-
 
