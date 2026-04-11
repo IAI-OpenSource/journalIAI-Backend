@@ -1,8 +1,10 @@
 from datetime import datetime
 from typing import Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from uuid import UUID
 from app.schemas import ApiBaseResponse
+from app.storage.media_read_storage import MediaReadStorage
+
 
 class ClubCreateRequest(BaseModel):
     """Schemas pydantic pour la creation d'un club
@@ -55,7 +57,12 @@ class ClubResponse(BaseModel):
     is_active : bool 
     created_at : datetime
     updated_at : datetime 
-    member_count : int 
+    member_count : int
+
+    @field_validator("logo_url", "cover_url")
+    @classmethod
+    def format_public_url(cls, v: Optional[str]) -> Optional[str]:
+        return MediaReadStorage.generate_read_public_asset(v)
 
 
 class ClubsListResponse(BaseModel):

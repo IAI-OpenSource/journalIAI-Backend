@@ -6,10 +6,11 @@ from datetime import datetime
 from typing import Optional, List
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from app.db.models.enums import MediaType, PostType, UserRole, ExecutiveRoleType, EventStatus, ClasseType
 from app.schemas import ApiBaseResponse
+from app.storage.media_read_storage import MediaReadStorage
 
 
 # Schémas d'entrée (écriture)
@@ -99,6 +100,11 @@ class PostAuthorSchema(BaseModel):
     class Config:
         from_attributes = True
 
+    @field_validator("avatar_url")
+    @classmethod
+    def format_avatar_url(cls, v: Optional[str]) -> Optional[str]:
+        return MediaReadStorage.generate_read_public_asset(v)
+
 class PostClubSchema(BaseModel):
     """Infos du club porteur du post (si applicable)."""
 
@@ -113,6 +119,11 @@ class PostClubSchema(BaseModel):
 
     class Config:
         from_attributes = True
+
+    @field_validator("logo_url")
+    @classmethod
+    def format_public_url(cls, v: Optional[str]) -> Optional[str]:
+        return MediaReadStorage.generate_read_public_asset(v)
 
 class PostClasseSchema(BaseModel):
     """Info de la classe qui est concernée par le post (si applicable)"""
@@ -199,6 +210,11 @@ class PostMediaSchema(BaseModel):
 
     class Config:
         from_attributes = True
+
+    @field_validator("thumbnail_url")
+    @classmethod
+    def format_public_url(cls, v: Optional[str]) -> Optional[str]:
+        return MediaReadStorage.generate_read_public_asset(v)
 
 
 class ReadPost(BaseModel):

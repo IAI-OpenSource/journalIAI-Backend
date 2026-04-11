@@ -55,7 +55,6 @@ class StoryFeedService:
             author_info = StoryAuthorSchema(
                 **group.author.__dict__
             )
-            author_info.avatar_url = MediaReadStorage.generate_read_public_asset(group.author.avatar_url)
 
         # Formater les infos du club si présentes (pour CLUB_GROUP)
         club_info: Optional[StoryClubSchema] = None
@@ -63,7 +62,6 @@ class StoryFeedService:
             club_info = StoryClubSchema(
                 **group.club.__dict__
             )
-            club_info.logo_url = MediaReadStorage.generate_read_public_asset(group.club.logo_url)
 
         # Formater les infos de la classe si présentes (pour CLASSE_GROUP)
         target_classe_info: Optional[StoryClasseSchema] = None
@@ -108,7 +106,7 @@ class StoryFeedService:
                     username=story.author.username,
                     first_name=story.author.first_name,
                     last_name=story.author.last_name,
-                    avatar_url=MediaReadStorage.generate_read_public_asset(story.author.avatar_url) if story.author.avatar_url else None,
+                    avatar_url=story.author.avatar_url,
                     role=story.author.role,
                     executive_role=story.author.executive_role,
                 )
@@ -118,7 +116,7 @@ class StoryFeedService:
                     author_id=story.author_id,
                     author=story_author_info,
                     media_type=story.media_type,
-                    thumbnail_url=MediaReadStorage.generate_read_public_asset(story.thumbnail_url) if story.thumbnail_url else None,
+                    thumbnail_url=story.thumbnail_url,
                     hls_master_url=hls_url,
                     image_medium_url=image_medium_url,
                     image_high_url=image_high_url,

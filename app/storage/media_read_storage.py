@@ -35,7 +35,7 @@ class MediaReadStorage:
         )
 
     @classmethod
-    def generate_read_public_asset(cls, file_path: str) -> Optional[str]:
+    def generate_read_public_asset(cls, file_path: Optional[str]) -> Optional[str]:
         if not file_path:
             return None
         return cls.__PUBLIC_ASSET_URL_TEMPLATE.format(
