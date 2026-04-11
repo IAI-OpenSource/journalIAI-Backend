@@ -2,7 +2,7 @@ from logging import getLogger
 
 from celery import shared_task
 
-from app.cache.feed_cache import FeedCache
+from app.cache.post_feed_cache import PostFeedCache
 from app.cache.helpers.base import cache_manager
 from app.worker.tasks.async_loop_manager import task_async_loop_manager
 from app.worker.tasks.tasks_utils.base import ProcessingResult
@@ -15,7 +15,7 @@ logger = getLogger(__name__)
 def synchronize_post_view():
     logger.info("Début de la task de synchronisation des vues de post Redis ver BD")
     redis_cache = cache_manager.get_redis_connection_from_pool()
-    feed_cache = FeedCache(redis_cache)
+    feed_cache = PostFeedCache(redis_cache)
 
     try:
         users_has_seen_posts = task_async_loop_manager.run_async(feed_cache.get_daily_users_seen_posts_set())

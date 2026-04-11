@@ -25,6 +25,7 @@ from app.schemas.user_schemas import ReadUser
 from app.services.media_upload_service import MediaUploadsService
 from fastapi import Depends, WebSocket, Query, WebSocketDisconnect, APIRouter, Response
 from app.services.post_service import PostService
+from app.services.processing_service import ProcessingService
 
 router = APIRouter(prefix="/posts", tags=[ApiTags.POSTS], dependencies=[Depends(RoleDepends.all_authorize)])
 
@@ -47,6 +48,10 @@ def get_post_upload_service(
 ) -> MediaUploadsService:
     return MediaUploadsService(cache=cache, bd=bd)
 
+def get_prcessing_service(
+    cache: Annotated[CacheWrapper, Depends(get_redis)]
+) -> ProcessingService:
+    return ProcessingService(cache=cache)
 
 # TODO: Revoir tout ce fichier quand l'auth sera dispo et re-tester, principalement verifier si l'utilisateur peut post
 
@@ -91,8 +96,8 @@ async def complete_video_post(
 async def ws_post_processing_info(
     websocket: WebSocket,
     current_user: Annotated[ReadUser, Depends(get_current_user)],
+    service : Annotated[ProcessingService, Depends(get_prcessing_service)],
     intent_id: str = Query(..., description="L'id d'intent d'upload de média pour lequel on veut suivre le post-traitement"),
-    service = Depends(get_post_upload_service),
 ):
     """
     Websocket pour suivre le post-traitement d'un média uploadée, vous devez vous connecter à ce
@@ -144,7 +149,7 @@ async def get_feed(
     current_user: Annotated[ReadUser, Depends(get_current_user)],
     post_service: Annotated[PostService, Depends(get_post_service)],
     cursor: Annotated[str, Query(description="Le dernir curseur renvoyé")] = None,
-    limit: Annotated[int, Query(description="Le nombre de post sue vous voulez (entre 0-20 max)", gt=0, lt=20)] = 10,
+    limit: Annotated[int, Query(description="Le nombre de post sue vous voulez (entre 0-20 max)", gt=0, le=20)] = 10,
 ):
 
     result = await post_service.service_get_feed(

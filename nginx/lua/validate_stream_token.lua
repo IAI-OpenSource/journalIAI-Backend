@@ -43,6 +43,7 @@ local uri_uuid = media_id
 
 -- 5. Vérification type de ressource
 local lua_prefix = ngx.var.lua_prefix
+local target_bucket = ngx.var.target_bucket
 local token_type = payload.resource_type
 if token_type and token_type ~= lua_prefix then
     return reject(403, "Token de mauvais type")
@@ -75,7 +76,7 @@ local ok, signed = pcall(
         MINIO_ROOT_USER,
         MINIO_ROOT_PASSWORD,
         "GET",
-        "posts-permanent-content",
+        target_bucket,
         object_key
 )
 if not ok then

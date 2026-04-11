@@ -15,10 +15,9 @@ logger = logging.getLogger("StorageManager")
 class BucketName(str, Enum):
     """Enums pour garantir la cohérence des noms de buckets dans tout le projet."""
     USER_IDENTITY_ASSETS = "user-identity-assets"
-    POSTS_RAW_UPLOADS = "posts-raw-uploads"
+    MEDIAS_RAW_UPLOADS = "medias-raw-uploads"
     POSTS_PERMANENT_CONTENT = "posts-permanent-content"
     STORIES_EPHEMERAL_CONTENT = "stories-ephemeral-content"
-    STORIES_RAW_UPLOADS = "stories-raw-uploads"
 
 @dataclass
 class BucketSpec:
@@ -35,10 +34,9 @@ class StorageManager:
     def get_buckets_definition(self) -> List[BucketSpec]:
         return [
             BucketSpec(BucketName.USER_IDENTITY_ASSETS, is_public=True, quota_gb=1),
-            BucketSpec(BucketName.POSTS_RAW_UPLOADS, is_public=False, retention_days=1, quota_gb=2),
+            BucketSpec(BucketName.MEDIAS_RAW_UPLOADS, is_public=False, retention_days=1, quota_gb=2),
             BucketSpec(BucketName.POSTS_PERMANENT_CONTENT, is_public=False, quota_gb=5),
             BucketSpec(BucketName.STORIES_EPHEMERAL_CONTENT, is_public=False, retention_days=2, quota_gb=1),
-            BucketSpec(BucketName.STORIES_RAW_UPLOADS, is_public=False, retention_days=1, quota_gb=1),
         ]
 
     def setup_infrastructure(self):

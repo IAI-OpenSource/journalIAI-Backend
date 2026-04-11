@@ -77,7 +77,7 @@ class Classe(Base, IntegrityMapperMixin):
     academic_year: Mapped["AcademicYear"] = relationship("AcademicYear", back_populates="classes", uselist=False, init=False)
     students: Mapped[list["User"]] = relationship("User", back_populates="classe", cascade="all, delete-orphan", uselist=True, init=False)
     jetons: Mapped[list["RegistrationJeton"]] = relationship("RegistrationJeton", back_populates="classe", cascade="all, delete-orphan", uselist=True, init=False)
-    stories: Mapped[list["Story"]] = relationship("Story", back_populates="classe", cascade="all, delete-orphan", uselist=True, init=False)
+    story_groups: Mapped[list["StoryGroups"]] = relationship("StoryGroups", back_populates="classe", cascade="all, delete-orphan", uselist=True, init=False)
 
     # Messages d'erreur
     ERROR_MESSAGES = {

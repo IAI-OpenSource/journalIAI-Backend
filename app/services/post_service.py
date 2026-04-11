@@ -5,7 +5,6 @@ import logging
 import time
 from typing import List, Optional, Union
 from uuid import UUID
-from datetime import datetime
 
 from fastapi import status
 
@@ -17,13 +16,14 @@ from app.schemas.post_schemas import (
     CreatePost,
     ReadPost,
     ReadPostList, PostClubSchema, PostEventSchema, PostAuthorSchema, PostMediaSchema, CreatePostFullData,
+    PostClasseSchema,
 )
 
 from . import ServiceResult
 from .academic_year_service import AcademicYearService
 from .club_member_service import ClubMemberService
 from .events_services import EventService
-from ..cache.feed_cache import FeedCache
+from ..cache.post_feed_cache import PostFeedCache
 from ..cache.helpers.base import CacheWrapper
 from ..core.stream_token import create_stream_token
 from ..db.models.enums import MediaType, ClubMembersType, UserRole
@@ -41,7 +41,7 @@ class PostService:
         self.db = db
         self._cache = cache
         self.post_repo = PostRepository(self.db)
-        self.feed_cache = FeedCache(cache)
+        self.feed_cache = PostFeedCache(cache)
 
     @staticmethod
     async def verify_post_can_been_processed(
@@ -160,8 +160,14 @@ class PostService:
         """Formate les données d'un post model brut de la DB en le schéma réponse ReadPost"""
         club_info: Optional[PostClubSchema] = None
         event_info: Optional[PostEventSchema] = None
-        user_info: Optional[PostAuthorSchema] = None
+        classe_info: Optional[PostClasseSchema] = None
         medias_list: list[PostMediaSchema] = []
+
+        user_info = PostAuthorSchema(
+            **post.author.__dict__
+        )
+
+        user_info.avatar_url=MediaReadStorage.generate_read_public_asset(post.author.avatar_url)
 
         if post.club:
             club_info = PostClubSchema(
@@ -170,14 +176,13 @@ class PostService:
             club_info.logo_url = MediaReadStorage.generate_read_public_asset(post.club.logo_url)
         if post.event:
             event_info = PostEventSchema.model_validate(post.event, from_attributes=True)
-        if post.author:
-            user_info = PostAuthorSchema(
-                **post.author.__dict__
-            )
-            user_info.avatar_url=MediaReadStorage.generate_read_public_asset(post.author.avatar_url)
+
+        if post.classe:
+            classe_info = PostClasseSchema.model_validate(post.classe, from_attributes=True)
+
         if post.medias:
             for media in post.medias:
-                bucket, key = media.media_url.split("/", 1)
+                preffix_path, key = media.media_url.split("/", 1)
                 medias_list.append(
                     PostMediaSchema(
                         id=media.id,
@@ -189,12 +194,18 @@ class PostService:
                         created_at=media.created_at,
                         display_order=media.display_order,
                         hls_master_url=None if media.media_type == MediaType.IMAGE else
-                        MediaReadStorage.generate_read_hls_url(key, create_stream_token(key, user_id, bucket)),
+                        MediaReadStorage.generate_post_read_hls_url(
+                            key, create_stream_token(key, user_id, preffix_path)
+                        ),
                         height=media.height,
                         image_medium_url= None if media.media_type == MediaType.VIDEO else
-                        MediaReadStorage.generate_medium_post_image_url(key, create_stream_token(key, user_id, bucket)),
+                        MediaReadStorage.generate_post_medium_post_image_url(
+                            key, create_stream_token(key, user_id, preffix_path)
+                        ),
                         image_high_url= None if media.media_type == MediaType.VIDEO else
-                        MediaReadStorage.generate_high_quality_post_image_url(key, create_stream_token(key, user_id, bucket))
+                        MediaReadStorage.generate_post_high_quality_post_image_url(
+                            key, create_stream_token(key, user_id,preffix_path)
+                        )
                     )
                 )
 
@@ -215,12 +226,15 @@ class PostService:
             is_pinned=post.is_pinned,
             like_count=post.like_count,
             updated_at=post.updated_at,
-            comment_count=post.comment_count
+            comment_count=post.comment_count,
+            target_classe_info=classe_info
         )
 
 
 
-    async def service_get_post(self, post_id: UUID, user_id: UUID, user_class_id: Optional[UUID] = None,) -> ServiceResult[ReadPost]:
+    async def service_get_post(
+        self, post_id: UUID, user_id: UUID, user_class_id: Optional[UUID] = None
+    ) -> ServiceResult[ReadPost]:
         """Récupère un post par son ID avec ses médias."""
         result = await self.post_repo.get_post_by_id(post_id=post_id)
 
@@ -268,7 +282,7 @@ class PostService:
                 service_name=Messages.POST_SERVICE
             )
 
-        seen_post_ids: List[UUID] = await self.feed_cache.get_daily_seen_post_ids(user_id=user_id)
+        seen_post_ids: List[UUID] = await self.feed_cache.get_daily_seen_post_ids(user_id=user_id) or []
         userid_str = str(user_id)
         s = time.perf_counter()
         result = await self.post_repo.get_feed(
@@ -304,30 +318,6 @@ class PostService:
             service_name=Messages.POST_SERVICE
         )
 
-    
-    async def service_count_new_posts(
-        self,
-        academic_year_id: UUID,
-        since: datetime,
-    ) -> ServiceResult[dict]:
-        """COUNT(*) posts créés depuis `since`. Appelé toutes les 60s.
- 
-        Retourne {"new_count": N}.
-        Requête ultra-légère utilisant l'index sur created_at.
-        """
-        result = await self.post_repo.count_new_posts_since(
-            academic_year_id=academic_year_id,
-            since=since,
-        )
-        if result.is_error():
-            return ServiceResult.service_error(
-                message=result.error,
-                status_code=result.status_code,
-                service_name=Messages.POST_SERVICE,
-            )
-        return ServiceResult.service_success(
-            data={"new_count": result.data},
-            status_code=result.status_code,)
 
 
     # Enregistrement d'une vue
