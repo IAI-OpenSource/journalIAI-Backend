@@ -14,8 +14,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
 from typing import Any, Annotated, Optional
 
-routeur = APIRouter(prefix="/comments", tags=[ApiTags.COMMENT])
-#, dependencies=[Depends(RoleDepends.all_authorize)]
+routeur = APIRouter(prefix="/comments", tags=[ApiTags.COMMENT], dependencies=[Depends(RoleDepends.all_authorize)])
+
 
 
 # IMPORTANT : les routes statiques (/paginated, /) doivent être déclarées
