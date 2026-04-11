@@ -28,14 +28,14 @@ logger = logging.getLogger(__name__)
 class RegistrationService:
   
   def __init__(self, db: AsyncSession):
-    self.db = db
-    self.resgistration_repo = RegistrationRepository(self.db)
+    self.__db = db
+    self.__registration_repo = RegistrationRepository(self.__db)
 
   
   async def service_create_registration(self, registration_data: CreateRegistration) -> ServiceResult[ReadRegistration]:
       """Logique Métier pour la création d'une régistration de jeton"""
 
-      reg_repo = await self.resgistration_repo.insert_registration(reg_data=registration_data)
+      reg_repo = await self.__registration_repo.insert_registration(reg_data=registration_data)
       
       if reg_repo.is_success():
         return ServiceResult.service_success(
@@ -57,7 +57,7 @@ class RegistrationService:
   ) -> ServiceResult[ReadRegistration]:
     """Logique métier pour récupérer une régistration de jeton""" 
     
-    repo_reg = await self.resgistration_repo.get_registration_by_jeton(find_registration_data)       
+    repo_reg = await self.__registration_repo.get_registration_by_jeton(find_registration_data)       
 
     if repo_reg.is_error():
       return ServiceResult.service_error(
@@ -96,7 +96,7 @@ class RegistrationService:
         row["role"] = UserRole.STUDENT.value
         row["jeton"] = JetonUtils.generate_code_jeton(8)
           
-      result = await self.resgistration_repo.multiple_registration(res_import.data["data"])
+      result = await self.__registration_repo.multiple_registration(res_import.data["data"])
 
       if result.is_success():
         return ServiceResult.service_success(
@@ -119,7 +119,7 @@ class RegistrationService:
   async def service_update_registration(self, reg_id: UUID, reg_update_data: JetonUpdateData) -> ServiceResult[StringMessage]:
     """Logique métier pour mettre à jour le role d'un jeton"""
 
-    repo_result = await self.resgistration_repo.update_registration_jeton(reg_id=reg_id, reg_update_data=reg_update_data)
+    repo_result = await self.__registration_repo.update_registration_jeton(reg_id=reg_id, reg_update_data=reg_update_data)
 
     if repo_result.is_error():
       return ServiceResult.service_error(
@@ -137,7 +137,7 @@ class RegistrationService:
   async def service_get_all_jetons(self, for_back: Optional[str] = None) -> ServiceResult[list[ReadRegistration]]:
     """Logique métier pour gérer la récupération de tous les jetons"""
 
-    reg_repo = await self.resgistration_repo.get_all_jetons(for_back=for_back)
+    reg_repo = await self.__registration_repo.get_all_jetons(for_back=for_back)
 
     if reg_repo.is_error():
       return ServiceResult.service_error(
@@ -158,7 +158,7 @@ class RegistrationService:
   async def service_get_all_jetons_by_classe(self, classe_id: UUID, for_back: Optional[str] = None) -> ServiceResult[list[ReadRegistration]]:
     """Logique métier pour gérer la récupération de tous les jetons d'une classe donnée"""
 
-    reg_repo = await self.resgistration_repo.get_all_jetons_by_classe(classe_id=classe_id, for_back=for_back)
+    reg_repo = await self.__registration_repo.get_all_jetons_by_classe(classe_id=classe_id, for_back=for_back)
 
     if reg_repo.is_error():
       return ServiceResult.service_error(

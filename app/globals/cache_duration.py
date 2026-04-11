@@ -12,3 +12,4 @@ class CacheDurartion(int, enum):
   EVENT_DURATION = 1500
   CLUB_MEMBER_DURATION = 1500
   OTP_DURATION = 1500 # 25 min pour les tests. ca va eviter de checker chaque fois le mail. on change aprés 
+  AVATAR_UPLOAD_URL = 1000

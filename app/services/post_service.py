@@ -147,7 +147,6 @@ class PostService:
             )
         post = result.data
         author_schema = PostAuthorSchema.model_validate(user)
-        author_schema.avatar_url = MediaReadStorage.generate_read_public_asset(user.avatar_url)
         post_read = ReadPost(**post.__dict__, author_info=author_schema)
 
         return ServiceResult.service_success(
@@ -167,13 +166,10 @@ class PostService:
             **post.author.__dict__
         )
 
-        user_info.avatar_url=MediaReadStorage.generate_read_public_asset(post.author.avatar_url)
-
         if post.club:
             club_info = PostClubSchema(
                 **post.club.__dict__
             )
-            club_info.logo_url = MediaReadStorage.generate_read_public_asset(post.club.logo_url)
         if post.event:
             event_info = PostEventSchema.model_validate(post.event, from_attributes=True)
 
@@ -186,7 +182,7 @@ class PostService:
                 medias_list.append(
                     PostMediaSchema(
                         id=media.id,
-                        thumbnail_url=MediaReadStorage.generate_read_public_asset(media.thumbnail_url),
+                        thumbnail_url=media.thumbnail_url,
                         width=media.width,
                         media_type=media.media_type,
                         blur_hash=media.blur_hash,

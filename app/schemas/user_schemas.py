@@ -5,21 +5,20 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 from uuid import UUID
 
 from app.db.models.enums import ExecutiveRoleType, SexeType, UserRole
 from app.schemas import ApiBaseResponse
 from app.schemas.classe_schemas import ReadUserClasse
+from app.schemas.post_upload_schemas import UploadURLSchema
 from app.schemas.registration_schemas import FindRegistration
+from app.storage.media_read_storage import MediaReadStorage
 
 
 class CreateUser(BaseModel):
   """schémas de validation de a création d'un utilisateur (Création de compte)
-
-  Args:
-      BaseModel (_type_): Hérite de base model
   """
   
   username: str = Field(description="Nom d'utilisateur")
@@ -29,12 +28,6 @@ class CreateUser(BaseModel):
   
 class LoginData(BaseModel):
     """schéma de validation des données de connexion (login)
-
-    Args:
-        BaseModel (_type_): Hérite de BaseModel
-
-    Returns:
-        _type_: Retourne rien, sert juste a la validation
     """
     
     email: EmailStr = Field(description="Email de connexion")
@@ -45,26 +38,34 @@ class LoginData(BaseModel):
 class UpdateUserData(BaseModel):
     """schéma de validation des données pour permettre à un utilisateur de mettre à jour 
         ses propres informations. NB: Seul les champs modifiable sont présents
-
-    Args:
-        BaseModel (_type_): Hérite de BaseModel
-
-    Returns: 
-        _type_: Retourne rien, sert juste a la validation
     """    
     
     username: Optional[str] = None
     bio: Optional[str] = None
-    avatar_url: Optional[str] = None
     sexe: Optional[SexeType] = None
     
-    
+
+class UpdateAvatarUrl(BaseModel):
+    """validation de l'avatar url d'un utilisateur"""
+
+    avatar_url: Optional[str] = None
+
+ 
+class UploadAvatarFile(BaseModel):
+    """validation du nom de fichier pour l'avatar url d'un utilisateur"""
+
+    file_name: str = Field(description="Nom du fichier de l'avatar que l'utilisateur veux uploader.")
+
+ 
+class ConfirmUploadAvatarFile(BaseModel):
+    """validation du nom de fichier pour l'avatar url d'un utilisateur"""
+
+    file_name: str = Field(description="Nom du fichier de l'avatar que l'utilisateur veux uploader.")
+    indent_id: str = Field(description="le indent id que vous avez récupérez dans la route de création de l'url paginée")
+ 
   
 class ReadUser(BaseModel):
     """Schémas de validation des infos 'un utilisateur
-
-    Args:
-        BaseModel (_type_): Hérite de base model
     """
     
     id: UUID = Field(description="Identifiant de l'utilisateur")
@@ -86,6 +87,19 @@ class ReadUser(BaseModel):
     updated_at: Optional[datetime] = None
     last_login_at: Optional[datetime] = None
     
+    
+    @field_validator("avatar_url")
+    @classmethod
+    def format_avatar_url(cls, v: Optional[str]) -> Optional[str]:
+        if not v:
+            return v
+        
+        if v.startswith("http"):
+            return v
+            
+        return MediaReadStorage.generate_avatar_url(v)
+    
+    
     def is_deleted(self) -> bool:
         if self.deleted_at is None:
             return False
@@ -96,6 +110,7 @@ class ReadUser(BaseModel):
 ReadUser.model_rebuild()
 
 
+
 class UserInfos(ApiBaseResponse):
     
     result: Optional[ReadUser] = Field(description="Informations d'un utilisateur")
@@ -103,3 +118,8 @@ class UserInfos(ApiBaseResponse):
 class ListUserInfos(ApiBaseResponse):
     
     result: Optional[list[ReadUser]] = Field(description="Informations d'un utilisateur")
+
+
+class UserAvatarInfos(ApiBaseResponse):
+    
+    result: Optional[UploadURLSchema] = Field(description="Informations de l'avatar d'un utilisateur")
