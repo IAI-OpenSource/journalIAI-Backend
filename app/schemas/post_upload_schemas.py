@@ -82,7 +82,7 @@ class MediaUploadCompleteSchema(BaseModel):
                     " de suivi. PS: C'est intent_id juste renommé"
     )
 
-class WsPostProcessingInfoSchemaSteps(str, Enum):
+class WsMediasProcessingInfoSchemaSteps(str, Enum):
     UNKNOWN = "unknown"
     FINALIZING = "finalizing"
     IN_QUEUE = "in_queue"
@@ -92,8 +92,8 @@ class WsPostProcessingInfoSchemaSteps(str, Enum):
     CREATING = "creating"
     COMPLETED = "completed"
 
-class WsPostProcessingInfoSchema(BaseModel):
-    step: WsPostProcessingInfoSchemaSteps = Field(..., description="L'étape à laquelle on est")
+class WsMediasProcessingInfoSchema(BaseModel):
+    step: WsMediasProcessingInfoSchemaSteps = Field(..., description="L'étape à laquelle on est")
     progress: int = Field(..., description="Le pourcentage de progression")
     timestamp: float = Field(..., description="Le timestamp de l'information de suivi, en millisecondes depuis epoch")
     error_message: Optional[str] = Field(

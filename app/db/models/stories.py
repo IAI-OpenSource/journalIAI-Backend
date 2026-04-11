@@ -33,21 +33,18 @@ class Story(Base, IntegrityMapperMixin):
 
     # Attributs
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4, init=False)
+
     author_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE", name=FK_STORIES_AUTHOR), nullable=False)
-
-    club_id: Mapped[Optional[UUID]] = mapped_column(ForeignKey("clubs.id", ondelete="SET NULL", name=FK_STORIES_CLUB), nullable=True)
-
-    target_classe_id: Mapped[Optional[UUID]] = mapped_column(
-        ForeignKey("classe.id", ondelete="SET NULL", name=FK_STORIES_CLASSE),
-        nullable=True,
-        comment="Si la story est ciblée vers une classe spécifique (ex: annonce pour la promo 2023), sinon NULL pour une story générale."
-    )
 
     media_url: Mapped[str] = mapped_column(
         String(500),
         nullable=False,
         comment="URL MinIO du média associé à la story (image, vidéo, etc.)"
     )
+
+    blur_hash: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+
+    stored_bucket_name: Mapped[str] = mapped_column(String(255), nullable=False)
 
     media_type: Mapped[MediaType] = mapped_column(
         SQLEnum(MediaType),
@@ -72,8 +69,6 @@ class Story(Base, IntegrityMapperMixin):
         nullable=False
     )
 
-
-
     # Métadonnées
     file_size: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
     width: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
@@ -92,15 +87,12 @@ class Story(Base, IntegrityMapperMixin):
     __table_args__ = (
         Index(IDX_STORIES_FEED_PAGINATION, "created_at", "id", postgresql_where=(is_expired == False)),
         Index(IDX_STORIES_BY_AUTHOR, "author_id", "created_at", "id", postgresql_where=(is_expired == False)),
-        Index(IDX_STORIES_BY_CLUB, "club_id", "created_at", "id", postgresql_where=(is_expired == False) & (club_id != None)),
     )
 
     # Relationships*
-    views: Mapped[list["StoryViews"]] = relationship("StoryViews", back_populates="story", uselist=True, init=False)
-    author: Mapped["User"] = relationship("User", foreign_keys=[author_id], back_populates="stories", uselist=False, init=False)
-    club: Mapped[Optional["Club"]] = relationship("Club", foreign_keys=[club_id], back_populates="stories", uselist=False, init=False)
-    classe: Mapped[Optional["Classe"]] = relationship("Classe", foreign_keys=[target_classe_id], back_populates="stories", uselist=False, init=False)
-    group: Mapped["StoryGroups"] = relationship("StoryGroups", back_populates="stories", uselist=False, init=False)
+    views: Mapped[list["StoryViews"]] = relationship("StoryViews", back_populates="story", uselist=True, init=False, lazy="noload")
+    author: Mapped["User"] = relationship("User", foreign_keys=[author_id], back_populates="stories", uselist=False, init=False, lazy="noload")
+    group: Mapped["StoryGroups"] = relationship("StoryGroups", back_populates="stories", uselist=False, init=False, lazy="noload")
     # Messages d'erreur d'intégrité spécifiques au modèle Post
     ERROR_MESSAGES = {
         FK_STORIES_AUTHOR: "L'auteur spécifié n'existe pas.",

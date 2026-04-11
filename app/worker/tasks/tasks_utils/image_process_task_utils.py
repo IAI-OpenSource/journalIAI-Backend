@@ -114,13 +114,14 @@ def process_image_with_pillow(
         return ProcessingResult.error_response(f"Erreur lors du traitement: {e}")
 
 
-async def upload_images_to_minio(local_dir: str, remote_path: str) -> ProcessingResult[dict[str, str]]:
+async def upload_images_to_minio(local_dir: str, remote_path: str, is_story: bool) -> ProcessingResult[dict[str, str]]:
     """
     Upload les images traitées (les 3 variantes WebP) vers MinIO en parallèle.
     
     Args:
         local_dir: Répertoire local contenant les images traitées.
         remote_path: Chemin de base dans le bucket MinIO.
+        is_story: Indique si les images sont destinées à une story (affecte le bucket de destination).
 
     Returns:
         ProcessingResult avec dict des URLs distantes des 3 variantes.
@@ -153,7 +154,7 @@ async def upload_images_to_minio(local_dir: str, remote_path: str) -> Processing
                 task_async_loop_manager.get_loop().run_in_executor(
                     executor,
                     minio_client.fput_object,
-                    BucketName.POSTS_PERMANENT_CONTENT.value,
+                    BucketName.STORIES_EPHEMERAL_CONTENT.value if is_story else BucketName.POSTS_PERMANENT_CONTENT.value,
                     r_path,
                     l_path,
                     "image/webp"

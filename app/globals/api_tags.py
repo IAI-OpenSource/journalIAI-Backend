@@ -10,8 +10,9 @@ class ApiTags:
     ADMINISTRATEUR: str = "Routes Administrateur"
     ETUDIANT: str = "Routes étudiants"
     POSTS: str = "Routes Posts"
+    STORY: str = "Routes Stories"
+    STORY_CREATION: str = "Routes Création de Stories"
     POSTS_CREATION: str = "Routes Créations de Posts"
-    UPLOADS: str = "Routes Uploads"
     JETON_ENREGISTREMENT: str = "Routes pour les jetons"
     ADMIN_MODERATEUR: str = "Routes ADMIN ou MODERATEUR"
     ALL_USERS: str = "Routes pour tous les utilisateurs"
@@ -20,4 +21,5 @@ class ApiTags:
     ACADEMIC_YEAR: str = "Routes années académiques"
     CLASSE: str = "Routes classes"
     USER: str = "Route utilisateurs"
+    NOTIFICATION: str = "Routes Notifications"
 

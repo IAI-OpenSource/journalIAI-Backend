@@ -2,7 +2,7 @@
 
 from enum import Enum
 
-from app.schemas.post_upload_schemas import WsPostProcessingInfoSchemaSteps
+from app.schemas.post_upload_schemas import WsMediasProcessingInfoSchemaSteps
 
 
 class ProcessingStep(Enum):
@@ -15,12 +15,12 @@ class ProcessingStep(Enum):
     """
 
     # Étapes communes
-    UNKNOWN = (WsPostProcessingInfoSchemaSteps.UNKNOWN.value, 0)
-    VERIFICATION = (WsPostProcessingInfoSchemaSteps.VERIFICATION.value, 25)
-    COMPRESSING = (WsPostProcessingInfoSchemaSteps.COMPRESSING.value, 45)
-    CREATING = (WsPostProcessingInfoSchemaSteps.CREATING.value, 25)
-    FINALIZING = (WsPostProcessingInfoSchemaSteps.FINALIZING.value, 5)
-    COMPLETED = (WsPostProcessingInfoSchemaSteps.COMPLETED.value, 0)
+    UNKNOWN = (WsMediasProcessingInfoSchemaSteps.UNKNOWN.value, 0)
+    VERIFICATION = (WsMediasProcessingInfoSchemaSteps.VERIFICATION.value, 25)
+    COMPRESSING = (WsMediasProcessingInfoSchemaSteps.COMPRESSING.value, 45)
+    CREATING = (WsMediasProcessingInfoSchemaSteps.CREATING.value, 25)
+    FINALIZING = (WsMediasProcessingInfoSchemaSteps.FINALIZING.value, 5)
+    COMPLETED = (WsMediasProcessingInfoSchemaSteps.COMPLETED.value, 0)
 
     def get_name(self) -> str:
         """Récupère le nom lisible de l'étape."""

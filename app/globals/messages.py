@@ -69,6 +69,7 @@ class Messages:
     MEMBER_DELETE_SUCCESS = "Membre supprimer avec sucsess"
     VIDEO_UPLOAD_INTENT_SAVED = "Intent d'upload video enregistré avec succès"
     ERROR_MEDIA_UPLOAD_INTENT_NOT_FOUND = "Intent d'upload média expirée ou inexistant"
+    ERROR_LAUNCHING_MEDIA_PROCESSING_TASK = "Erreur lors du lancement de la tâche de traitement des médias"
 
     DELETED_USER = "Utilisateur déjà supprimé" 
     USER_FOUNDED = "Utilisateur récupérer avec succès !"
@@ -88,6 +89,7 @@ class Messages:
     POST_SERVICE = "Service Post"
     ACADEMIC_YEAR_SERVICE = "Service Année Académique"
     CLASSE_SERVICE = "Service Classe"
+    STORY_SERVICE = "Service Story"
     
     
     ## Message pour le cache

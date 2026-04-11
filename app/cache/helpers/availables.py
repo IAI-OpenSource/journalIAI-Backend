@@ -63,14 +63,20 @@ class AvailableCacheKeys(str, Enum):
     POST_LIKE_COUNT = BaseCacheEntity.POST + ":like_count"  # Clé pour le nombre de likes d'un post
     COMMENT_LIKE_COUNT = BaseCacheEntity.COMMENT + ":like_count"  # Clé pour le nombre de likes d'un commentaire
 
-    FILE_UPLOAD_INTENT_KEY = "upload_intent:{user_id}:{intent_id}" # Clé pour stocker les intent d'upload
+    FILE_UPLOAD_INTENT_KEY = "upload_intent:{user_id}:{intent_id}"  # Clé pour stocker les intent d'upload de posts
 
-    FILE_UPLOAD_PROGRESS_STREAM_KEY = "upload_progress_stream:{user_id}:{intent_id}" # Clé pour le stream sur l'anvancement du traitemenr d'un upload
+    FILE_UPLOAD_PROGRESS_STREAM_KEY = "upload_progress_stream:{user_id}:{intent_id}"  # Clé pour le stream sur l'avancement du traitement d'un upload de posts
+
+    # Clés de cache pour les uploads de stories
+    STORY_FILE_UPLOAD_INTENT_KEY = "story_upload_intent:{user_id}:{intent_id}"  # Clé pour stocker les intent d'upload de stories
 
     USER_DAILY_POST_SEEN = BaseCacheEntity.USER + ":daily_seen_posts"  # Clé pour les posts vus par un utilisateur (pour le suivi de la lecture du feed)
 
+    USER_DAILY_STORY_SEEN = BaseCacheEntity.USER + ":daily_seen_stories"
+
     USERS_HAS_SEEN_POST_ON_A_DAY = "daily_post_views_set"
 
+    USERS_HAS_SEENN_STORY_ON_A_DAY = "daily_stories_views_set"
 
 
     ## Clés pour le OTP

@@ -127,8 +127,8 @@ class User(Base, IntegrityMapperMixin):
     viewed_posts: Mapped[list["PostViews"]] = relationship("PostViews", back_populates="user", cascade="all, delete-orphan", uselist=True, init=False)
     classe: Mapped[Optional["Classe"]] = relationship("Classe", back_populates="students", foreign_keys=[classe_id], uselist=False, init=False)
     viewed_stories: Mapped[list["StoryViews"]] = relationship("StoryViews", back_populates="user", cascade="all, delete-orphan", uselist=True, init=False)
-    stories: Mapped[list["Story"]] = relationship("Story", back_populates="author", cascade="all, delete-orphan", uselist=True, init=False)
-    story_group: Mapped[Optional["StoryGroups"]] = relationship("StoryGroups", back_populates="author", cascade="all, delete-orphan", uselist=False, init=False, lazy="noload")
+    stories: Mapped[list["Story"]] = relationship("Story", back_populates="author", cascade="all, delete-orphan", uselist=True, init=False, lazy="noload")
+    story_groups: Mapped[list["StoryGroups"]] = relationship("StoryGroups", back_populates="author", cascade="all, delete-orphan", uselist=True, init=False, lazy="noload")
     # Messages d'erreur
     ERROR_MESSAGES = {
         UQ_USERS_EMAIL: "Cet email est déjà utilisé.",

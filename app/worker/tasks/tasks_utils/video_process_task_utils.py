@@ -140,22 +140,56 @@ def generate_thumbnail(local_raw_path: str, output_dir: str, ss_time: int) -> Op
         print(f"Erreur FFMPEG stderr lors de la génération du thumbnail mais on continue : {e.stderr}")
 
 
-def generate_hls_command(local_raw_path: str, output_dir: str, qualities: list, has_audio: bool = True) -> list[str]:
-    """Construit la commande FFmpeg fMP4 avec dossiers nommés et gestion audio intelligente."""
+def generate_hls_command(
+    local_raw_path: str,
+    output_dir: str,
+    qualities: list,
+    has_audio: bool = True,
+    is_story: bool = False
+) -> list[str]:
+    """
+    Construit la commande FFmpeg fMP4 avec dossiers nommés et gestion audio intelligente.
+
+    Args:
+        local_raw_path: Chemin du fichier vidéo source
+        output_dir: Répertoire de sortie
+        qualities: Liste des qualités à générer
+        has_audio: Présence d'audio dans la source
+        is_story: Si True, optimise pour les stories (qualité/bitrate réduits, pas de MP4 de download)
+
+    Returns:
+        Liste d'arguments pour la commande ffmpeg
+    """
 
     if isinstance(qualities, str):
         qualities = json.loads(qualities)
 
     nb_hls = len(qualities)
-    nb_total = nb_hls + 1
+    nb_total = nb_hls + 1 if not is_story else nb_hls
 
-    # 1. Filtres vidéo (inchangés)
+    # 1. Filtres vidéo
     split_labels = "".join([f"[v_split_{i}]" for i in range(nb_total)])
     filters = [f"[0:v]split={nb_total}{split_labels}"]
     for i, q in enumerate(qualities):
-        filters.append(f"[v_split_{i}]scale=w=-2:h={q['height']}[v{i}out]")
+        if is_story:
+            # On force le 9:16 (ex: pour h=1280, w=720)
+            # force_original_aspect_ratio=increase + crop permet de remplir tout l'écran (style Insta)
+            target_w = int((q['height'] * 9) / 16)
+            # On s'assure que target_w est pair pour le codec x264
+            target_w = target_w if target_w % 2 == 0 else target_w - 1
+
+            filters.append(
+                f"[v_split_{i}]scale={target_w}:{q['height']}:force_original_aspect_ratio=increase,"
+                f"crop={target_w}:{q['height']}[v{i}out]"
+            )
+        else:
+            filters.append(f"[v_split_{i}]scale=w=-2:h={q['height']}[v{i}out]")
+            
         os.makedirs(os.path.join(output_dir, q['name']), exist_ok=True)
-    filters.append(f"[v_split_{nb_hls}]scale=w=-2:h=720[v_mp4]")
+
+    # Pour les stories, pas de MP4 de download supplémentaire
+    if not is_story:
+        filters.append(f"[v_split_{nb_hls}]scale=w=-2:h=720[v_mp4]")
 
     # 2. Construction de la base de la commande
     cmd = ["ffmpeg", "-y", "-i", local_raw_path]
@@ -167,26 +201,34 @@ def generate_hls_command(local_raw_path: str, output_dir: str, qualities: list, 
     cmd.extend(["-filter_complex", ";".join(filters)])
 
     # 3. Définition du mapping audio selon la disponibilité
-    # Si audio présent : on mappe la piste de l'input 0
-    # Si audio absent : on mappe la piste de l'input 1 (le silence qu'on vient d'ajouter)
     audio_map = "0:a" if has_audio else "1:a"
 
-    # 4. Sortie MP4 Download
-    cmd.extend([
-        "-map", "[v_mp4]", "-map", audio_map,
-        "-c:v", "libx264", "-crf", "23", "-preset", "veryfast",
-        "-threads", "2",                                        # 2 threads
-        "-c:a", "aac", "-b:a", "128k", "-shortest",
-        f"{output_dir}/{OtherConstants.HLS_DOWNLOAD_FILE_NAME}"
-    ])
+    # 4. Sortie MP4 Download (seulement pour les posts, pas les stories)
+    if not is_story:
+        # TODO: Ajuster le nombre de threads par rapport au serveur réel
+        cmd.extend([
+            "-map", "[v_mp4]", "-map", audio_map,
+            "-c:v", "libx264", "-crf", "23", "-preset", "veryfast",
+            "-threads", "2",                # Que sur 2 Threads
+            "-c:a", "aac", "-b:a", "128k", "-shortest",
+            f"{output_dir}/{OtherConstants.HLS_DOWNLOAD_FILE_NAME}"
+        ])
 
-    # 5. Sorties HLS
+    # 5. Sorties HLS (avec paramètres optimisés pour les stories si nécessaire)
     for i, q in enumerate(qualities):
+        if is_story:
+            # Pour les stories : réduire la qualité et le bitrate
+            crf = 26  # Plus élevé = plus de compression
+            vrate = "600k"  # Bitrate réduit pour story
+        else:
+            crf = q.get('crf', 23)
+            vrate = q.get('vrate', '2800k')
+
         cmd.extend([
             "-map", f"[v{i}out]", "-map", audio_map,
             f"-c:v:{i}", "libx264", "-preset", "veryfast",
-            "-crf", str(q['crf']), f"-b:v:{i}", q['vrate'],
-            f"-c:a:{i}", "aac", f"-b:a:{i}", "128k"
+            "-crf", str(crf), f"-b:v:{i}", vrate,
+            f"-c:a:{i}", "aac", f"-b:a:{i}", "96k" if is_story else "128k"
         ])
 
     # 6. Configuration HLS + m4s
@@ -204,21 +246,23 @@ def generate_hls_command(local_raw_path: str, output_dir: str, qualities: list, 
     return cmd
 
 
-async def upload_hls_to_minio(local_dir: str, remote_path: str) -> ProcessingResult[None]:
+async def upload_hls_to_minio(local_dir: str, remote_path: str, is_story: bool) -> ProcessingResult[None]:
     """
     Upload le dossier HLS (fMP4) complet en parallèle vers MinIO.
     
     Args:
         local_dir: Répertoire local contenant les fichiers HLS.
         remote_path: Chemin de base dans MinIO pour les uploads.
-        
+        is_story: Si True, change le bucket de destination vers les stories et ajuste les chemins d'upload en conséquence
+
     Returns:
         ProcessingResult(True) en succès, ProcessingResult(False, error) sinon.
     """
     try:
         if not os.path.exists(local_dir) or not os.listdir(local_dir):
             return ProcessingResult.error_response(
-                "Le dossier local est vide ou inexistant. FFmpeg a probablement échoué.")
+                "Le dossier local est vide ou inexistant. FFmpeg a probablement échoué."
+            )
 
         files = []
         for p in Path(local_dir).rglob('*'):
@@ -246,7 +290,7 @@ async def upload_hls_to_minio(local_dir: str, remote_path: str) -> ProcessingRes
                 task_async_loop_manager.get_loop().run_in_executor(
                     executor,
                     minio_client.fput_object,
-                    BucketName.POSTS_PERMANENT_CONTENT.value,
+                    BucketName.STORIES_EPHEMERAL_CONTENT.value if is_story else BucketName.POSTS_PERMANENT_CONTENT.value,
                     r_path,
                     l_path,
                     cont_type
