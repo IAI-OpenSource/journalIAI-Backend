@@ -3,7 +3,7 @@ from logging import Logger
 from typing import List
 from uuid import UUID
 
-from app.cache.feed_cache import FeedCache
+from app.cache.post_feed_cache import PostFeedCache
 from datetime import datetime
 
 from app.db.session import AsyncSessionLocal
@@ -11,7 +11,7 @@ from app.repositories.post_views_repository import PostViewsRepository
 from app.worker.tasks.tasks_utils.base import ProcessingResult
 
 
-async def add_views_for_user(user_id: str, redis_conn: FeedCache, bd: PostViewsRepository, logger: Logger, mock_viewed_at: datetime) -> None:
+async def add_views_for_user(user_id: str, redis_conn: PostFeedCache, bd: PostViewsRepository, logger: Logger, mock_viewed_at: datetime) -> None:
     try:
         viewed_post = await redis_conn.get_daily_seen_post_ids(UUID(user_id))
 
@@ -32,12 +32,13 @@ async def add_views_for_user(user_id: str, redis_conn: FeedCache, bd: PostViewsR
         await redis_conn.clear_daily_seen_posts_for_user(UUID(user_id))
         return None
     except Exception as e:
-        return logger.error(f"Erreur {e.__class__.__name__} lors de l'insertion des vu"
+        logger.error(f"Erreur {e.__class__.__name__} lors de l'insertion des vu"
                                                f"s pour le user : {user_id} : {str(e)})")
+        return
 
 
 
-async def insert_views_for_all_users(users: List[str], redis_conn: FeedCache, batch_size: int, logger: Logger) -> ProcessingResult[None]:
+async def insert_views_for_all_users(users: List[str], redis_conn: PostFeedCache, batch_size: int, logger: Logger) -> ProcessingResult[None]:
     try:
         async with AsyncSessionLocal() as session:
             repo: PostViewsRepository = PostViewsRepository(session)

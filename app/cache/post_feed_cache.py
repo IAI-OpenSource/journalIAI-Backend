@@ -25,7 +25,7 @@ def _daily_seen_posts_key() -> CacheKey:
     return CacheKeysFactory.get_cache_key(AvailableCacheKeys.USERS_HAS_SEEN_POST_ON_A_DAY).set_arguments()
 
 
-class FeedCache:
+class PostFeedCache:
     """Cache Redis pour les posts vus dans le feed.
 
     Toutes les méthodes wrappent les opérations Redis dans des try/except
@@ -58,7 +58,7 @@ class FeedCache:
                 "Redis unavailable (get_seen_posts) user=%s : %s — fallback PostgreSQL",
                 user_id, e,
             )
-            return None  # Signal fallback
+            return None
 
     async def mark_posts_as_seen(self, user_id: UUID, post_ids: list[UUID]) -> int | None:
         """Marque une liste de posts comme vus dans Redis.

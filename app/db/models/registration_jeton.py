@@ -15,7 +15,6 @@ from app.db.models.mixins.integrity_error_mixin import IntegrityMapperMixin
 from app.db.models.enums import ExecutiveRoleType, UserRole, SexeType
 
 # Noms des contraintes
-UQ_REGISTRATION_JETON_JETON = "uq_registration_jeton_jeton"
 IDX_REGISTRATION_JETON_JETON = "idx_registration_jeton_jeton"
 IDX_REGISTRATION_JETON_UNUSED = "idx_registration_jeton_unused"
 IDX_REGISTRATION_JETON_CLASSE = "idx_registration_jeton_classe"
@@ -30,7 +29,7 @@ class RegistrationJeton(Base, IntegrityMapperMixin):
 
     # Attributs
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4, init=False)
-    jeton: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+    jeton: Mapped[str] = mapped_column(String(255), unique=True, nullable=False,)
 
     # Informations de l'étudiant
     first_name: Mapped[str] = mapped_column(String(100), nullable=False)
@@ -63,7 +62,7 @@ class RegistrationJeton(Base, IntegrityMapperMixin):
     classe: Mapped[Optional["Classe"]] = relationship("Classe", foreign_keys=[classe_id], back_populates="jetons", uselist=False, init=False)
     # Messages d'erreur
     ERROR_MESSAGES = {
-        UQ_REGISTRATION_JETON_JETON: "Ce jeton d'inscription a déjà été utilisé.",
+        UQ_USERS_EMAIL: "Cet email est déja utilisé.",
         FK_JETON_CLASSE: "La classe associée au jeton d'inscription n'existe pas.",
     }
     
