@@ -11,6 +11,7 @@ from . import CRUDResult
 from app.globals.messages import Messages as msg
 from dataclasses import dataclass
 from sqlalchemy.exc import IntegrityError
+from app.db.models.post import Post
 
 logger = logging.getLogger(__name__)
 
@@ -114,13 +115,15 @@ class CommentRepository:
 
     async def create_comment(self, comment_data: CommentCreate) -> CRUDResult[Comment]:
         """
-        Crée un nouveau commentaire.
+         Crée un nouveau commentaire.
 
         Args:
-            comment_data (CommentCreate): Données du commentaire à créer.
+
+        comment_data (CommentCreate): Données du commentaire à créer.
 
         Returns:
-            CRUDResult[Comment]: Le commentaire créé.
+
+        CRUDResult[Comment]: Le commentaire créé.
         """
         try:
             stmt = (
@@ -130,11 +133,17 @@ class CommentRepository:
             )
             result = await self.db.execute(stmt)
             db_comment = result.scalar_one_or_none()
+
             if db_comment is None:
                 return CRUDResult.crud_error(msg.NOT_FOUND, status_code=500)
+
+            # Incrémenter le compteur du post
+            await self.increment_post_comment_count(comment_data.post_id)
+
             await self.db.commit()
             logger.info("Commentaire créé avec succès !")
             return CRUDResult.crud_success(db_comment)
+
         except IntegrityError as ie:
             await self.db.rollback()
             return await RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, Comment)
@@ -179,10 +188,13 @@ class CommentRepository:
         Supprime logiquement un commentaire (soft delete).
 
         Args:
-            comment_id (UUID): Identifiant du commentaire à supprimer.
+
+        comment_id (UUID): Identifiant du commentaire à supprimer.
 
         Returns:
-            CRUDResult[Comment]: Le commentaire supprimé.
+
+        CRUDResult[Comment]: Le commentaire supprimé.
+
         """
         try:
             stmt = (
@@ -194,12 +206,18 @@ class CommentRepository:
             )
             result = await self.db.execute(stmt)
             deleted_comment = result.scalar_one_or_none()
+
             if deleted_comment is None:
                 logger.info(f"Commentaire {comment_id} introuvable pour la suppression")
                 return CRUDResult.crud_error(msg.NOT_FOUND, status_code=404)
+
+            # Décrémenter le compteur du post
+            await self.decrement_post_comment_count(deleted_comment.post_id)
+
             await self.db.commit()
             logger.info(f"Commentaire {comment_id} supprimé avec succès !")
             return CRUDResult.crud_success(deleted_comment)
+
         except IntegrityError as ie:
             return await RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, Comment)
         except Exception as e:
@@ -326,3 +344,38 @@ class CommentRepository:
 
         except Exception as e:
             return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
+
+    async def increment_post_comment_count(self, post_id: UUID) -> None:
+        """
+        Incrémente le compteur de commentaires du post associé.
+
+        Args:
+            post_id (UUID): Identifiant du post.
+        """
+        try:
+            stmt = (
+                update(Post)
+                .where(Post.id == post_id)
+                .values(comment_count=Post.comment_count + 1)
+            )
+            await self.db.execute(stmt)
+        except Exception as e:
+            logger.warning(f"Impossible d'incrémenter comment_count pour le post {post_id} : {e}")
+
+    async def decrement_post_comment_count(self, post_id: UUID) -> None:
+        """
+        Décrémente le compteur de commentaires du post associé (minimum 0).
+
+        Args:
+            post_id (UUID): Identifiant du post.
+        """
+        try:
+            stmt = (
+                update(Post)
+                .where(Post.id == post_id)
+                .where(Post.comment_count > 0)
+                .values(comment_count=Post.comment_count - 1)
+            )
+            await self.db.execute(stmt)
+        except Exception as e:
+            logger.warning(f"Impossible de décrémenter comment_count pour le post {post_id} : {e}")
