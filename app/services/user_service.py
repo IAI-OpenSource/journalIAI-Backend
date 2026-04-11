@@ -2,18 +2,22 @@
 ## fichier contenant le service/logique métier de la table user
 ## vous y trouverez les appels fonctions de repository
 import logging
-from typing import Optional
+from typing import Optional, Union
 from uuid import UUID
 
+from alembic.environment import Union
 from sqlalchemy.ext.asyncio import AsyncSession
+from app.db.models.enums import MediaType
 from app.schemas.global_schemas import StringMessage
-from app.utils.security_utils import verify_password
+from app.schemas.post_upload_schemas import AvailableUploadMethod, FileInUploadURLSchema, UploadURLSchema
+from app.services.media_upload_service import generate_random_intent_id
+from app.storage.media_upload_storage import MediaUploadStorage
 from fastapi import status
 from app.cache.helpers.base import CacheWrapper
 from app.cache.user_cache import UserCache
 from app.globals.status_codes import StatusCode
 from app.repositories.user_repository import UserRepository
-from app.schemas.user_schemas import CreateUser, LoginData, ReadUser, UpdateUserData
+from app.schemas.user_schemas import CreateUser, ReadUser, UpdateAvatarUrl, UpdateUserData, UploadAvatarFile
 from app.globals.messages import Messages as msg
 from app.globals.cache_duration import CacheDurartion 
 
@@ -26,22 +30,22 @@ logger = logging.getLogger(__name__)
 class UserService: 
   
   def __init__(self, db: AsyncSession, cache: CacheWrapper):
-    self.db = db
-    self.user_cache = UserCache(cache)
-    self.user_repo = UserRepository(self.db)
+    self.__db = db
+    self.__user_cache = UserCache(cache)
+    self.__user_repo = UserRepository(self.__db)
   
-    
+  ## -------------- Logique find user by id ------------------ ##
   async def service_find_user_by_id(self, user_id: UUID) -> ServiceResult[ReadUser]:
     """Logique métier de récupération d'un utilisateur par ID"""
     
     ## on cherche dans le cache d'abord  
-    user_data_from_cache = await self.user_cache.get_user_from_cache(user_id=user_id, user_model=ReadUser)
+    user_data_from_cache = await self.__user_cache.get_user_from_cache(user_id=user_id, user_model=ReadUser)
     
     if user_data_from_cache is not None:
       return ServiceResult.service_success(data=user_data_from_cache, status_code=StatusCode._200_STATUS_SUCCESS.value)
 
     ## si le cache est vide, on fait la requete BD
-    user = await self.user_repo.get_user_by_id(user_id=user_id)
+    user = await self.__user_repo.get_user_by_id(user_id=user_id)
     
     if user.is_error():
       logger.error(f"Erreur: {user.error}")
@@ -62,7 +66,7 @@ class UserService:
         service_name=msg.USER_SERVICE
       )
       
-    await self.user_cache.set_user_in_cache(
+    await self.__user_cache.set_user_in_cache(
       user_id=user_read.id, 
       user=user_read, 
       ttl=CacheDurartion.USER_DURATION.value
@@ -75,7 +79,7 @@ class UserService:
     )
 
 
-
+  ## -------------- Logique métier de création d'utilisateur ------------------ ##
   async def service_create_user(self, user_data: CreateUser) -> ServiceResult[StringMessage]:
     """logique métier pour inserer un utilisateur dans la bd (genre à la création de compte quoi)
 
@@ -86,7 +90,7 @@ class UserService:
         ServiceResult[ReadUser]: on va retourner une instance de ServiceResult
     """
     
-    db_user = await self.user_repo.insert_user(user_data=user_data)
+    db_user = await self.__user_repo.insert_user(user_data=user_data)
     
     if db_user.is_error():
       return ServiceResult.service_error(
@@ -99,7 +103,7 @@ class UserService:
       
       read_user = ReadUser.model_validate(db_user.data)
 
-      await self.user_cache.set_user_in_cache(
+      await self.__user_cache.set_user_in_cache(
         user_id=read_user.id, 
         user=read_user,
         ttl=CacheDurartion.USER_DURATION.value
@@ -120,10 +124,11 @@ class UserService:
       )
       
   
+  ## -------------- Logique métier pour récupérer tous les utilisateurs ------------------ ##
   async def service_get_all_users(self, for_back: Optional[str] = None) -> ServiceResult[list[ReadUser]]:
     """Logique métier pour gérer la récupération de tous les utilisateurs"""
 
-    users_repo = await self.user_repo.get_all_users(for_back=for_back)
+    users_repo = await self.__user_repo.get_all_users(for_back=for_back)
 
     if users_repo.is_error():
       return ServiceResult.service_error(
@@ -140,11 +145,12 @@ class UserService:
       service_name=msg.USER_SERVICE
     )
     
-    
-  async def service_update_user(self, user_id: UUID, update_user_data: UpdateUserData) -> ServiceResult[StringMessage]:
+ 
+  ## -------------- Logique métier pour mettre à jour les infos d'un utilisateur ------------------ ##  
+  async def service_update_user(self, user_id: UUID, user_update_data: Union[UpdateUserData, UpdateAvatarUrl]) -> ServiceResult[StringMessage]:
     """Logique métier pour mettre à jour les informations d'un utilisateur"""
 
-    new_user = await self.user_repo.update_user(user_id=user_id, user_update_data=update_user_data)
+    new_user = await self.__user_repo.update_user(user_id=user_id, user_update_data=user_update_data)
 
     if new_user.is_error():
       return ServiceResult.service_error(
@@ -155,8 +161,8 @@ class UserService:
       
     ## comme opération à réusssi il faut supprimer l'ancien dans le cache
     ## et ajouter le nouveau
-    await self.user_cache.delete_user_from_cache(user_id=user_id)
-    await self.user_cache.set_user_in_cache(
+    await self.__user_cache.delete_user_from_cache(user_id=user_id)
+    await self.__user_cache.set_user_in_cache(
       user_id=new_user.data.id,
       user=ReadUser.model_validate(new_user.data),
       ttl=CacheDurartion.USER_DURATION.value
@@ -167,3 +173,34 @@ class UserService:
       status_code=new_user.status_code,
       service_name=msg.USER_SERVICE
     )
+    
+
+  ## -------------- Logique métier pour demander une URL présignée ------------------ ##
+  def get_avatar_upload_intent(self, file_name: UploadAvatarFile) -> ServiceResult[UploadURLSchema]:
+      """
+      Logique métier pour demander une URL présignée pour uploader un nouvel avatar.
+      """
+
+      intent_id = generate_random_intent_id(16)
+      upload_url = MediaUploadStorage.get_image_upload_intent_presigned_upload_url(
+        intent_id=intent_id, 
+        filename=file_name.file_name
+      )
+      
+      if not upload_url:
+        return ServiceResult.service_error(
+          message="Erreur lors de la génération de l'URL",
+          status_code=StatusCode._500_INTERNAL_SERVER_ERROR.value,
+        )
+  
+      return ServiceResult.service_success(
+        data=UploadURLSchema(
+          intent_id=intent_id,
+          files=[FileInUploadURLSchema(
+              upload_url=upload_url,
+              method=AvailableUploadMethod.PUT,
+              file_name=file_name.file_name,
+              media_type=MediaType.IMAGE
+          )]
+        )
+      )

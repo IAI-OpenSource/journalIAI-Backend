@@ -10,4 +10,5 @@ def add_all_tasks():
     from app.worker.tasks.send_jeton_email_task import send_single_email_task
     from app.worker.tasks.story_media_process_task import process_story_upload_task
     from app.worker.tasks.daily_synchronize_story_views_task import synchronize_story_view
+    from app.worker.tasks.user_avatar_process_task import process_user_avatar_task
 

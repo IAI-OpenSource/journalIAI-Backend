@@ -4,7 +4,7 @@
 from dataclasses import dataclass
 from datetime import UTC, datetime
 import logging
-from typing import Optional
+from typing import Optional, Union
 from uuid import UUID
 
 from pydantic import EmailStr
@@ -19,7 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from app.db.models.user import User
-from app.schemas.user_schemas import CreateUser, LoginData, UpdateUserData
+from app.schemas.user_schemas import CreateUser, LoginData, UpdateAvatarUrl, UpdateUserData
 from . import CRUDResult
 from app.globals.messages import Messages as msg
 from app.globals.status_codes import StatusCode as status
@@ -232,12 +232,12 @@ class UserRepository:
     return CRUDResult.crud_success(data=users)
   
   
-  async def update_user(self, user_id: UUID, user_update_data: UpdateUserData) -> CRUDResult[User]:
+  async def update_user(self, user_id: UUID, user_update_data: Union[UpdateUserData, UpdateAvatarUrl]) -> CRUDResult[User]:
     """fonction repository pour mettre à jour quelques infos d'un user
 
     Args:
         user_id (UUID): le ID du user pour le chercher dans la bd
-        user_update_data (UpdateUserData): les nouvelles informations
+        user_update_data (Union[UpdateUserData, UpdateAvatarUrl]): les nouvelles informations
 
     Returns:
         CRUDResult[User]: retourne le nouveau user mis a jour
@@ -252,18 +252,21 @@ class UserRepository:
           message=old_user.error,
           status_code=old_user.status_code
         )
-        
-      if user_update_data.username:
-        old_user.data.username = user_update_data.username 
       
-      if user_update_data.bio:
-        old_user.data.bio = user_update_data.bio 
-      
-      if user_update_data.avatar_url:
+      if isinstance(user_update_data, UpdateAvatarUrl):
         old_user.data.avatar_url = user_update_data.avatar_url 
-      
-      if user_update_data.sexe:
-        old_user.data.sexe = user_update_data.sexe 
+      else:
+        if user_update_data.username:
+          old_user.data.username = user_update_data.username 
+        
+        if user_update_data.bio:
+          old_user.data.bio = user_update_data.bio 
+        
+        if user_update_data.avatar_url:
+          old_user.data.avatar_url = user_update_data.avatar_url 
+        
+        if user_update_data.sexe:
+          old_user.data.sexe = user_update_data.sexe 
 
       old_user.data.updated_at = datetime.now(UTC)
         

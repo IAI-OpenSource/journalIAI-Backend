@@ -75,3 +75,18 @@ class MediaReadStorage:
             media_id=media_path_in_bucket,
             token=access_token,
         )
+        
+    @classmethod
+    def generate_avatar_url(cls, avatar_path: str) -> Optional[str]:
+        """
+        Génère l'URL publique pour l'avatar à partir du chemin stocké en base de données.
+        Exemple : avatar_path = "avatars/uuid_utilisateur/medium.webp"
+        """
+        if not avatar_path:
+            return None
+            
+        return cls.__PUBLIC_ASSET_URL_TEMPLATE.format(
+            base=MINIO_PUBLIC_URL,
+            bucket_name=BucketName.USER_IDENTITY_ASSETS.value,  
+            file_path=avatar_path,
+        )
