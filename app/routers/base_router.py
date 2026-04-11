@@ -33,9 +33,6 @@ v1_api_router.include_router(router=academic_year_router)
 v1_api_router.include_router(router=classe_router)
 v1_api_router.include_router(router=user_router)
 v1_api_router.include_router(router=club_router)
-<<<<<<< HEAD
 v1_api_router.include_router(router=comment_router)
 
-=======
 v1_api_router.include_router(router=notification_router)
->>>>>>> dev
