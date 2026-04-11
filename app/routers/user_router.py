@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 from app.globals.api_tags import ApiTags
 from app.schemas.global_schemas import GlobalStringMessage, StringMessage
-from app.schemas.user_schemas import ListUserInfos, ReadUser, UpdateAvatarUrl, UpdateUserData, UserAvatarInfos, UserInfos
+from app.schemas.user_schemas import ConfirmUploadAvatarFile, ListUserInfos, ReadUser, UpdateAvatarUrl, UpdateUserData, UploadAvatarFile, UserAvatarInfos, UserInfos
 from app.services.user_service import UserService
 from app.auth.role_depends import RoleDepends
 from app.globals.status_codes import StatusCode
@@ -18,7 +18,7 @@ from app.storage.post_upload_storage import PostUploadStorage
 from app.worker.tasks.user_avatar_process_task import process_user_avatar_task
 
 
-router = APIRouter(prefix="/user", tags=[ApiTags.USER], dependencies=[Depends(RoleDepends.all_authorize)],)
+router = APIRouter(prefix="/user", tags=[ApiTags.USER],) #dependencies=[Depends(RoleDepends.all_authorize)],)
 
 
 ## dependence pour appeler le cache qu'on va injecter dans 
@@ -134,7 +134,7 @@ async def update_user_infos(
 async def get_avatar_upload_intent(
   response: Response,
   user_service: Annotated[UserService, Depends(get_user_service)],
-  file_name: Annotated[str, Body(..., description="Nom du fichier de l'avatar que l'utilisateur veux uploader.")],
+  file_name: UploadAvatarFile,
 ):
   """Route pour demander une URL présignée pour uploader un nouvel avatar. 
     L'utilisateur doit d'abord uploader l'image sur l'URL présignée, 
@@ -154,18 +154,19 @@ async def get_avatar_upload_intent(
   response_model=GlobalStringMessage
 )
 async def confirm_avatar_upload(
-  intent_id: str,
-  file_name: str,
   response: Response,
+ confirm_data: ConfirmUploadAvatarFile,
   current_user: Annotated[ReadUser, Depends(get_current_user)]
 ):
-  """
-  Route pur confirme que l'upload est fini, 
-  appeler cette route pour confirmer que l'upload est fini et on va update dans la DB
+  """Route pur confirme que l'upload est fini, 
+    appeler cette route pour confirmer que l'upload est fini et on va update dans la DB
   """
   
   # On vérifie d'abord si le fichier existe bien dans le bucket RAW minio
-  file_info =   PostUploadStorage.get_image_upload_intent_file_info(intent_id, file_name)
+  file_info =  PostUploadStorage.get_image_upload_intent_file_info(
+    intent_id=confirm_data.indent_id,
+    filename=confirm_data.file_name
+  )
   
   if not file_info:
       return GlobalStringMessage.error_response(
@@ -176,8 +177,8 @@ async def confirm_avatar_upload(
 
   process_user_avatar_task.delay(
       user_id=str(current_user.id),
-      intent_id=intent_id,
-      filename=file_name
+      intent_id=confirm_data.indent_id,
+      filename=confirm_data.file_name
   )
 
   return GlobalStringMessage.success_response( 

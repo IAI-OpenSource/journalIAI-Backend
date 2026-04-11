@@ -19,7 +19,6 @@ class BucketName(str, Enum):
     POSTS_PERMANENT_CONTENT = "posts-permanent-content"
     STORIES_EPHEMERAL_CONTENT = "stories-ephemeral-content"
     STORIES_RAW_UPLOADS = "stories-raw-uploads"
-    AVATARS = "avatars"
 
 @dataclass
 class BucketSpec:

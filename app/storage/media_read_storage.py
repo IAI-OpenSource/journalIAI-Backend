@@ -60,6 +60,6 @@ class MediaReadStorage:
             
         return cls.__PUBLIC_ASSET_TEMPLATE.format(
             base=MINIO_PUBLIC_URL,
-            bucket_name=BucketName.AVATARS.value,  
+            bucket_name=BucketName.USER_IDENTITY_ASSETS.value,  
             file_path=avatar_path,
         )

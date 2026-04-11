@@ -64,7 +64,20 @@ class UpdateAvatarUrl(BaseModel):
     """validation de l'avatar url d'un utilisateur"""
 
     avatar_url: Optional[str] = None
-  
+
+ 
+class UploadAvatarFile(BaseModel):
+    """validation du nom de fichier pour l'avatar url d'un utilisateur"""
+
+    file_name: str = Field(description="Nom du fichier de l'avatar que l'utilisateur veux uploader.")
+
+ 
+class ConfirmUploadAvatarFile(BaseModel):
+    """validation du nom de fichier pour l'avatar url d'un utilisateur"""
+
+    file_name: str = Field(description="Nom du fichier de l'avatar que l'utilisateur veux uploader.")
+    indent_id: str = Field(description="le indent id que vous avez récupérez dans la route de création de l'url paginée")
+ 
   
 class ReadUser(BaseModel):
     """Schémas de validation des infos 'un utilisateur

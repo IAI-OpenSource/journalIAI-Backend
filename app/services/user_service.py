@@ -19,7 +19,7 @@ from app.cache.helpers.base import CacheWrapper
 from app.cache.user_cache import UserCache
 from app.globals.status_codes import StatusCode
 from app.repositories.user_repository import UserRepository
-from app.schemas.user_schemas import CreateUser, ReadUser, UpdateAvatarUrl, UpdateUserData
+from app.schemas.user_schemas import CreateUser, ReadUser, UpdateAvatarUrl, UpdateUserData, UploadAvatarFile
 from app.globals.messages import Messages as msg
 from app.globals.cache_duration import CacheDurartion 
 
@@ -178,7 +178,7 @@ class UserService:
     
 
   ## -------------- Logique métier pour demander une URL présignée ------------------ ##
-  def get_avatar_upload_intent(self, file_name: str) -> ServiceResult[UploadURLSchema]:
+  def get_avatar_upload_intent(self, file_name: UploadAvatarFile) -> ServiceResult[UploadURLSchema]:
       """
       Logique métier pour demander une URL présignée pour uploader un nouvel avatar.
       """
@@ -186,7 +186,7 @@ class UserService:
       intent_id = generate_random_intent_id(16)
       upload_url = PostUploadStorage.get_image_upload_intent_presigned_upload_url(
         intent_id=intent_id, 
-        filename=file_name
+        filename=file_name.file_name
       )
       
       if not upload_url:
@@ -201,7 +201,7 @@ class UserService:
           files=[FileInUploadURLSchema(
               upload_url=upload_url,
               method=AvailableUploadMethod.PUT,
-              file_name=file_name,
+              file_name=file_name.file_name,
               media_type=MediaType.IMAGE
           )]
         )
