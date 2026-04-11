@@ -11,9 +11,7 @@ from app.db.models.enums import MediaType
 from app.schemas.global_schemas import StringMessage
 from app.schemas.post_upload_schemas import AvailableUploadMethod, FileInUploadURLSchema, UploadURLSchema
 from app.services.media_upload_service import generate_random_intent_id
-from app.storage.minio_client import MinioClientFactory
-from app.storage.minio_config import BucketName
-from app.storage.post_upload_storage import PostUploadStorage
+from app.storage.media_upload_storage import MediaUploadStorage
 from fastapi import status
 from app.cache.helpers.base import CacheWrapper
 from app.cache.user_cache import UserCache
@@ -184,7 +182,7 @@ class UserService:
       """
 
       intent_id = generate_random_intent_id(16)
-      upload_url = PostUploadStorage.get_image_upload_intent_presigned_upload_url(
+      upload_url = MediaUploadStorage.get_image_upload_intent_presigned_upload_url(
         intent_id=intent_id, 
         filename=file_name.file_name
       )

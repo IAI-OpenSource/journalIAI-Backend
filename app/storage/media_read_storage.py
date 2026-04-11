@@ -85,7 +85,7 @@ class MediaReadStorage:
         if not avatar_path:
             return None
             
-        return cls.__PUBLIC_ASSET_TEMPLATE.format(
+        return cls.__PUBLIC_ASSET_URL_TEMPLATE.format(
             base=MINIO_PUBLIC_URL,
             bucket_name=BucketName.USER_IDENTITY_ASSETS.value,  
             file_path=avatar_path,

@@ -5,7 +5,7 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 from uuid import UUID
 
@@ -106,14 +106,17 @@ class ReadUser(BaseModel):
     last_login_at: Optional[datetime] = None
     
     
-    @model_validator(mode="after")
-    def format_avatar_url(self) -> 'ReadUser':
-        """
-        Décorateur pour transformer le chemin relatif de la BD en URL complète pour le Front.
-        """
-        if self.avatar_url:
-            self.avatar_url = MediaReadStorage.generate_avatar_url(self.avatar_url)
-        return self
+    @field_validator("avatar_url")
+    @classmethod
+    def format_avatar_url(cls, v: Optional[str]) -> Optional[str]:
+        if not v:
+            return v
+        
+        if v.startswith("http"):
+            return v
+            
+        return MediaReadStorage.generate_avatar_url(v)
+    
     
     def is_deleted(self) -> bool:
         if self.deleted_at is None:

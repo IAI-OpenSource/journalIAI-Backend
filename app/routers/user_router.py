@@ -3,6 +3,7 @@ from urllib import response
 
 from fastapi.params import Body
 from app.auth.dependencies import get_current_user
+from app.auth.role_depends import RoleDepends
 from app.cache.helpers.base import CacheWrapper, get_redis
 from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,14 +12,13 @@ from app.globals.api_tags import ApiTags
 from app.schemas.global_schemas import GlobalStringMessage, StringMessage
 from app.schemas.user_schemas import ConfirmUploadAvatarFile, ListUserInfos, ReadUser, UpdateAvatarUrl, UpdateUserData, UploadAvatarFile, UserAvatarInfos, UserInfos
 from app.services.user_service import UserService
-from app.auth.role_depends import RoleDepends
 from app.globals.status_codes import StatusCode
 from app.globals.messages import Messages as msg
-from app.storage.post_upload_storage import PostUploadStorage
+from app.storage.media_upload_storage import MediaUploadStorage
 from app.worker.tasks.user_avatar_process_task import process_user_avatar_task
 
 
-router = APIRouter(prefix="/user", tags=[ApiTags.USER],) #dependencies=[Depends(RoleDepends.all_authorize)],)
+router = APIRouter(prefix="/user", tags=[ApiTags.USER], dependencies=[Depends(RoleDepends.all_authorize)],)
 
 
 ## dependence pour appeler le cache qu'on va injecter dans 
@@ -163,7 +163,7 @@ async def confirm_avatar_upload(
   """
   
   # On vérifie d'abord si le fichier existe bien dans le bucket RAW minio
-  file_info =  PostUploadStorage.get_image_upload_intent_file_info(
+  file_info =  MediaUploadStorage.get_image_upload_intent_file_info(
     intent_id=confirm_data.indent_id,
     filename=confirm_data.file_name
   )
