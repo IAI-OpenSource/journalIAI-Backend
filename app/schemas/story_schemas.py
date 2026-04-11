@@ -2,11 +2,12 @@ from datetime import datetime
 from typing import Optional, List
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from app.db.models.enums import MediaType, StoryGroupsType, UserRole, ExecutiveRoleType
 from app.schemas import ApiBaseResponse
 from app.schemas.post_upload_schemas import FileToUploadSchema
+from app.storage.media_read_storage import MediaReadStorage
 
 
 class CreateStory(BaseModel):
@@ -59,7 +60,10 @@ class StoryAuthorSchema(BaseModel):
 
     class Config:
         from_attributes = True
-
+    @field_validator("avatar_url")
+    @classmethod
+    def format_public_url(cls, v: Optional[str]) -> Optional[str]:
+        return MediaReadStorage.generate_read_public_asset(v)
 
 class StoryClubSchema(BaseModel):
     """Infos du club lié au groupe de stories (si applicable)."""
@@ -75,6 +79,10 @@ class StoryClubSchema(BaseModel):
     class Config:
         from_attributes = True
 
+    @field_validator("logo_url")
+    @classmethod
+    def format_public_url(cls, v: Optional[str]) -> Optional[str]:
+        return MediaReadStorage.generate_read_public_asset(v)
 
 class StoryClasseSchema(BaseModel):
     """Infos de la classe liée au groupe de stories (si applicable)."""
@@ -143,6 +151,11 @@ class StoryRead(BaseModel):
 
     class Config:
         from_attributes = True
+
+    @field_validator("thumbnail_url")
+    @classmethod
+    def format_public_url(cls, v: Optional[str]) -> Optional[str]:
+        return MediaReadStorage.generate_read_public_asset(v)
 
 
 class StoryGroupRead(BaseModel):

@@ -19,9 +19,6 @@ from app.storage.media_read_storage import MediaReadStorage
 
 class CreateUser(BaseModel):
   """schémas de validation de a création d'un utilisateur (Création de compte)
-
-  Args:
-      BaseModel (_type_): Hérite de base model
   """
   
   username: str = Field(description="Nom d'utilisateur")
@@ -31,12 +28,6 @@ class CreateUser(BaseModel):
   
 class LoginData(BaseModel):
     """schéma de validation des données de connexion (login)
-
-    Args:
-        BaseModel (_type_): Hérite de BaseModel
-
-    Returns:
-        _type_: Retourne rien, sert juste a la validation
     """
     
     email: EmailStr = Field(description="Email de connexion")
@@ -47,12 +38,6 @@ class LoginData(BaseModel):
 class UpdateUserData(BaseModel):
     """schéma de validation des données pour permettre à un utilisateur de mettre à jour 
         ses propres informations. NB: Seul les champs modifiable sont présents
-
-    Args:
-        BaseModel (_type_): Hérite de BaseModel
-
-    Returns: 
-        _type_: Retourne rien, sert juste a la validation
     """    
     
     username: Optional[str] = None
@@ -81,9 +66,6 @@ class ConfirmUploadAvatarFile(BaseModel):
   
 class ReadUser(BaseModel):
     """Schémas de validation des infos 'un utilisateur
-
-    Args:
-        BaseModel (_type_): Hérite de base model
     """
     
     id: UUID = Field(description="Identifiant de l'utilisateur")

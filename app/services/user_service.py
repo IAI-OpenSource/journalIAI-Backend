@@ -5,7 +5,6 @@ import logging
 from typing import Optional, Union
 from uuid import UUID
 
-from alembic.environment import Union
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.models.enums import MediaType
 from app.schemas.global_schemas import StringMessage
