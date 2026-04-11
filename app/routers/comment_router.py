@@ -7,14 +7,15 @@ from app.schemas.global_schemas import GlobalStringMessage
 from app.services.comment_service import CommentService
 from app.schemas.comment_schemas import (
     CommentCreate, CommentUpdate, CommentInfo,
-    ApiPaginatedCommentListResponse, ApiCommentListResponse
+    ApiPaginatedCommentListResponse, ApiCommentListResponse, CommentCountResponse, ReplyCountResponse
 )
 from app.db.session import get_db
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
 from typing import Any, Annotated, Optional
 
-routeur = APIRouter(prefix="/comments", tags=[ApiTags.COMMENT], dependencies=[Depends(RoleDepends.all_authorize)])
+routeur = APIRouter(prefix="/comments", tags=[ApiTags.COMMENT])
+#, dependencies=[Depends(RoleDepends.all_authorize)]
 
 
 # IMPORTANT : les routes statiques (/paginated, /) doivent être déclarées
@@ -42,6 +43,37 @@ async def get_comments_by_post(
 ) -> Any:
     """Endpoint pour récupérer tous les commentaires d'un post. PRIORISER LA REQUÊTE AVEC PAGINATION."""
     result = await comment_service.service_get_comments_by_post(post_id=post_id)
+    return result.to_HTTP_api_base_response(reponse)
+
+@routeur.get(
+    "/post/{post_id}/count",
+    name="Compter les commentaires d'un post",
+    response_model=CommentCountResponse
+)
+async def count_comments_by_post(
+    post_id: Annotated[UUID, Path(description="L'identifiant du post")],
+    reponse: Response,
+    comment_service: Annotated[CommentService, Depends(get_comment_service)]
+) -> Any:
+    """Endpoint pour compter le nombre de commentaires racines d'un post."""
+    result = await comment_service.service_count_comments_by_post(post_id=post_id)
+    return result.to_HTTP_api_base_response(reponse)
+
+
+@routeur.get(
+    "/{comment_id}/replies/count",
+    name="Compter les réponses d'un commentaire",
+    response_model=ReplyCountResponse
+)
+async def count_replies_by_comment(
+    comment_id: Annotated[UUID, Path(description="L'identifiant du commentaire parent")],
+    reponse: Response,
+    comment_service: Annotated[CommentService, Depends(get_comment_service)]
+) -> Any:
+    """Endpoint pour compter le nombre de réponses d'un commentaire."""
+    result = await comment_service.service_count_replies_by_comment(
+        parent_comment_id=comment_id
+    )
     return result.to_HTTP_api_base_response(reponse)
 
 
@@ -159,3 +191,5 @@ async def delete_comment(
     """Endpoint pour supprimer un commentaire (soft delete)."""
     result = await comment_service.service_delete_comment(comment_id=comment_id)
     return result.to_HTTP_api_base_response(reponse)
+
+

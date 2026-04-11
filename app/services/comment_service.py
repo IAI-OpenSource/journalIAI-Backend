@@ -410,3 +410,53 @@ class CommentService:
             status_code=200,
             service_name=msg.COMMENT_SERVICE
         )
+
+    async def service_count_comments_by_post(self, post_id: UUID) -> ServiceResult[int]:
+        """
+        Compte le nombre de commentaires racines (non supprimés) d'un post.
+
+        Args:
+            post_id (UUID): Identifiant du post dont on veut compter les commentaires.
+
+        Returns:
+            ServiceResult[int]: Le nombre de commentaires, ou une erreur
+                si la récupération échoue.
+        """
+        result = await self.comment_repo.count_comments_by_post(post_id=post_id)
+
+        if result.is_error():
+            logger.error(f"Erreur comptage commentaires: {result.error}")
+            return ServiceResult.service_error(
+                message=result.error,
+                status_code=result.status_code,
+                service_name=msg.COMMENT_SERVICE
+            )
+
+        logger.info(f"Nombre de commentaires du post {post_id} : {result.data}")
+        return ServiceResult.service_success(data=result.data, status_code=200)
+
+    async def service_count_replies_by_comment(self, parent_comment_id: UUID) -> ServiceResult[int]:
+        """
+        Compte le nombre de réponses (non supprimées) d'un commentaire parent.
+
+        Args:
+            parent_comment_id (UUID): Identifiant du commentaire parent.
+
+        Returns:
+            ServiceResult[int]: Le nombre de réponses, ou une erreur
+                si la récupération échoue.
+        """
+        result = await self.comment_repo.count_replies_by_comment(
+            parent_comment_id=parent_comment_id
+        )
+
+        if result.is_error():
+            logger.error(f"Erreur comptage réponses: {result.error}")
+            return ServiceResult.service_error(
+                message=result.error,
+                status_code=result.status_code,
+                service_name=msg.COMMENT_SERVICE
+            )
+
+        logger.info(f"Nombre de réponses du commentaire {parent_comment_id} : {result.data}")
+        return ServiceResult.service_success(data=result.data, status_code=200)

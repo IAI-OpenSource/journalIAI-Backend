@@ -96,3 +96,11 @@ class ApiPaginatedCommentListResponse(ApiBaseResponse):
 
 class ApiCommentListResponse(ApiBaseResponse):
     result: Optional[SimpleCommentListResponse] = None
+
+
+class CommentCountResponse(ApiBaseResponse):
+    result: Optional[int] = Field(None, description="Nombre de commentaires du post")
+    
+
+class ReplyCountResponse(ApiBaseResponse):
+    result: Optional[int] = Field(None, description="Nombre de réponses du commentaire")

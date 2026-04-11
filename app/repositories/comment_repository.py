@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 import logging
-from sqlalchemy import select, update, insert
+from sqlalchemy import select, update, insert, func
 from app.db.models.comment import Comment
 from app.repositories.repositories_utils import RepositoriesUtils
 from app.schemas.comment_schemas import CommentCreate, CommentUpdate
@@ -11,7 +11,6 @@ from . import CRUDResult
 from app.globals.messages import Messages as msg
 from dataclasses import dataclass
 from sqlalchemy.exc import IntegrityError
-
 
 logger = logging.getLogger(__name__)
 
@@ -272,5 +271,58 @@ class CommentRepository:
             return CRUDResult.crud_success(PaginatedCommentResult(comments=replies, next_cursor=next_cursor))
         except IntegrityError as ie:
             return await RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, Comment)
+        except Exception as e:
+            return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
+
+    async def count_comments_by_post(self, post_id: UUID) -> CRUDResult[int]:
+        """
+        Compte le nombre de commentaires racines (non supprimés) d'un post.
+
+        Args:
+            post_id (UUID): Identifiant du post.
+
+        Returns:
+            CRUDResult[int]: Le nombre de commentaires trouvés.
+        """
+        try:
+            stmt = (
+                select(func.count())
+                .select_from(Comment)
+                .where(Comment.post_id == post_id)
+                .where(Comment.deleted_at == None)
+                .where(Comment.parent_comment_id == None)
+            )
+            result = await self.db.execute(stmt)
+            count = result.scalar_one()
+
+            logger.info(f"Nombre de commentaires du post {post_id} : {count}")
+            return CRUDResult.crud_success(count)
+
+        except Exception as e:
+            return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
+
+    async def count_replies_by_comment(self, parent_comment_id: UUID) -> CRUDResult[int]:
+        """
+        Compte le nombre de réponses (non supprimées) d'un commentaire parent.
+
+        Args:
+            parent_comment_id (UUID): Identifiant du commentaire parent.
+
+        Returns:
+            CRUDResult[int]: Le nombre de réponses trouvées.
+        """
+        try:
+            stmt = (
+                select(func.count())
+                .select_from(Comment)
+                .where(Comment.parent_comment_id == parent_comment_id)
+                .where(Comment.deleted_at == None)
+            )
+            result = await self.db.execute(stmt)
+            count = result.scalar_one()
+
+            logger.info(f"Nombre de réponses du commentaire {parent_comment_id} : {count}")
+            return CRUDResult.crud_success(count)
+
         except Exception as e:
             return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
