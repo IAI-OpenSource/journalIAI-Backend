@@ -1,405 +1,510 @@
-# AGENTS.md – Journal IAI Backend
+# AI Agents Guide – Journal IAI Backend
 
-AI agents should read this before making code changes. This documents the architecture, patterns, and workflows specific to this SaaS backend.
+## 📋 Project Overview
 
-## 🎯 Project Context
+**Journal IAI** is a university mini-social-network SaaS backend built with **FastAPI**, **SQLAlchemy Async**, **PostgreSQL**, **Celery**, **Redis**, and **MiniIO**. The application manages students, posts, clubs, events, stories, and media with a focus on clean, modular, well-typed code.
 
-**Type:** FastAPI SaaS backend for a university social platform ("Journal IAI").  
-**Core Domain:** Students, posts, clubs, events, media, comments, moderation, and user roles.  
-**Tech Stack:** FastAPI + SQLAlchemy Async (PostgreSQL) + Pydantic + Celery + Redis + MinIO + Alembic.  
-**Python:** 3.12+ with uvloop for optimized async performance.
+**Key entities:** User, Post, Club, Event, Story, Academic Year, Classe, Notification.
 
 ---
 
-## 🏗️ Architecture & Data Flows
+## 🏗️ Architecture & Module Structure
 
-### 1. **Layered Architecture (Router → Service → Repository → Model)**
+### Core Layers
 
-The codebase follows strict separation of concerns across four layers:
-
-- **Router** (`app/routers/`): HTTP endpoints, request/response handling.
-- **Service** (`app/services/`): Business logic, orchestration, cache management.
-- **Repository** (`app/repositories/`): Database queries (DAO pattern), transaction handling.
-- **Model** (`app/db/models/`): SQLAlchemy ORM definitions.
-
-**Key Flow Example:**
 ```
-POST /v1/users/{id}
-  → base_router includes v1_api_router (app/routers/base_router.py)
-  → Route handler calls UserService.service_find_user_by_id()
-  → Service checks UserCache (Redis via CacheWrapper)
-  → If miss, calls UserRepository.get_user_by_id() (SQL query)
-  → Repository returns CRUDResult[User] (success/error wrapper)
-  → Service returns ServiceResult[ReadUser] (validated schema)
-  → Route returns JSON via ApiBaseResponse wrapper
+app/
+├── routers/           # FastAPI endpoint handlers (HTTP layer)
+├── services/          # Business logic + orchestration
+├── repositories/      # Data access layer (CRUD operations)
+├── db/
+│   ├── models/        # SQLAlchemy ORM models
+│   ├── base.py        # SQLAlchemy engine setup
+│   └── session.py     # AsyncSession factory (get_db dependency)
+├── schemas/           # Pydantic validation models
+├── cache/             # Redis caching layer
+├── storage/           # MiniIO media storage abstraction
+├── auth/              # JWT, roles, security
+├── worker/            # Celery task definitions
+└── core/              # Configuration, logging
 ```
 
-**See:** `app/routers/base_router.py` (shows router composition), `app/services/user_service.py`, `app/repositories/user_repository.py`.
+### Critical Data Flow
 
-### 2. **Result Wrappers (GlobalAppResult & Subclasses)**
-
-All operations return **typed result objects** instead of throwing exceptions (fail-fast patterns).
-
-- `CRUDResult[T]` (repositories): Wraps DB operation success/error with HTTP status codes.
-- `ServiceResult[T]` (services): Wraps business logic result with service metadata.
-- `GlobalAppResult[T]` (base class): Abstract wrapper in `app/globals/app_result.py`.
-
-**Usage Pattern:**
-```python
-result = await self.user_repo.get_user_by_id(user_id)
-if result.is_error():
-    return ServiceResult.service_error(message=result.error, status_code=result.status_code)
-return ServiceResult.service_success(result.data, status_code=result.status_code)
-```
-
-### 3. **Cache Layer (Redis + CacheWrapper)**
-
-Services use Redis for caching via `CacheWrapper` (dependency injection pattern).
-
-- **Cache Classes:** `UserCache`, `PostCache`, `ClubCache`, `SessionCache`, etc. in `app/cache/`.
-- **Cache Keys:** Generated via `CacheKeysFactory` with standardized key patterns.
-- **TTL:** Defined in `app/globals/cache_duration.py` (e.g., `CacheDurartion.USER_DURATION`).
-
-**Example Flow in UserService:**
-```python
-# Try cache first (Redis)
-user_data = await self.user_cache.get_user_from_cache(user_id, ReadUser)
-if user_data is not None:
-    return ServiceResult.service_success(user_data)
-
-# Fall back to database
-user = await self.user_repo.get_user_by_id(user_id)
-
-# Update cache with database result
-await self.user_cache.set_user_in_cache(user_id, user_read, ttl=CacheDurartion.USER_DURATION.value)
-```
-
-See: `app/cache/user_cache.py`, `app/cache/cache_utils.py`.
-
-### 4. **External Services & Dependencies**
-
-- **PostgreSQL:** Async via SQLAlchemy + asyncpg driver (`app/db/`).
-- **Redis:** Broker + cache via async-redis (`REDIS_URL` in config).
-- **MinIO:** S3-compatible object storage for media (`app/storage/` pattern expected).
-- **Celery:** Task queue (workers/celery tasks expected, not yet in routers).
-- **JWT + Cookies:** Auth via `python-jose` + argon2 for password hashing (`app/auth/`).
-
-See: `docker-compose.yml` for service orchestration, `app/core/config.py` for environment vars.
+1. **HTTP Request** → `router` (FastAPI endpoint)
+2. **Router** → creates `Service` (with injected db + cache)
+3. **Service** → calls `Repository` methods for DB queries
+4. **Repository** → executes SQLAlchemy queries, returns `CRUDResult[T]`
+5. **Service** → wraps result in `ServiceResult[T]` with status codes
+6. **Router** → converts to `ApiBaseResponse[T]` for HTTP response
 
 ---
 
-## 📋 Critical Patterns & Conventions
+## 🎯 Critical Patterns & Conventions
 
-### 1. **Model Definition & Indexes**
+### 1. Result Wrapper Pattern (Essential)
 
-Models live in `app/db/models/` and use SQLAlchemy 2.0 Mapped syntax with advanced indexing.
+All database operations must return typed result objects:
 
-**Key Patterns:**
-- `UUID` primary keys (defaults to `uuid.uuid4()`).
-- `DateTime(timezone=True)` for timestamps (server-side defaults via `func.now()`).
-- **Soft delete:** `deleted_at` column for logical deletion; queries filter `WHERE deleted_at IS NULL`.
-- **Constraints:** Named check constraints (e.g., `CHK_USERS_BIO_LENGTH`), unique constraints.
-- **Relationships:** Use `relationship()` with lazy loading strategies.
-- **Indexes:** Define in `__table_args__` with `postgresql_where` for conditional indexes on non-deleted rows.
+- **Repository layer:** Returns `CRUDResult[T]` (wraps data/error + status_code)
+- **Service layer:** Returns `ServiceResult[T]` (wraps data/error + status_code + service_name)
+- **Router layer:** Converts to `ApiBaseResponse[T]` (ok/result/error for API clients)
 
-**Example (User Model):**
 ```python
-class User(Base, IntegrityMapperMixin):
-    __tablename__ = "users"
-    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4, init=False)
-    email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
-    deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True, default=None, init=False)
+# Repository example
+async def get_user_by_id(self, user_id: UUID) -> CRUDResult[User]:
+    query = select(User).where(User.id == user_id)
+    result = await self.db.execute(query)
+    user = result.scalar_one_or_none()
+    if user is None:
+        return CRUDResult.crud_error("User not found", status_code=404)
+    return CRUDResult.crud_success(data=user, status_code=200)
+
+# Service example
+async def service_get_user(self, user_id: UUID) -> ServiceResult[ReadUser]:
+    result = await self.__user_repo.get_user_by_id(user_id)
+    if result.is_error():
+        return ServiceResult.service_error(result.error, status_code=result.status_code)
+    return ServiceResult.service_success(ReadUser.from_orm(result.data), status_code=200)
+```
+
+**Import locations:**
+- `from app.repositories import CRUDResult`
+- `from app.services import ServiceResult`
+- `from app.schemas import ApiBaseResponse`
+
+### 2. Async/Await Everywhere (for DB)
+
+All database operations must be async:
+
+```python
+# ✅ Correct
+async def get_by_id(self, db: AsyncSession, id: UUID) -> Optional[User]:
+    query = select(User).where(User.id == id)
+    result = await db.execute(query)
+    return result.scalar_one_or_none()
+
+# ❌ Wrong
+def get_by_id(self, db: AsyncSession, id: UUID):
+    ...  # Missing async/await
+```
+
+**Session injection:** Use `AsyncSession` from FastAPI dependencies (see `get_db` in `app/db/session.py`).
+
+### 3. Repository as Dataclass
+
+Repositories are lightweight dataclasses initialized with `db: AsyncSession`:
+
+```python
+from dataclasses import dataclass
+from sqlalchemy.ext.asyncio import AsyncSession
+
+@dataclass
+class PostRepository:
+    db: AsyncSession
     
-    __table_args__ = (
-        Index(IDX_USERS_EMAIL, "email", postgresql_where=(deleted_at == None)),
-        CheckConstraint("LENGTH(bio) <= 500", name=CHK_USERS_BIO_LENGTH),
-    )
+    async def insert_post(self, post_data: CreatePost) -> CRUDResult[Post]:
+        new_post = Post(**post_data.dict())
+        self.db.add(new_post)
+        try:
+            await self.db.commit()
+            await self.db.refresh(new_post)
+            return CRUDResult.crud_success(new_post, status_code=201)
+        except IntegrityError as e:
+            await self.db.rollback()
+            return CRUDResult.crud_error("Duplicate or invalid data", status_code=409)
 ```
 
-### 2. **Pydantic Schemas (Request/Response)**
+**Never instantiate directly in routers/services.** Always inject via dataclass constructor.
 
-Schemas inherit from `BaseModel` and include ORM mode for SQLAlchemy integration.
+### 4. Service with Dependency Injection
 
-**Naming Convention:**
-- `CreateXxx`: For POST/write operations (no `id`, `created_at`).
-- `ReadXxx`: For GET responses (includes all read-only fields).
-- `UpdateXxx`: For PATCH operations (optional fields).
+Services hold `__db`, `__repo`, and cache references as private attributes:
 
-**Example:**
 ```python
-class CreateUser(BaseModel):
-    last_name: str
-    email: EmailStr
-    password: str
+class UserService:
+    def __init__(self, db: AsyncSession, cache: CacheWrapper):
+        self.__db = db
+        self.__user_cache = UserCache(cache)
+        self.__user_repo = UserRepository(self.__db)
+    
+    async def service_find_user(self, user_id: UUID) -> ServiceResult[ReadUser]:
+        # Check cache first
+        cached = await self.__user_cache.get_user_from_cache(user_id)
+        if cached:
+            return ServiceResult.service_success(cached, status_code=200)
+        # Fallback to DB
+        result = await self.__user_repo.get_user_by_id(user_id)
+        ...
+```
 
-class ReadUser(BaseModel):
+**Service naming:** `service_<action>_<entity>()` (e.g., `service_create_post`, `service_get_all_users`).
+
+### 5. Router Dependency Injection & FastAPI Structure
+
+Routers use FastAPI dependencies to inject services:
+
+```python
+from fastapi import APIRouter, Depends
+from app.db.session import get_db
+from app.cache.helpers.base import get_redis
+
+router = APIRouter(
+    prefix="/user",
+    tags=[ApiTags.USER],
+    dependencies=[Depends(RoleDepends.all_authorize)]
+)
+
+def get_user_service(
+    db: AsyncSession = Depends(get_db),
+    cache: CacheWrapper = Depends(get_redis)
+) -> UserService:
+    return UserService(db, cache)
+
+@router.get("/{user_id}", response_model=ReadUser)
+async def get_user(
+    user_id: UUID,
+    user_service: UserService = Depends(get_user_service)
+):
+    result = await user_service.service_find_user(user_id)
+    return result.to_HTTP_api_base_response(Response())
+```
+
+**Key patterns:**
+- Use `Depends()` for injecting services, db, cache.
+- `response_model=` for Pydantic output validation.
+- `Depends(RoleDepends.*)` for role-based access control.
+- Always convert `ServiceResult` to `ApiBaseResponse` before returning.
+
+### 6. Pydantic Schemas with ORM Mode
+
+Define separate read/write schemas with consistent naming:
+
+```python
+class UserBase(BaseModel):
+    """Base user schema with common fields."""
+    username: str
+    bio: Optional[str] = None
+
+class CreateUser(UserBase):
+    """Schema for user creation."""
+    password: str = Field(min_length=8)
+    jeton: FindRegistration  # Registration token validation
+
+class ReadUser(UserBase):
+    """Schema for user read operations."""
     id: UUID
     email: EmailStr
     created_at: datetime
     
     class Config:
-        orm_mode = True
+        from_attributes = True  # ORM mode (Pydantic v2)
+
+class UpdateUserData(BaseModel):
+    """Schema for user updates (only modifiable fields)."""
+    username: Optional[str] = None
+    bio: Optional[str] = None
 ```
 
-See: `app/schemas/user_schemas.py`, `app/schemas/classe_schemas.py`.
+**Naming convention:**
+- `Create<Entity>`: For POST/PUT requests.
+- `Read<Entity>`: For GET responses.
+- `Update<Entity>Data`: For PATCH requests (partial updates only).
 
-### 3. **Repository Functions (CRUD Operations)**
+### 7. SQLAlchemy Models with Constraints
 
-Repositories handle **all** database access and must:
-- Use async/await syntax.
-- Return `CRUDResult[T]` (never throw SQLAlchemy exceptions to callers).
-- Catch `IntegrityError` and delegate to `RepositoriesUtils.traiter_integrity_error()`.
-- Use `select()` builder with `joinedload()` or `selectinload()` for eager loading.
-- Manage transactions explicitly (`await db.commit()` or `await db.rollback()`).
-
-**Pattern:**
-```python
-async def get_user_by_id(self, user_id: UUID) -> CRUDResult[User]:
-    try:
-        stmt = select(User).where(User.id == user_id)
-        result = await self.db.execute(stmt)
-        user = result.scalar_one_or_none()
-        if user is None:
-            return CRUDResult.crud_error(msg.USER_NOT_FOUND, status._404_STATUS_NOT_FOUND.value)
-        return CRUDResult.crud_success(user, status._200_STATUS_SUCCESS.value)
-    except IntegrityError as ie:
-        return await RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, User)
-```
-
-See: `app/repositories/user_repository.py`, `app/repositories/repositories_utils.py`.
-
-### 4. **Service Layer & Dependency Injection**
-
-Services orchestrate repositories and caches. Constructor receives `AsyncSession` and `CacheWrapper`:
+Models use declarative column names (constraint constants) for clarity:
 
 ```python
-class UserService:
-    def __init__(self, db: AsyncSession, cache: CacheWrapper):
-        self.db = db
-        self.user_cache = UserCache(cache)
-        self.user_repo = UserRepository(self.db)
+from sqlalchemy import DateTime, ForeignKey, Index, String, Boolean, func
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from app.db.base import Base
+
+FK_USERS_CLASSE = "fk_users_classe"
+IDX_USERS_CREATED_AT_ID = "idx_users_created_at_id"
+
+class User(Base):
+    __tablename__ = "users"
+    
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    username: Mapped[str] = mapped_column(String(100), unique=True)
+    email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    
+    classe_id: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey("classes.id", name=FK_USERS_CLASSE),
+        nullable=True
+    )
+    
+    __table_args__ = (
+        Index(IDX_USERS_CREATED_AT_ID, "created_at", "id"),
+    )
 ```
 
-Services use **async methods** prefixed with `service_` (e.g., `service_find_user_by_id()`). Always return `ServiceResult[T]`.
+**Best practices:**
+- Use `Mapped[Type]` for type hints (SQLAlchemy 2.0 style).
+- Define constraint names as module-level constants.
+- Use `deleted_at` for soft deletes, not hard deletes.
+- Add indexes for frequently queried columns (avoid N+1 problems).
 
-See: `app/services/user_service.py`, `app/services/registration_service.py`.
+### 8. Error Handling & IntegrityError Mixin
 
-### 5. **Enums for Type Safety**
-
-Use SQLAlchemy enums (from `app/db/models/enums.py`) for constrained values:
+Repositories catch SQLAlchemy errors (duplicates, FK violations):
 
 ```python
-class UserRole(str, Enum):
-    STUDENT = "STUDENT"
-    MODERATOR = "MODERATOR"
-    ADMIN = "ADMIN"
-
-class SexeType(str, Enum):
-    F = "F"
-    M = "M"
+try:
+    self.db.add(new_user)
+    await self.db.commit()
+    await self.db.refresh(new_user)
+    return CRUDResult.crud_success(new_user, status_code=201)
+except IntegrityError as e:
+    await self.db.rollback()
+    # IntegrityMapperMixin provides human-readable error mapping
+    error_msg = self.handle_integrity_error(e)
+    return CRUDResult.crud_error(error_msg, status_code=409)
 ```
 
-In models: `role: Mapped[UserRole] = mapped_column(SQLEnum(UserRole), default=UserRole.STUDENT)`.
+**IntegrityMapperMixin location:** `app/db/models/mixins/integrity_error_mixin.py`  
+All models should inherit from both `Base` and `IntegrityMapperMixin`.
 
-See: `app/db/models/enums.py`.
+### 9. Caching Layer (Redis)
 
-### 6. **Router Composition**
-
-Routers are organized by resource and included in `app/routers/base_router.py`:
+Cache operations are abstracted into model-specific cache classes:
 
 ```python
-v1_api_router = APIRouter(prefix="/v1")
-v1_api_router.include_router(post_video_upload_router)
-# More routers included here
+# app/cache/user_cache.py
+class UserCache:
+    def __init__(self, cache: CacheWrapper):
+        self.__cache = cache
+    
+    async def get_user_from_cache(self, user_id: UUID, model: Type[T]) -> Optional[T]:
+        """Try to get user from Redis cache."""
+        cached_json = await self.__cache.get(f"user:{user_id}")
+        if cached_json:
+            return model.model_validate_json(cached_json)
+        return None
+    
+    async def set_user_cache(self, user_id: UUID, user_data: BaseModel, ttl: int):
+        """Store user in Redis cache."""
+        await self.__cache.set(
+            f"user:{user_id}",
+            user_data.model_dump_json(),
+            ex=ttl
+        )
 ```
 
-Each router endpoint:
-- Declares `response_model` (Pydantic schema).
-- Uses `Depends(get_db)` for `AsyncSession` injection.
-- Returns `ApiBaseResponse[T]` wrapper or raw schema.
+**Cache durations:** Defined in `app/globals/cache_duration.py`.  
+**Pattern:** Check cache first → if miss, query DB → update cache → return.
 
-See: `app/routers/base_router.py`, `app/routers/post_video_upload_router.py`.
+### 10. Media Storage (MiniIO)
+
+File uploads/downloads are handled through `MediaUploadStorage` and `MediaReadStorage`:
+
+```python
+# For generating upload URLs
+upload_storage = MediaUploadStorage()
+upload_url = await upload_storage.generate_presigned_upload_url(
+    bucket="user-avatars",
+    object_key=f"{user_id}/avatar.jpg",
+    expires_seconds=3600
+)
+
+# For generating download URLs
+read_storage = MediaReadStorage()
+download_url = await read_storage.get_download_url(
+    bucket="user-avatars",
+    object_key=f"{user_id}/avatar.jpg"
+)
+```
+
+**Location:** `app/storage/media_upload_storage.py`, `app/storage/media_read_storage.py`.  
+**Celery tasks** are triggered for async media processing (see `app/worker/tasks/`).
+
+### 11. Async Tasks with Celery
+
+Long-running operations (media processing, notifications) use Celery:
+
+```python
+# app/worker/tasks/user_avatar_process_task.py
+from app.worker.celery_app import celery_app
+
+@celery_app.task(name="process_user_avatar")
+def process_user_avatar_task(user_id: str, image_path: str):
+    """Async task to process and compress user avatar."""
+    # Run intensive operations here
+    ...
+
+# Called from router/service:
+from app.worker.tasks.user_avatar_process_task import process_user_avatar_task
+
+process_user_avatar_task.delay(str(user_id), image_path)  # Async enqueue
+```
+
+**Celery config:** `app/worker/celery_app.py`  
+**Beat scheduler:** `celery_beat_schedule` defined in `celery_app` for periodic tasks.
+
+### 12. Global Constants & Messages
+
+Reusable constants are centralized:
+
+```python
+# app/globals/status_codes.py
+class StatusCode(Enum):
+    _200_STATUS_SUCCESS = 200
+    _201_CREATED = 201
+    _400_BAD_REQUEST = 400
+    _401_UNAUTHORIZED = 401
+    _403_FORBIDDEN = 403
+    _404_NOT_FOUND = 404
+    _409_CONFLICT = 409
+    _500_INTERNAL_ERROR = 500
+
+# app/globals/messages.py
+class Messages:
+    USER_NOT_FOUND = "Utilisateur non trouvé"
+    INVALID_CREDENTIALS = "Email ou mot de passe incorrect"
+    ...
+
+# app/globals/api_tags.py
+class ApiTags:
+    USER = "User"
+    POST = "Post"
+    ...
+```
+
+**Always use these instead of hardcoding strings!**
 
 ---
 
-## 🔧 Developer Workflows & Commands
+## 📂 File Organization Rules
+
+### Naming Conventions
+
+- **snake_case** for all identifiers (functions, variables, files).
+- **PascalCase** for classes.
+- **UPPER_CASE** for constants.
+- Files grouped by entity: `user_service.py`, `user_repository.py`, `user_schemas.py`, `user_router.py`.
+
+### Docstring Format (Google Style)
+
+```python
+async def create_post(db: AsyncSession, data: CreatePost) -> CRUDResult[Post]:
+    """Créé un nouveau post dans la base.
+    
+    Args:
+        db (AsyncSession): Session de base de données.
+        data (CreatePost): Données de création du post.
+    
+    Returns:
+        CRUDResult[Post]: Résultat de l'opération avec le post créé ou erreur.
+    
+    Raises:
+        IntegrityError: Si les contraintes d'intégrité sont violées.
+    """
+```
+
+### Function Characteristics
+
+- **Short & focused:** Each function does one thing.
+- **Explicit return types:** Always include `-> Type` annotation.
+- **Defensive checks:** Handle None, empty lists, invalid states early.
+- **Consistent error messages:** Use `app/globals/messages.py`.
+
+---
+
+## 🔧 Developer Workflows
 
 ### Database Migrations (Alembic)
 
-Alembic manages schema changes. Use these **Makefile targets** in Docker:
-
 ```bash
-# Generate migration (autogenerate based on model changes)
-make migrate-gen msg="Add user bio field"
+# Generate migration from model changes
+make migrate-gen msg="Add new field to users"
 
-# Apply all pending migrations
+# Apply migrations
 make migrate-up
 
 # Rollback one migration
 make migrate-down
-
-# Build and restart services
-make rebuild_docker
-make start_docker
 ```
 
-**Key Files:**
-- `alembic.ini`: Configuration.
-- `alembic/versions/`: Migration scripts.
-- `app/db/models/`: ORM models (Alembic watches these).
+**Key files:**
+- `alembic.ini`: Alembic configuration.
+- `alembic/versions/`: Migration scripts (auto-generated).
+- Models are in `app/db/models/`, Alembic watches them.
 
-### Local Development
+### Running the Server
 
 ```bash
-# Start all services (PostgreSQL, Redis, MinIO, API)
+# Docker Compose (recommended)
 make start_docker
-
-# Restart only the API (after code changes)
+make stop_docker
 make restart_api
 
-# View logs
-docker compose logs -f api
-
-# Run in development mode (if not using Docker)
+# Local (Python 3.12+)
 python -m uvicorn app.main:app --reload --port 8000
 ```
 
-### Environment Setup
+**Server start:** Uses lifespan context manager in `app/main.py` to run setup (logging, etc.).
 
-Configuration is loaded from `.env` file (see `app/core/config.py`):
+### Testing & Debugging
 
-```env
-ENVIRONMENT=LOCAL
-DATABASE_USER=postgres
-DATABASE_PASSWORD=...
-DATABASE_NAME=journal_iai
-DATABASE_HOST=db
-REDIS_URL=redis://redis:6379/0
-MINIO_ROOT_USER=minioadmin
-MINIO_ROOT_PASSWORD=...
-SECRET_KEY=...
-JWT_EXPIRES_MINUTES=30
+- **Request logging:** Middleware logs all HTTP requests (see `app/middlewares/request_logging_middleware.py`).
+- **Health check:** `GET /health` (no auth required).
+- **API docs:** `GET /docs` (Swagger UI auto-generated).
+
+### Celery Tasks
+
+```bash
+# Start worker
+celery -A app.worker.celery_app worker --loglevel=info
+
+# Start Celery Beat (scheduler)
+celery -A app.worker.celery_app beat --loglevel=info
 ```
 
 ---
 
-## 🚨 Common Integration Points & Edge Cases
+## ⚠️ Common Pitfalls & Patterns to Avoid
 
-### 1. **IntegrityError Handling**
-
-When a unique constraint or foreign key fails, catch `IntegrityError` and use:
-
-```python
-from app.repositories.repositories_utils import RepositoriesUtils
-
-try:
-    # ... db operation ...
-except IntegrityError as ie:
-    return await RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, User)
-```
-
-This utility extracts the constraint name from PostgreSQL error and returns a human-readable message.
-
-### 2. **Soft Delete Logic**
-
-Never hard-delete. Instead, set `deleted_at`:
-
-```python
-user.deleted_at = func.now()
-await db.commit()
-```
-
-Always filter queries: `where(Model.deleted_at == None)`. Indexes use `postgresql_where=(deleted_at == None)`.
-
-### 3. **Async Session Management**
-
-Sessions are provided via dependency:
-
-```python
-@router.get("/users/{user_id}")
-async def get_user(user_id: UUID, db: AsyncSession = Depends(get_db)):
-    user = await UserService(db, cache).service_find_user_by_id(user_id)
-    return user
-```
-
-**Never** manage sessions manually in routes; use `get_db` from `app/db/session.py`.
-
-### 4. **Cache Invalidation**
-
-After mutations (create/update/delete), explicitly invalidate related caches:
-
-```python
-# After creating a post:
-await self.post_cache.invalidate_user_posts_cache(user_id)
-await self.user_cache.invalidate_user_stats_cache(user_id)
-```
-
-### 5. **Relationship Loading**
-
-Use `joinedload()` or `selectinload()` to avoid N+1 queries:
-
-```python
-stmt = select(Post).options(
-    joinedload(Post.author),
-    selectinload(Post.media)
-)
-```
+| ❌ Wrong | ✅ Correct | Reason |
+|---------|-----------|--------|
+| `def get_user():` (no async) | `async def get_user():` | DB ops must be async |
+| Hardcoded status codes | Use `StatusCode` enum | Centralized, testable |
+| Returning raw SQLAlchemy models | Wrap in `CRUDResult` | Consistent error handling |
+| Services calling services directly | Use repositories → services | Clear separation of concerns |
+| Importing from wrong modules | Follow layer structure (repos don't import services) | Prevents circular imports |
+| Forgetting `await` on queries | Always `await db.execute(query)` | Ensures async execution |
+| No cache check before DB query | Check cache → DB → update cache | Reduces DB load |
+| Hardcoded Pydantic `orm_mode=True` | Use `from_attributes=True` (Pydantic v2) | Modern Pydantic syntax |
+| Creating Service outside dependency | Use `Depends(get_service)` | FastAPI manages lifecycle |
 
 ---
 
-## 📁 File Structure Quick Reference
+## 🚀 Getting Started as an AI Agent
 
-```
-app/
-├── auth/                    # JWT, cookies, auth dependencies
-├── cache/                   # Redis caching layer (UserCache, PostCache, etc.)
-├── core/                    # Config, logging setup
-├── db/
-│   ├── models/             # SQLAlchemy ORM models (User, Post, Club, etc.)
-│   ├── session.py          # AsyncSessionLocal, get_db()
-│   └── base.py             # SQLAlchemy Base class, engine setup
-├── globals/                # Constants (status_codes.py, messages.py, cache_duration.py)
-├── middlewares/            # Request logging, CORS
-├── repositories/           # DAO layer (UserRepository, PostRepository, etc.)
-├── routers/                # FastAPI routers (base_router.py orchestrates)
-├── schemas/                # Pydantic request/response models
-├── services/               # Business logic (UserService, PostService, etc.)
-├── storage/                # MinIO/S3 integration (expected structure)
-├── utils/                  # Shared utilities
-└── main.py                 # FastAPI app, lifespan setup
-
-alembic/
-├── versions/               # Migration scripts (auto-generated)
-└── env.py                  # Alembic configuration
-```
+1. **Understand the flow:** Pick an existing feature (e.g., user creation) and trace it: router → service → repository → model.
+2. **Find patterns:** Look at `UserRepository`, `UserService`, `user_router.py` as templates.
+3. **Replicate structure:** New entity? Copy patterns from User to maintain consistency.
+4. **Use type hints:** Every function must have input and output types.
+5. **Reference messages/status codes:** Always use `app/globals/` constants, never hardcode.
+6. **Test locally:** Run `make start_docker` and hit `/docs` to verify endpoints.
+7. **Check migrations:** After model changes, run `make migrate-gen`.
 
 ---
 
-## 🎯 Coding Standards Specific to This Project
+## 📚 Key Files to Reference
 
-1. **Naming Convention:** `snake_case` for functions/variables, `PascalCase` for classes.
-2. **Type Hints:** Always use `-> ReturnType` on functions; use `Optional[T]` for nullable fields.
-3. **Docstrings:** Google Style (brief one-liner, then Args/Returns/Raises).
-4. **Async First:** All DB operations must use `async/await`.
-5. **Error Handling:** Return `*Result[T]` wrappers, never raise exceptions across layers.
-6. **No Hardcoded Values:** Use `app/globals/` (status codes, messages, cache durations).
-7. **Database Soft Delete:** Always check `deleted_at` in queries.
-8. **Cache Management:** Centralize cache logic in `app/cache/` classes; invalidate on mutations.
-
----
-
-## 🔗 Key Files to Review First
-
-- `app/main.py` — Entry point, lifespan setup, middleware registration.
-- `app/db/models/user.py` — Reference model with indexes, constraints, soft delete.
-- `app/repositories/user_repository.py` — Reference repository with error handling.
-- `app/services/user_service.py` — Reference service with cache + DB coordination.
-- `app/routers/base_router.py` — Router composition pattern.
-- `app/globals/app_result.py` — Result wrapper pattern.
-- `.github/copilot-instructions.md` — Original AI instructions (supplement to this file).
+- **Architecture:** `app/main.py` (FastAPI setup), `app/routers/base_router.py` (router composition)
+- **Result types:** `app/repositories/__init__.py`, `app/services/__init__.py`
+- **DB setup:** `app/db/base.py`, `app/db/session.py`
+- **Example implementations:** `app/services/user_service.py`, `app/routers/user_router.py`
+- **Global constants:** `app/globals/` (messages, status codes, cache durations, tags)
+- **Celery:** `app/worker/celery_app.py`, `app/worker/tasks/`
+- **Auth:** `app/auth/role_depends.py` for role-based access control
 
 ---
 
-**Last Updated:** March 2026  
-**For Questions:** Review existing patterns in named files or `docker-compose.yml` for deployment context.
+**Last updated:** 2026-04-15  
+**Stack:** Python 3.12+, FastAPI, SQLAlchemy Async, PostgreSQL, Redis, Celery, MiniIO
 
