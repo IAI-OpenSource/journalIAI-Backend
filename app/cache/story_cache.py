@@ -18,7 +18,7 @@ def _seen_stories_key(user_id: UUID) -> CacheKey:
     return CacheKeysFactory.get_cache_key(AvailableCacheKeys.USER_DAILY_STORY_SEEN).set_arguments(id=str(user_id))
 
 def _daily_seen_stories_key() -> CacheKey:
-    return CacheKeysFactory.get_cache_key(AvailableCacheKeys.USERS_HAS_SEENN_STORY_ON_A_DAY).set_arguments()
+    return CacheKeysFactory.get_cache_key(AvailableCacheKeys.USERS_HAS_SEEN_STORY_ON_A_DAY).set_arguments()
 
 class StoryCache:
     """Classe pour toutes les opérations de cache liées aux uploads de fichiers pour les stories."""

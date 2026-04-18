@@ -42,8 +42,9 @@ class Messages:
     DELETE_FAILED = "Erreur lors de la suppression"
     LOGIN_NOT_FOUND = "Utilisateur ou Mot de passe incorrect"
     USER_UPDATED = "Utilisateur mis à jour avec succès"
-
+    USER_CANNOT_INTERACT_WITH_POST = "Vous n'avez pas les droits pour interagir avec ce post"
     EVENT_SERVICE = "Service Events"
+    LIKE_SERVICE = "Like Service"
     EVENT_NOT_FOUND = "Event non trouvé."
     DELETED_EVENT = "Event est supprimé"
     EVENTS_NOT_FOUND = "Aucun event trouver" #Si il y a aucun event en cours 

@@ -1,3 +1,4 @@
+from typing import Optional
 from typing import Annotated
 from uuid import UUID
 
@@ -148,7 +149,7 @@ async def get_feed(
     response: Response,
     current_user: Annotated[ReadUser, Depends(get_current_user)],
     post_service: Annotated[PostService, Depends(get_post_service)],
-    cursor: Annotated[str, Query(description="Le dernir curseur renvoyé")] = None,
+    cursor: Annotated[Optional[str], Query(description="Le dernir curseur renvoyé")] = None,
     limit: Annotated[int, Query(description="Le nombre de post sue vous voulez (entre 0-20 max)", gt=0, le=20)] = 10,
 ):
 
@@ -196,7 +197,7 @@ async def record_view(
     post_service: Annotated[PostService, Depends(get_post_service)],
 ):
     """Enregistre la vue d'un post. Opération idempotente —
-    une deuxième vue du même utilisateur est ignorée silencieusement.
+    une deuxième vue ou un du même utilisateur est ignorée silencieusement.
     """
     await post_service.service_record_view(
         post_ids=data.posts_ids,
