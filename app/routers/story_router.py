@@ -153,3 +153,4 @@ async def record_story_view(
         user_id=current_user.id,
     )
     response.status_code = 200
+

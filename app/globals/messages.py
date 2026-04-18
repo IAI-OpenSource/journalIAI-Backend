@@ -13,6 +13,8 @@ class Messages:
     USER_NOT_FOUND = "Utilisateur non trouvé."
     USER_NOT_IN_CLUB = "L'utilisateur n'est pas membre du club."
     USER_CANNOT_POST_IN_CLASSE = "Vous n'avez pas les droits pour poster dans cette classe"
+    USER_CANNOT_POST = "Vous n'avez pas les droits pour poster"
+    USER_CANNOT_MODIFY_STORY = "Vous n'avez pas les droits pour modifier cette story."
     USER_CANNOT_POST_IN_CLUB = "Vous n'avez pas les droits pour poster dans ce club"
     ACTIVE_ACADEMIC_YEAR_NOT_FOUND = "Impossible de trouver l'année académique active, vérifier si une année académique ctive existe"
     CLUB_NOT_FOUND = "Club non trouvé."
@@ -55,6 +57,7 @@ class Messages:
     EVENT_ALREADY_EXISTS = 'Evenement deja existant'
     MEDIA_NOT_FOUND = "Media non trouvé."
     POST_NOT_FOUND = "Post non trouvé."
+    STORY_GROUP_NOT_FOUND = "Groupe de story non trouvé"
 
 
     ERROR_UPLOAD_URL_GENERATION = "Erreur Inconnue lors de la génération des URL d'upload"
@@ -90,7 +93,7 @@ class Messages:
     CACHE_USER_NOT_FOUND = "Utilisateur non Touvé dans le cache"
     CACHE_SESSION_NOT_FOUND = "Session non trouvé dans le cache"
     
-    
+
     ## Message envoi de mail
     MAIL_SERVICE = "Service email"
     MAIL_ERROR = "Erreur de Connection pour l'envoi du mail"

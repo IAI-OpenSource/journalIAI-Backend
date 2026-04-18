@@ -20,6 +20,7 @@ from app.db.models.story_views import StoryViews
 from app.db.models.user import User
 from app.db.models.club import Club
 from app.db.models.classe import Classe
+from app.globals.messages import Messages
 from app.repositories import CRUDResult
 from app.utils.pagination_cursor_utils import PaginationCursorUtils
 
@@ -253,6 +254,34 @@ class StoryRepository:
             return await RepositoriesUtils.traiter_errors_en_global(
                 e, self.db, logger, StoryGroupsType
             )
+
+    async def get_story_group_by_id(self, group_id: UUID) -> CRUDResult[StoryGroups]:
+        try:
+            requete = self._get_story_groups_base_query().where(
+                StoryGroups.id == group_id
+            )
+
+            result = await self.db.execute(requete)
+
+            # .unique() est obligatoire dès qu'on utilise joinedload
+            group: Optional[StoryGroups] = result.unique().scalar_one_or_none()
+
+            if group is None:
+                return CRUDResult.crud_error(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    message=Messages.STORY_GROUP_NOT_FOUND
+                )
+            return CRUDResult.crud_success(group, status_code=status.HTTP_200_OK)
+        except Exception as e:
+            return await RepositoriesUtils.traiter_errors_en_global(
+                e, self.db, logger, StoryGroupsType
+            )
+
+
+
+
+
+
 
     async def get_active_story_group(self, user_id: UUID, infos: CreateStoryUploadIntentFullData) -> Optional[StoryGroups]:
         """

@@ -279,11 +279,11 @@ class StoryMediaUploadsService:
         Returns:
             ServiceResult indiquant si la création est autorisée
         """
-        club_member_svc = ClubMemberService(self._raw_bd, self._raw_cache)
 
         # Vérifier les permissions du club
         if data.club_id:
-            data.target_classe_id = None
+
+            club_member_svc = ClubMemberService(self._raw_bd, self._raw_cache)
 
             res = await club_member_svc.service_check_membership(data.club_id, user_obj.id)
             if res.is_error():
@@ -299,21 +299,29 @@ class StoryMediaUploadsService:
                     status_code=status.HTTP_403_FORBIDDEN,
                 )
 
+            data.target_classe_id = None
             data.target_group_type = StoryGroupsType.CLUB_GROUP
 
         # Vérifier les permissions de classe
         elif data.only_for_a_class:
-            data.club_id = None
 
             if user_obj.role != UserRole.DELEGATE or not user_obj.classe:
                 return ServiceResult.service_error(
                     message=Messages.USER_CANNOT_POST_IN_CLASSE,
                     status_code=status.HTTP_403_FORBIDDEN,
                 )
+
+            data.club_id = None
             data.target_classe_id = user_obj.classe.id
             data.target_group_type = StoryGroupsType.CLASSE_GROUP
 
         else:
+            if not user_obj.can_post:
+                return ServiceResult.service_error(
+                    message=Messages.USER_CANNOT_POST,
+                    status_code=status.HTTP_403_FORBIDDEN,
+                )
+
             data.target_group_type = StoryGroupsType.USER_GROUP
 
         return ServiceResult.service_success(data="ok", status_code=status.HTTP_200_OK)
