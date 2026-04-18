@@ -11,17 +11,18 @@ from sqlalchemy import insert, select, update, func, Select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload, joinedload, with_loader_criteria
-from fastapi import  status
+from fastapi import status
 from app.db.models.post import Post
 from app.db.models.post_media import PostMedia
 from app.db.models.post_views import PostViews
 from app.repositories import CRUDResult
-from app.schemas.post_schemas import CreatePost, UpdatePost, CreatePostFullData
+from app.schemas.post_schemas import CreatePost, UpdatePost, CreatePostFullData, BdFeedOutDto
 from app.globals.messages import Messages
 from .repositories_utils import RepositoriesUtils
 from ..db.models.classe import Classe
 from ..db.models.club import Club
 from ..db.models.event import Event
+from ..db.models.like import Like
 from ..db.models.user import User
 from ..utils.pagination_cursor_utils import PaginationCursorUtils
 
@@ -29,6 +30,7 @@ logger = logging.getLogger(__name__)
 
 # Nombre de posts par défaut retournés par page dans le feed
 DEFAULT_PAGE_SIZE = 10
+
 
 @dataclass
 class PostRepository:
@@ -56,40 +58,36 @@ class PostRepository:
                 with_loader_criteria(PostMedia, PostMedia.deleted_at.is_(None))
             )
 
-        return (
-            select(Post)
-            .options(
-                joinedload(Post.author).load_only(
-                    User.id,
-                    User.username,
-                    User.first_name,
-                    User.last_name,
-                    User.avatar_url,
-                    User.role,
-                    User.executive_role
-                ),
-
-                joinedload(Post.club).load_only(
-                    Club.id,
-                    Club.name,
-                    Club.slug,
-                    Club.logo_url,
-                ),
-                joinedload(Post.event).load_only(
-                    Event.id,
-                    Event.title,
-                    Event.slug,
-                    Event.start_date,
-                    Event.end_date,
-                    Event.status,
-                ),
-                joinedload(Post.classe).load_only(
-                    Classe.id,
-                    Classe.classe_prefix,
-                    Classe.classe_suffix,
-                ),
-                *media_options,
-            )
+        return select(Post).options(
+            joinedload(Post.author).load_only(
+                User.id,
+                User.username,
+                User.first_name,
+                User.last_name,
+                User.avatar_url,
+                User.role,
+                User.executive_role,
+            ),
+            joinedload(Post.club).load_only(
+                Club.id,
+                Club.name,
+                Club.slug,
+                Club.logo_url,
+            ),
+            joinedload(Post.event).load_only(
+                Event.id,
+                Event.title,
+                Event.slug,
+                Event.start_date,
+                Event.end_date,
+                Event.status,
+            ),
+            joinedload(Post.classe).load_only(
+                Classe.id,
+                Classe.classe_prefix,
+                Classe.classe_suffix,
+            ),
+            *media_options,
         )
 
     async def insert_text_post(
@@ -128,10 +126,14 @@ class PostRepository:
             return CRUDResult.crud_success(post, status.HTTP_201_CREATED)
 
         except IntegrityError as ie:
-            return await RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, Post)
+            return await RepositoriesUtils.traiter_integrity_error(
+                ie, self.db, logger, Post
+            )
 
         except Exception as e:
-            return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
+            return await RepositoriesUtils.traiter_exception_inconnue(
+                e, self.db, logger
+            )
 
     async def save_many_post_media(
         self, post_medias: List[PostMedia], in_transaction: bool
@@ -151,12 +153,14 @@ class PostRepository:
             await self.db.flush()
 
             if in_transaction:
-                logger.warning("Medias de post insert mais pas commit en Base, MODE TRANSACTION")
+                logger.warning(
+                    "Medias de post insert mais pas commit en Base, MODE TRANSACTION"
+                )
             else:
                 await self.db.commit()
                 logger.info("Commit: Medias de post sauvegarder définitivement en Base")
 
-            return CRUDResult.crud_success('ok', status_code=status.HTTP_201_CREATED)
+            return CRUDResult.crud_success("ok", status_code=status.HTTP_201_CREATED)
         except Exception as err:
             return await RepositoriesUtils.traiter_errors_en_global(
                 exception=err, session=self.db, logger=logger, model_bd=PostMedia
@@ -190,10 +194,12 @@ class PostRepository:
                 await self.db.commit()
                 logger.info("Commit: Post sauvegarder définitivement en Base")
 
-            return CRUDResult.crud_success(post_object, status_code=status.HTTP_201_CREATED)
+            return CRUDResult.crud_success(
+                post_object, status_code=status.HTTP_201_CREATED
+            )
         except Exception as err:
             return await RepositoriesUtils.traiter_errors_en_global(
-                exception=err, session=self.db,logger=logger, model_bd=Post
+                exception=err, session=self.db, logger=logger, model_bd=Post
             )
 
     async def get_post_by_id(self, post_id: UUID) -> CRUDResult[Post]:
@@ -207,12 +213,10 @@ class PostRepository:
         """
         try:
             requete = self._get_posts_base_query()
-            requete = requete.where(
-                Post.id == post_id, Post.is_published == True
-            )
+            requete = requete.where(Post.id == post_id, Post.is_published == True)
 
             result = await self.db.execute(requete)
-            post = result.scalar_one_or_none()
+            post: Post | None = result.scalar_one_or_none()
 
             if post is None:
                 logger.info("Post non trouvé id=%s", post_id)
@@ -220,68 +224,129 @@ class PostRepository:
                     Messages.POST_NOT_FOUND,
                     status_code=status.HTTP_400_BAD_REQUEST,
                 )
-            
 
             logger.info("Post récupéré avec succès ! id=%s", post_id)
             return CRUDResult.crud_success(post, status.HTTP_200_OK)
 
         except Exception as e:
-            return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
+            return await RepositoriesUtils.traiter_exception_inconnue(
+                e, self.db, logger
+            )
+
+    async def verify_post_is_like_by_user(
+        self, post_id: UUID, user_id: UUID
+    ) -> CRUDResult[bool]:
+        """Vérifie si un post est liké par un utilisateur donné.
+
+        Args:
+            post_id (UUID): ID du post.
+            user_id (UUID): ID de l'utilisateur.
+
+        Returns:
+            CRUDResult[bool]: True si le post est liké par l'utilisateur, False sinon, ou une erreur en cas de problème.
+        """
+        try:
+            stmt = select(Like.post_id).where(
+                Like.post_id == post_id,
+                Like.user_id == user_id,
+            )
+            result = await self.db.execute(stmt)
+            is_liked = result.scalar_one_or_none() is not None
+            return CRUDResult.crud_success(is_liked, status.HTTP_200_OK)
+
+        except Exception as e:
+            return await RepositoriesUtils.traiter_exception_inconnue(
+                e, self.db, logger
+            )
+
+    async def get_basic_info_on_post(self, post_id: UUID) -> CRUDResult[Post]:
+        """
+        Recupère les informations de base d'un post (id, content, author_id, created_at) pour un post_id donné.
+         Utile pour les cas où on veut juste vérifier l'existence d'un post ou récupérer des infos basiques sans charger les relations
+        Args:
+            post_id: Id du post
+        Returns:
+            CRUDResult[Post]: Le post trouvé ou une erreur 404.
+        """
+        try:
+            requete = select(Post).where(Post.id == post_id, Post.deleted_at == None)
+
+            result = await self.db.execute(requete)
+            post: Post | None = result.scalar_one_or_none()
+
+            if post is None:
+                logger.info("Post non trouvé id=%s", post_id)
+                return CRUDResult.crud_error(
+                    Messages.POST_NOT_FOUND,
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                )
+
+            logger.info("Post récupéré avec succès ! id=%s", post_id)
+            return CRUDResult.crud_success(post, status.HTTP_200_OK)
+
+        except Exception as e:
+            return await RepositoriesUtils.traiter_exception_inconnue(
+                e, self.db, logger
+            )
 
     async def get_feed(
         self,
         academic_year_id: UUID,
         seen_post_ids: list[UUID],
         user_id: Optional[UUID],
+        must_exclude_viewed: bool,
         classe_id: Optional[UUID] = None,
         cursor: Optional[str] = None,
         page_size: int = DEFAULT_PAGE_SIZE,
-    ) -> CRUDResult[dict]:
+    ) -> CRUDResult[BdFeedOutDto]:
         """Récupère un feed de posts paginé par curseur
         Args:
             user_id: Id de l'utilisateur
             seen_post_ids: Posts vu récupérés via Redis (pas encore dans bd)
+            must_exclude_viewed: Si True, exclut les posts déjà vus
+            s'ils ont été vus (utile pour le debug ou une feature de "revoir les posts déjà vus").
             academic_year_id (UUID): Filtre sur l'année académique.
             cursor (Optional[str]): Curseur opaque de la page précédente.
             page_size (int): Nombre de posts par page.
             classe_id (UUID): La classe à laquelle appartient l'utilisateur (filtrage des posts ciblés classe_id ou non ciblés).
 
         Returns:
-            CRUDResult[dict]: Feed paginé ou une erreur.
+            CRUDResult[BdFeedOutDto] : Feed paginé ou une erreur.
         """
         try:
             requete = self._get_posts_base_query()
-            requete = requete.where(
+            requete = (
+                requete.where(
                     Post.academic_year_id == academic_year_id,
                     Post.deleted_at.is_(None),
                     Post.is_published.is_(True),
-                ).outerjoin(
-                    PostViews,
-                    (PostViews.post_id == Post.id) & (PostViews.user_id == user_id)
-                ).where(
-                    PostViews.post_id.is_(None)
-                ).order_by(
-                Post.created_at.desc(), Post.id.desc()
-            ).limit(page_size + 1)  # +1 pour détecter has_more
+                )
+                .order_by(Post.created_at.desc(), Post.id.desc())
+                .limit(page_size + 1)
+            )  # +1 pour détecter has_more
 
             # Limiter les posts aux posts ciblant la classe de l'utilisateur ou sans cible de classe
             if classe_id:
-                requete = requete.where(
-                    Post.target_classe_id.in_([None, classe_id])
+                requete = requete.where(Post.target_classe_id.in_([None, classe_id]))
+
+            if must_exclude_viewed:
+                requete = requete.outerjoin(
+                    PostViews,
+                    (PostViews.post_id == Post.id) & (PostViews.user_id == user_id),
+                ).where(
+                    PostViews.post_id.is_(None)
                 )
-            
-            if seen_post_ids:
-                ids_to_exclude = seen_post_ids[:50]
-                requete = requete.where(Post.id.not_in(ids_to_exclude))
+                if seen_post_ids:
+                    ids_to_exclude = seen_post_ids[:50]
+                    requete = requete.where(Post.id.not_in(ids_to_exclude))
 
             if cursor:
-                cursor_id, cursor_created_at = PaginationCursorUtils.decode_pagination_cursor(cursor)
+                cursor_id, cursor_created_at = (
+                    PaginationCursorUtils.decode_pagination_cursor(cursor)
+                )
                 requete = requete.where(
                     (Post.created_at < cursor_created_at)
-                    | (
-                        (Post.created_at == cursor_created_at)
-                        & (Post.id < cursor_id)
-                    )
+                    | ((Post.created_at == cursor_created_at) & (Post.id < cursor_id))
                 )
 
             result = await self.db.execute(requete)
@@ -296,22 +361,46 @@ class PostRepository:
             next_cursor = None
             if has_more and items:
                 last = items[-1]
-                next_cursor = PaginationCursorUtils.encode_pagination_cursor(last.id, last.created_at)
+                next_cursor = PaginationCursorUtils.encode_pagination_cursor(
+                    last.id, last.created_at
+                )
 
-            logger.info(
-                "Feed récupéré : %d posts, has_more=%s", len(items), has_more
-            )
+
+            liked_in_feed: set[UUID] = set()
+            # Récupération de ceux likés dans le feed actuel
+            if items:
+                logger.info("Récupération des likes pour les posts du feed, user_id=%s", user_id)
+
+                post_ids = [post.id for post in items]
+
+                likes_query = select(Like.post_id).where(
+                    Like.post_id.in_(post_ids),
+                    Like.user_id == user_id,
+                )
+
+                likes_result = await self.db.execute(likes_query)
+                liked_in_feed = set(likes_result.scalars().all())
+
+                logger.info("Posts likés récupérés : %d", len(liked_in_feed))
+
+            logger.info("Feed récupéré : %d posts, has_more=%s", len(items), has_more)
             return CRUDResult.crud_success(
-                {"items": items, "next_cursor": next_cursor, "has_more": has_more},
+                BdFeedOutDto(
+                    items=items, next_cursor=next_cursor, has_more=has_more, liked_in_feed=liked_in_feed
+                ),
                 status.HTTP_200_OK,
             )
 
         except ValueError as ve:
             # Curseur malformé
-            return CRUDResult.crud_error(str(ve), status_code=status.HTTP_400_BAD_REQUEST)
+            return CRUDResult.crud_error(
+                str(ve), status_code=status.HTTP_400_BAD_REQUEST
+            )
 
         except Exception as e:
-            return await RepositoriesUtils.traiter_errors_en_global(e, self.db, logger, Post)
+            return await RepositoriesUtils.traiter_errors_en_global(
+                e, self.db, logger, Post
+            )
 
     async def update_post(
         self, post_id: UUID, author_id: UUID, update_data: UpdatePost
@@ -362,10 +451,14 @@ class PostRepository:
             return CRUDResult.crud_success(post, status.HTTP_200_OK)
 
         except IntegrityError as ie:
-            return await RepositoriesUtils.traiter_integrity_error(ie, self.db, logger, Post)
+            return await RepositoriesUtils.traiter_integrity_error(
+                ie, self.db, logger, Post
+            )
 
         except Exception as e:
-            return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
+            return await RepositoriesUtils.traiter_exception_inconnue(
+                e, self.db, logger
+            )
 
     async def soft_delete_post(
         self, post_id: UUID, author_id: UUID
@@ -406,30 +499,75 @@ class PostRepository:
             return CRUDResult.crud_success(None, status.HTTP_200_OK)
 
         except Exception as e:
-            return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
+            return await RepositoriesUtils.traiter_exception_inconnue(
+                e, self.db, logger
+            )
 
     async def count_new_posts_since(
-            self,
-            academic_year_id: UUID,
-            since: datetime,
-        ) -> CRUDResult[int]:
-            """Compte les posts créés depuis un timestamp (polling badge 60s).
-    
-            Requête ultra-légère COUNT(*) utilisant l'index created_at.
-            Temps de réponse cible < 10ms (spec §7.3 Performance).
-            """
-            try:
-                stmt = (
-                    select(func.count(Post.id))
-                    .where(
-                        Post.academic_year_id == academic_year_id,
-                        Post.deleted_at.is_(None),
-                        Post.is_published.is_(True),
-                        Post.created_at > since,
-                    )
-                )
-                result = await self.db.execute(stmt)
-                count = result.scalar_one()
-                return CRUDResult.crud_success(count, status.HTTP_200_OK)
-            except Exception as e:
-                return await RepositoriesUtils.traiter_exception_inconnue(e, self.db, logger)
+        self,
+        academic_year_id: UUID,
+        since: datetime,
+    ) -> CRUDResult[int]:
+        """Compte les posts créés depuis un timestamp (polling badge 60s).
+
+        Requête ultra-légère COUNT(*) utilisant l'index created_at.
+        Temps de réponse cible < 10ms (spec §7.3 Performance).
+        """
+        try:
+            stmt = select(func.count(Post.id)).where(
+                Post.academic_year_id == academic_year_id,
+                Post.deleted_at.is_(None),
+                Post.is_published.is_(True),
+                Post.created_at > since,
+            )
+            result = await self.db.execute(stmt)
+            count = result.scalar_one()
+            return CRUDResult.crud_success(count, status.HTTP_200_OK)
+        except Exception as e:
+            return await RepositoriesUtils.traiter_exception_inconnue(
+                e, self.db, logger
+            )
+    @classmethod
+    async def increment_post_like_count(cls, post_id: UUID, bd_session: AsyncSession) -> CRUDResult[str]:
+        """
+        Incrémente le compteur de likes d'un post
+        Args:
+            post_id: Id du post
+            bd_session: La session de base de données à utiliser pour l'opération
+
+
+        Returns:
+            CRUDResult[str]: pffff
+        """
+
+        try:
+            query = update(Post).where(Post.id == post_id).values(
+                like_count=Post.like_count + 1
+            )
+            await bd_session.execute(query)
+            await bd_session.commit()
+            return CRUDResult.crud_success("Compteur de likes incrémenté avec succès")
+        except Exception as e:
+            return await RepositoriesUtils.traiter_errors_en_global(e, bd_session, logger, Post)
+
+    @classmethod
+    async def decrement_post_like_count(cls, post_id: UUID, bd_session: AsyncSession) -> CRUDResult[str]:
+        """
+        Décrémente le compteur de likes d'un post
+        Args:
+            post_id: Id du post
+            bd_session: La session de base de données à utiliser pour l'opération
+
+        Returns:
+            CRUDResult[str]: pffff
+        """
+
+        try:
+            query = update(Post).where(Post.id == post_id, Post.like_count > 0).values(
+                like_count=Post.like_count - 1
+            )
+            await bd_session.execute(query)
+            await bd_session.commit()
+            return CRUDResult.crud_success("Compteur de likes décrémenté avec succès")
+        except Exception as e:
+            return await RepositoriesUtils.traiter_errors_en_global(e, bd_session, logger, Post)

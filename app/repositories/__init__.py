@@ -1,6 +1,7 @@
-from typing import TypeVar, Optional
+from typing import TypeVar, Optional, Any
 
 from app.globals.app_result import GlobalAppResult
+from app.services import ServiceResult
 
 T = TypeVar("T")
 
@@ -38,3 +39,14 @@ class CRUDResult(GlobalAppResult[T]):
     def crud_error(cls, message: str, status_code: int = 500) -> "CRUDResult[T]":
         """Crée une réponse d'erreur avec le message fourni."""
         return cls(error=message, status_code=status_code)
+
+    def to_service_error(self, service_name: str = "Service Inconnu") -> ServiceResult[Any]:
+        """Convertit ce CRUDResult en un ServiceResult d'erreur, en conservant le message et le status code."""
+        if self._error:
+            return ServiceResult.service_error(
+                message=self._error,
+                status_code=self.status_code,
+                service_name=service_name
+            )
+
+        raise ValueError("Impossible de convertir en ServiceResult d'erreur : ce CRUDResult ne contient pas d'erreur.")

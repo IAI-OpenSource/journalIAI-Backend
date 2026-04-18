@@ -73,7 +73,8 @@ class AvailableCacheKeys(str, Enum):
 
     USERS_HAS_SEEN_POST_ON_A_DAY = "daily_post_views_set"
 
-    USERS_HAS_SEENN_STORY_ON_A_DAY = "daily_stories_views_set"
+    USERS_HAS_SEEN_STORY_ON_A_DAY = "daily_stories_views_set"
+
 
 
     ## Clés pour le OTP

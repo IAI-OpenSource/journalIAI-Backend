@@ -42,8 +42,9 @@ class Messages:
     DELETE_FAILED = "Erreur lors de la suppression"
     LOGIN_NOT_FOUND = "Utilisateur ou Mot de passe incorrect"
     USER_UPDATED = "Utilisateur mis à jour avec succès"
-
+    USER_CANNOT_INTERACT_WITH_POST = "Vous n'avez pas les droits pour interagir avec ce post"
     EVENT_SERVICE = "Service Events"
+    LIKE_SERVICE = "Like Service"
     EVENT_NOT_FOUND = "Event non trouvé."
     DELETED_EVENT = "Event est supprimé"
     EVENTS_NOT_FOUND = "Aucun event trouver" #Si il y a aucun event en cours 
@@ -65,7 +66,8 @@ class Messages:
     ERROR_MEDIA_UPLOAD_INTENT_NOT_FOUND = "Intent d'upload média expirée ou inexistant"
     ERROR_LAUNCHING_MEDIA_PROCESSING_TASK = "Erreur lors du lancement de la tâche de traitement des médias"
 
-    DELETED_USER = "Utilisateur déjà supprimé" 
+    LIKE_SAVED_SUCCESSFULLY = "Like enregistré avec succès"
+    LIKE_DELETE_SUCCESSFULLY = "Like supprimé avec succès"
     USER_FOUNDED = "Utilisateur récupérer avec succès !"
     
     ERROR_FILE_NOT_UPLOADED = "Le fichier {file_name} n'a pas été complètement uploadé ou est innacessible"

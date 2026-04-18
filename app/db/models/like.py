@@ -72,6 +72,6 @@ class Like(Base, IntegrityMapperMixin):
         FK_LIKES_POST: "Le post spécifié n'existe pas.",
         FK_LIKES_COMMENT: "Le commentaire spécifié n'existe pas.",
         CHK_LIKES_TARGET: "Un like doit cibler soit un post, soit un commentaire.",
-        UQ_LIKES_USER_POST: "Cet utilisateur a déjà liké ce post.",
-        UQ_LIKES_USER_COMMENT: "Cet utilisateur a déjà liké ce commentaire.",
+        UQ_LIKES_USER_POST: "Vous avez déjà liké ce post.",
+        UQ_LIKES_USER_COMMENT: "Vous avez déjà liké ce commentaire.",
     }

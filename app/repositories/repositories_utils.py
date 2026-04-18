@@ -1,5 +1,4 @@
 from logging import Logger
-import traceback
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
