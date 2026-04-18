@@ -173,7 +173,7 @@ class PostService:
 		)
 
 	@staticmethod
-	def _format_post_infos(post: Post, user_id: str) -> ReadPost:
+	def _format_post_infos(post: Post, user_id: str, has_liked_by_user: bool) -> ReadPost:
 		"""Formate les données d'un post model brut de la DB en le schéma réponse ReadPost"""
 		club_info: Optional[PostClubSchema] = None
 		event_info: Optional[PostEventSchema] = None
@@ -251,36 +251,52 @@ class PostService:
 			updated_at=post.updated_at,
 			comment_count=post.comment_count,
 			target_classe_info=classe_info,
+			user_has_liked=has_liked_by_user
 		)
 
 	async def service_get_post(
-		self, post_id: UUID, user_id: UUID, user_class_id: Optional[UUID] = None,
+		self, post_id: UUID, user_id: UUID, user_role: UserRole,
+		user_class_id: Optional[UUID] = None
 	) -> ServiceResult[ReadPost]:
 		"""Récupère un post par son ID avec ses médias."""
+
+
+
 		result = await self.post_repo.get_post_by_id(post_id=post_id)
 
 		if result.is_error():
 			logger.error("Erreur récupération post id=%s : %s", post_id, result.error)
-			return ServiceResult.service_error(
-				message=result.error,
-				status_code=result.status_code,
-				service_name=Messages.POST_SERVICE,
-			)
-		target_classe_id = result.data.target_classe_id
+			return result.to_service_error(service_name=Messages.POST_SERVICE)
 
-		if target_classe_id and user_class_id and target_classe_id != user_class_id:
+		verif_res = await PostService.verify_can_interract_with_post(
+			post_id=post_id, user_classe_id=user_class_id, bd_session=self.db, is_admin=user_role == UserRole.ADMIN,
+			post_object=result.data
+		)
+
+		if verif_res.is_error():
 			logger.warning(
 				"Accès non autorisé au post id=%s pour user_class_id=%s",
 				post_id,
 				user_class_id,
 			)
 			return ServiceResult.service_error(
-				message="Accès non autorisé à ce post",
-				status_code=403,
+				message=verif_res.error,
+				status_code=verif_res.status_code,
 				service_name=Messages.POST_SERVICE,
 			)
+		has_liked_result = await self.post_repo.verify_post_is_like_by_user(
+			post_id=post_id,
+			user_id=user_id,
+		)
 
-		post_read = self._format_post_infos(result.data, user_id=str(user_id))
+		if has_liked_result.is_error():
+			logger.warning(f"Erreur vérification like post id={post_id} user_id={user_id} : {has_liked_result.error}")
+
+		post_read = self._format_post_infos(
+			result.data, user_id=str(user_id),
+			has_liked_by_user=has_liked_result.data if has_liked_result.is_success() else False
+		)
+		
 		return ServiceResult.service_success(
 			data=post_read,
 			status_code=result.status_code,
@@ -292,6 +308,7 @@ class PostService:
 	async def service_get_feed(
 		self,
 		user_id: UUID,
+		exclude_viewed: bool,
 		cursor: str | None = None,
 		page_size: int = 20,
 		user_classe_id: Optional[UUID] = None,
@@ -307,12 +324,15 @@ class PostService:
 				status_code=current_academic_year_request.status_code,
 				service_name=Messages.POST_SERVICE,
 			)
+		seen_post_ids = []
 
-		seen_post_ids: List[UUID] = (
-				await self.feed_cache.get_daily_seen_post_ids(user_id=user_id) or []
-		)
+		if exclude_viewed:
+			seen_post_ids: List[UUID] = await self.feed_cache.get_daily_seen_post_ids(user_id=user_id) or []
+
 		userid_str = str(user_id)
+
 		s = time.perf_counter()
+
 		result = await self.post_repo.get_feed(
 			academic_year_id=current_academic_year_request.data.id,
 			seen_post_ids=seen_post_ids,
@@ -320,8 +340,10 @@ class PostService:
 			page_size=page_size,
 			user_id=user_id,
 			classe_id=user_classe_id,
+			must_exclude_viewed=exclude_viewed
 		)
-		logger.warning("Temps de réponse BD : %s secondes", time.perf_counter() - s)
+
+		logger.warning("Temps de réponse BD pour le feed : %s secondes", time.perf_counter() - s)
 
 		if result.is_error():
 			logger.error("Erreur récupération feed : %s", result.error)
@@ -330,12 +352,14 @@ class PostService:
 				status_code=result.status_code,
 				service_name=Messages.POST_SERVICE,
 			)
-		items = result.data["items"]
+		liked_set: set[UUID] = result.data.liked_in_feed
+		items = result.data.items
 		s = time.perf_counter()
+
 		feed = ReadPostList(
-			items=[self._format_post_infos(p, userid_str) for p in items],
-			next_cursor=result.data["next_cursor"],
-			has_more=result.data["has_more"],
+			items=[self._format_post_infos(p, userid_str, p.id in liked_set) for p in items],
+			next_cursor=result.data.next_cursor,
+			has_more=result.data.has_more,
 		)
 		logger.warning(
 			"Temps de génération de liens dynamiqye : %s secondes",
@@ -374,42 +398,50 @@ class PostService:
 		user_classe_id: Optional[UUID],
 		is_admin: bool,
 		bd_session: AsyncSession,
+		post_object: Optional[Post] = None,
 	) -> ServiceResult[str]:
 		"""
 		Vérifie si un utilisateur peut interragir avec un post, peut etre utilisé pour les actions de like, comment,
 		etc..
 		Args:
-			 bd_session:
-			 is_admin:
+		    bd_session:
+		    is_admin:
 			user_classe_id: Id de la classe de l'utilisateur courant
 			post_id: Id du post
+			post_object: Optionnellement, on peut fournir l'objet post déjà récupéré pour éviter une
+			 requete DB si on l'a déjà en main. Si None, la fonction va le récupérer elle même.
 
 		Returns:
-			ServiceResult[str]: Un ServiceResult contenant un booléen indiquant si l'utilisateur peut interagir avec
-			le post ou non
+			ServiceResult[str] : Un ServiceResult contenant un str, qui sert à rien, il faudra juste verifier
+			.is_error()
 		"""
-		post_repo = PostRepository(bd_session)
-		post_request = await post_repo.get_basic_info_on_post(post_id)
+		post = post_object
 
-		if post_request.is_error():
-			return ServiceResult.service_error(
-				message=post_request.error,
-				status_code=post_request.status_code,
-				service_name=Messages.POST_SERVICE,
-			)
+		if post is None:
+			post_repo = PostRepository(bd_session)
+			post_request = await post_repo.get_basic_info_on_post(post_id)
 
-		post = post_request.data
+			if post_request.is_error():
+				return ServiceResult.service_error(
+					message=post_request.error,
+					status_code=post_request.status_code,
+					service_name=Messages.POST_SERVICE,
+				)
+
+			post = post_request.data
+
+
 		post_classe_id = post.target_classe_id
 		if post.is_published and post_classe_id and post_classe_id != user_classe_id:
 			if not is_admin:
-				return ServiceResult.service_success(
-					data=Messages.USER_CANNOT_INTERACT_WITH_POST,
+				return ServiceResult.service_error(
+					message=Messages.USER_CANNOT_INTERACT_WITH_POST,
 					status_code=status.HTTP_403_FORBIDDEN,
 					service_name=Messages.POST_SERVICE,
 				)
 
 		return ServiceResult.service_success(
-			data="Ok",
+			data="Ok",          # Petit hacki
 			status_code=status.HTTP_200_OK,
 			service_name=Messages.POST_SERVICE,
 		)

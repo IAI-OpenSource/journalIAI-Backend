@@ -9,6 +9,7 @@ from uuid import UUID
 from pydantic import BaseModel, Field, field_validator
 
 from app.db.models.enums import MediaType, PostType, UserRole, ExecutiveRoleType, EventStatus, ClasseType
+from app.db.models.post import Post
 from app.schemas import ApiBaseResponse
 from app.storage.media_read_storage import MediaReadStorage
 
@@ -232,8 +233,7 @@ class ReadPost(BaseModel):
     event_id: Optional[UUID] = Field(None, description="Id du event du post")
     target_classe_id: Optional[UUID] = Field(None, description="Id de la classe auquelle le post est restreint")
     academic_year_id: Optional[UUID] = Field(None, description="Id de l'année académique à laquelle le post est restreint")
-
-
+    user_has_liked: bool = Field(description="Indique si l'utilisateur courant a déja liké le post ou pas")
     like_count: int = Field(description="Le nombre de lik sur le post")
     comment_count: int = Field(description="Le nombre de comments sur le post")
 
@@ -270,12 +270,19 @@ class ReadPostList(BaseModel):
     """Schéma de réponse paginée pour un feed de posts (cursor-based pagination).
     """
 
-    items: list[ReadPost] = Field(description="Posts de la page courante.")
+    items: list[ReadPost] = Field(description="Posts de la page courante.", default_factory=list)
     next_cursor: Optional[str] = Field(
         default=None,
         description="Curseur opaque à renvoyer pour obtenir la page suivante. NULL si dernière page.",
     )
     has_more: bool = Field(description="Indique s'il existe encore d'autres post, si c'est false c'est terminéééé")
+
+class BdFeedOutDto(BaseModel):
+    #{"items": items, "next_cursor": next_cursor, "has_more": has_more, "liked_in_feed": liked_in_feed},
+    items: list[Post] = Field(default_factory=list)
+    next_cursor: Optional[str] = None
+    has_more: bool
+    liked_in_feed: set[UUID] = Field(default_factory=set)
 
 
 # Réponses API enveloppées dans ApiBaseResponsez

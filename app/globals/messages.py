@@ -66,7 +66,8 @@ class Messages:
     ERROR_MEDIA_UPLOAD_INTENT_NOT_FOUND = "Intent d'upload média expirée ou inexistant"
     ERROR_LAUNCHING_MEDIA_PROCESSING_TASK = "Erreur lors du lancement de la tâche de traitement des médias"
 
-    DELETED_USER = "Utilisateur déjà supprimé" 
+    LIKE_SAVED_SUCCESSFULLY = "Like enregistré avec succès"
+    LIKE_DELETE_SUCCESSFULLY = "Like supprimé avec succès"
     USER_FOUNDED = "Utilisateur récupérer avec succès !"
     
     ERROR_FILE_NOT_UPLOADED = "Le fichier {file_name} n'a pas été complètement uploadé ou est innacessible"

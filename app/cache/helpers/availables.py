@@ -71,14 +71,10 @@ class AvailableCacheKeys(str, Enum):
 
     USER_DAILY_STORY_SEEN = BaseCacheEntity.USER + ":daily_seen_stories"
 
-    USER_DAILY_POST_LIKED = BaseCacheEntity.USER + ":daily_liked_posts"  # Clé pour les posts likés par un utilisateur (
-    # pour le suivi de la lecture du feed)
-
     USERS_HAS_SEEN_POST_ON_A_DAY = "daily_post_views_set"
 
     USERS_HAS_SEEN_STORY_ON_A_DAY = "daily_stories_views_set"
 
-    USERS_HAS_LIKED_POST_ON_A_DAY = "daily_stories_views_set"
 
 
     ## Clés pour le OTP

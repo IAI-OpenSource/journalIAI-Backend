@@ -19,7 +19,7 @@ class GlobalStringMessage(ApiBaseResponse):
   pas de données spécifiques mais juste un message de succès
   """
 
-  result: Optional[StringMessage]
+  result: Optional[StringMessage] = Field(default=None, description="nsm")
 
 
 class SendOTPEmail(BaseModel):
