@@ -250,11 +250,10 @@ class ClubMemberService:
         )
 
     async def service_update_member_role(
-        self, club_id: UUID, member_id: UUID, data: ClubMemberUpdate  # FIX: club_id ajouté
+        self, club_id: UUID, member_id: UUID, data: ClubMemberUpdate
     ) -> ServiceResult[ClubMemberRead]:
         """Met à jour le rôle d'un membre et invalide tous ses caches."""
 
-        # FIX: club_id vient du router — plus besoin de fetch préalable juste pour l'avoir
         updated = await self.member_repo.update_member_role(member_id=member_id, data=data)
 
         if updated.is_error():
@@ -276,11 +275,10 @@ class ClubMemberService:
         )
 
     async def service_remove_member(
-        self, club_id: UUID, member_id: UUID  # FIX: club_id ajouté
-    ) -> ServiceResult[Any] | ServiceResult[dict[str, str]]:
-        """Supprime (soft delete) un membre et invalide tous ses caches."""
+        self, club_id: UUID, member_id: UUID
+    ) -> ServiceResult[Any]:
+        """Supprime (soft delete) un membre par son member_id — réservé aux admins."""
 
-        # FIX: club_id vient du router — plus besoin de fetch préalable juste pour l'avoir
         deleted = await self.member_repo.soft_delete_member(member_id=member_id)
 
         if deleted.is_error():
@@ -292,7 +290,45 @@ class ClubMemberService:
 
         await self._invalidate_member_caches(member_id=member_id, club_id=club_id)
 
-        logger.info(f"Membre {member_id} supprimé du club {club_id} avec succès")
+        logger.info(f"Membre {member_id} retiré du club {club_id} avec succès")
+        return ServiceResult.service_success(
+            data={"message": msg.MEMBER_DELETE_SUCCESS},
+            status_code=200,
+            service_name=msg.CLUB_MEMBER_SERVICE
+        )
+
+    async def service_leave_club(
+        self, club_id: UUID, user_id: UUID
+    ) -> ServiceResult[Any]:
+        """Permet à un utilisateur de se retirer lui-même d'un club via son user_id."""
+
+        # 1. Vérifier que l'utilisateur est bien membre du club
+        existing = await self.member_repo.get_member_by_club_and_user(
+            club_id=club_id, user_id=user_id
+        )
+        if existing.is_error():
+            return ServiceResult.service_error(
+                message=existing.error,
+                status_code=existing.status_code,
+                service_name=msg.CLUB_MEMBER_SERVICE
+            )
+
+        member_id = existing.data.id
+
+        # 2. Soft delete
+        deleted = await self.member_repo.soft_delete_member(member_id=member_id)
+
+        if deleted.is_error():
+            return ServiceResult.service_error(
+                message=msg.DELETE_FAILED,
+                status_code=deleted.status_code,
+                service_name=msg.CLUB_MEMBER_SERVICE
+            )
+
+        # 3. Invalider les caches
+        await self._invalidate_member_caches(member_id=member_id, club_id=club_id)
+
+        logger.info(f"Utilisateur {user_id} a quitté le club {club_id} avec succès")
         return ServiceResult.service_success(
             data={"message": msg.MEMBER_DELETE_SUCCESS},
             status_code=200,
