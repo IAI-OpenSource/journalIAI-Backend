@@ -1,9 +1,11 @@
 from fastapi import APIRouter, Depends, Response, Query, Path
 
+from app.auth.dependencies import get_current_user
 from app.auth.role_depends import RoleDepends
 from app.cache.helpers.base import get_redis, CacheWrapper
 from app.globals.api_tags import ApiTags
 from app.schemas.global_schemas import GlobalStringMessage
+from app.schemas.user_schemas import ReadUser
 from app.services.club_member_service import ClubMemberService
 from app.schemas.club_member_schema import (
     ClubMemberCreate,
@@ -18,11 +20,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
 from typing import Any, Annotated, Optional
 
-routeur = APIRouter(prefix="/clubs/{club_id}/members", tags=[ApiTags.CLUB_MEMBER], dependencies=[Depends(RoleDepends.all_authorize)])
+routeur = APIRouter(
+    prefix="/clubs/{club_id}/members",
+    tags=[ApiTags.CLUB_MEMBER],
+    dependencies=[Depends(RoleDepends.all_authorize)]
+)
 
 
-# IMPORTANT : les routes statiques (/paginated, /role) doivent être déclarées
+# IMPORTANT : les routes statiques (/paginated, /role, /me) doivent être déclarées
 # AVANT les routes dynamiques (/{member_id}) pour éviter les conflits FastAPI
+
 
 def get_club_member_service(
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -30,16 +37,21 @@ def get_club_member_service(
 ) -> ClubMemberService:
     return ClubMemberService(db, redis)
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Lecture
+# ─────────────────────────────────────────────────────────────────────────────
+
 @routeur.get(
     "/",
     name="Récupérer tous les membres d'un club",
     response_model=ApiClubMemberListResponse,
-    deprecated=True
+    deprecated=True,
 )
 async def get_members_by_club(
     club_id: Annotated[UUID, Path(description="L'identifiant du club")],
     reponse: Response,
-    service: Annotated[ClubMemberService, Depends(get_club_member_service)]
+    service: Annotated[ClubMemberService, Depends(get_club_member_service)],
 ) -> Any:
     """Endpoint pour récupérer tous les membres actifs d'un club."""
     result = await service.service_get_members_by_club(club_id=club_id)
@@ -81,7 +93,7 @@ async def get_members_by_role(
     club_id: Annotated[UUID, Path(description="L'identifiant du club")],
     role: Annotated[ClubMembersType, Path(description="Le rôle par lequel filtrer les membres")],
     reponse: Response,
-    service: Annotated[ClubMemberService, Depends(get_club_member_service)]
+    service: Annotated[ClubMemberService, Depends(get_club_member_service)],
 ) -> Any:
     """Endpoint pour récupérer les membres d'un club en filtrant par rôle."""
     result = await service.service_get_members_by_role(club_id=club_id, role=role)
@@ -96,13 +108,16 @@ async def get_members_by_role(
 async def get_member_by_id(
     member_id: Annotated[UUID, Path(description="L'identifiant du membre à récupérer")],
     reponse: Response,
-    service: Annotated[ClubMemberService, Depends(get_club_member_service)]
-
+    service: Annotated[ClubMemberService, Depends(get_club_member_service)],
 ) -> Any:
     """Endpoint pour récupérer un membre par son ID."""
     result = await service.service_get_member_by_id(member_id=member_id)
     return result.to_HTTP_api_base_response(reponse)
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Mutations
+# ─────────────────────────────────────────────────────────────────────────────
 
 @routeur.post(
     "/",
@@ -114,12 +129,29 @@ async def add_member(
     club_id: Annotated[UUID, Path(description="L'identifiant du club")],
     payload: ClubMemberCreate,
     reponse: Response,
-    service: Annotated[ClubMemberService, Depends(get_club_member_service)]
+    service: Annotated[ClubMemberService, Depends(get_club_member_service)],
 ) -> Any:
     """Endpoint pour ajouter un membre à un club.
     Le club_id est toujours celui de l'URL — le champ éventuel dans le body est ignoré."""
     payload = payload.model_copy(update={"club_id": club_id})
     result = await service.service_add_member(member_data=payload)
+    return result.to_HTTP_api_base_response(reponse)
+
+
+@routeur.delete(
+    "/me",
+    name="Quitter un club",
+    response_model=GlobalStringMessage,
+)
+async def leave_club(
+    club_id: Annotated[UUID, Path(description="L'identifiant du club à quitter")],
+    reponse: Response,
+    service: Annotated[ClubMemberService, Depends(get_club_member_service)],
+    current_user: Annotated[ReadUser, Depends(get_current_user)],
+) -> Any:
+    """Endpoint pour qu'un membre se retire lui-même d'un club.
+    L'identité est tirée du token — aucun ID à fournir dans l'URL."""
+    result = await service.service_leave_club(club_id=club_id, user_id=current_user.id)
     return result.to_HTTP_api_base_response(reponse)
 
 
@@ -133,7 +165,7 @@ async def update_member_role(
     member_id: Annotated[UUID, Path(description="L'identifiant du membre à mettre à jour")],
     payload: ClubMemberUpdate,
     reponse: Response,
-    service: Annotated[ClubMemberService, Depends(get_club_member_service)]
+    service: Annotated[ClubMemberService, Depends(get_club_member_service)],
 ) -> Any:
     """Endpoint pour mettre à jour le rôle d'un membre dans un club."""
     result = await service.service_update_member_role(club_id=club_id, member_id=member_id, data=payload)
@@ -149,8 +181,8 @@ async def remove_member(
     club_id: Annotated[UUID, Path(description="L'identifiant du club")],
     member_id: Annotated[UUID, Path(description="L'identifiant du membre à retirer")],
     reponse: Response,
-    service: Annotated[ClubMemberService, Depends(get_club_member_service)]
+    service: Annotated[ClubMemberService, Depends(get_club_member_service)],
 ) -> Any:
-    """Endpoint pour retirer un membre d'un club (soft delete)."""
+    """Endpoint pour retirer un membre d'un club (soft delete) — réservé aux admins."""
     result = await service.service_remove_member(club_id=club_id, member_id=member_id)
     return result.to_HTTP_api_base_response(reponse)
