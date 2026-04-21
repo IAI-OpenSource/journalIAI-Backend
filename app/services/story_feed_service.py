@@ -37,7 +37,7 @@ class StoryFeedService:
     def __init__(self, db: AsyncSession, cache: CacheWrapper):
         self._db = db
         self._cache = cache
-        self.story_repo = StoryRepository(self.db)
+        self.story_repo = StoryRepository(db)
         self.story_cache = StoryCache(cache)
 
     @staticmethod

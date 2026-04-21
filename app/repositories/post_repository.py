@@ -39,7 +39,7 @@ class PostRepository:
     @staticmethod
     def _get_posts_base_query(
         filter_deleted_media: bool = True,
-    ) -> Select:
+    ) -> Select[tuple[Post]]:
         """
         Squelette de base pour récupérer unr requete qui recup des posts avec toutes leurs infos utiles.
 
